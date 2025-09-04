@@ -1,5 +1,5 @@
 # Usar uma imagem oficial do Python como base
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # Definir o diretório de trabalho dentro do container
 WORKDIR /app
@@ -13,6 +13,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar todo o resto do código do projeto para o diretório de trabalho
 COPY . .
 
-# Comando para inicializar o banco de dados (será executado manualmente na primeira vez)
-# E o comando para rodar a aplicação, expondo na rede interna do container
-CMD ["flask", "run", "--host=0.0.0.0"]
+# Expor a porta que o Flask vai usar
+EXPOSE 5000
+
+# Comando para rodar a aplicação em modo de produção
+# Gunicorn é um servidor web WSGI mais robusto que o servidor de desenvolvimento do Flask.
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
