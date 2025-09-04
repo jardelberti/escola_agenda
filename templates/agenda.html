@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Agenda de {{ resource.name }}{% endblock %}
+{% block content %}
+    <h3 class="mb-2"><a href="{{ url_for('select_shift', resource_id=resource.id) }}" class="text-decoration-none">←</a> {{ resource.name }}</h3>
+    <div class="card mb-3">
+        <div class="card-body text-center">
+            Turno: <strong>{{ shift.capitalize() }}</strong>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded shadow-sm">
+        <a href="{{ url_for('agenda_view', resource_id=resource.id, shift=shift, date_str=prev_day_str) }}" class="btn btn-outline-primary">← Dia Anterior</a>
+        <h4 class="mb-0">{{ current_date.strftime('%d / %m / %Y') }}</h4>
+        <a href="{{ url_for('agenda_view', resource_id=resource.id, shift=shift, date_str=next_day_str) }}" class="btn btn-outline-primary">Próximo Dia →</a>
+    </div>
+    <table class="table table-bordered text-center table-hover">
+        <tbody class="align-middle">
+            {% if slots %}
+                {% for slot in slots %}
+                    <tr>
+                        <th class="w-25 bg-light">{{ slot.name }}</th>
+                        <td>
+                            {% set booking = booked_slots.get(slot.name) %}
+                            {% if booking %}
+                                <div class="d-flex justify-content-center align-items-center">
+                                    {% if booking.status == 'closed' %}
+                                        <span class="badge bg-dark fs-6">FECHADO</span>
+                                    {% else %}
+                                        <strong class="me-3">{{ booking.teacher_name }}</strong>
+                                    {% endif %}
+                                    
+                                    {% if current_user.is_authenticated %}
+                                        <a href="{{ url_for('delete_booking', booking_id=booking.id, shift=shift) }}" class="btn btn-outline-danger btn-sm" title="Excluir Agendamento">&times;</a>
+                                    {% endif %}
+                                </div>
+                            {% elif slot.type == 'intervalo' %}
+                                ---
+                            {% else %}
+                                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#bookingModal" data-slot-name="{{ slot.name }}">
+                                    Agendar
+                                </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="2" class="text-muted p-4">A estrutura de horários para este turno ainda não foi definida pelo administrador.</td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+
+<!-- Modal de Agendamento -->
+<div class="modal fade" id="bookingModal" tabindex="-1" aria-labelledby="bookingModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="bookingModalLabel">Confirmar Agendamento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="POST" action="{{ url_for('book_slot') }}">
+        <div class="modal-body">
+            <p><strong>Recurso:</strong> {{ resource.name }}</p>
+            <p><strong>Data:</strong> {{ current_date.strftime('%d/%m/%Y') }}</p>
+            <p><strong>Horário:</strong> <strong id="modalSlotName" class="text-primary"></strong></p>
+            
+            <!-- Campos ocultos que enviam os dados -->
+            <input type="hidden" name="resource_id" value="{{ resource.id }}">
+            <input type="hidden" name="date" value="{{ current_date.strftime('%Y-%m-%d') }}">
+            <input type="hidden" name="shift" value="{{ shift }}">
+            <input type="hidden" name="slot_name" id="modalSlotNameInput">
+            
+            <div class="mb-3">
+              <label for="teacher_name" class="form-label">Seu Nome:</label>
+              <input type="text" class="form-control" id="teacher_name" name="teacher_name" required autocomplete="off">
+            </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Confirmar Agendamento</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+    // Este script garante que o modal saiba qual horário está sendo agendado
+    const bookingModal = document.getElementById('bookingModal');
+    if (bookingModal) {
+        bookingModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const slotName = button.getAttribute('data-slot-name');
+
+            const modalSlotName = bookingModal.querySelector('#modalSlotName');
+            const modalSlotNameInput = bookingModal.querySelector('#modalSlotNameInput');
+
+            modalSlotName.textContent = slotName;
+            modalSlotNameInput.value = slotName;
+
+            // Foca no campo de nome quando o modal abre
+            const teacherNameInput = bookingModal.querySelector('#teacher_name');
+            setTimeout(() => teacherNameInput.focus(), 500);
+        });
+    }
+</script>
+{% endblock %}

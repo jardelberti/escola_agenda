@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Gerenciar Horários{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Gerenciar Horários dos Turnos</h2>
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Voltar ao Painel</a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="row">
+    <!-- Formulário do Turno Matutino -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header"><h3>Turno Matutino</h3></div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('manage_schedules') }}">
+                    <input type="hidden" name="shift" value="matutino">
+                    <div id="matutino-slots-container">
+                        {% if matutino_schedule and matutino_schedule.slots %}
+                            {% for slot in matutino_schedule.slots %}
+                                {% include 'slot_row.html' with context %}
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                    <button type="button" class="btn btn-outline-primary mt-2" onclick="addSlot('matutino')">Adicionar Horário</button>
+                    <hr>
+                    <button type="submit" class="btn btn-success">Salvar Horários do Matutino</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulário do Turno Vespertino -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header"><h3>Turno Vespertino</h3></div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('manage_schedules') }}">
+                    <input type="hidden" name="shift" value="vespertino">
+                    <div id="vespertino-slots-container">
+                        {% if vespertino_schedule and vespertino_schedule.slots %}
+                            {% for slot in vespertino_schedule.slots %}
+                                {% include 'slot_row.html' with context %}
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                    <button type="button" class="btn btn-outline-primary mt-2" onclick="addSlot('vespertino')">Adicionar Horário</button>
+                    <hr>
+                    <button type="submit" class="btn btn-success">Salvar Horários do Vespertino</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Template de Slot (oculto) -->
+<div id="slot-template" class="d-none">
+    {% set slot = {'name':'', 'type':'aula', 'start_time':'', 'end_time':''} %}
+    {% include 'slot_row.html' %}
+</div>
+
+<script>
+    function addSlot(shift) {
+        const container = document.getElementById(`${shift}-slots-container`);
+        const template = document.getElementById('slot-template').firstElementChild.cloneNode(true);
+        container.appendChild(template);
+    }
+
+    function removeSlot(button) {
+        button.closest('.slot-row').remove();
+    }
+</script>
+{% endblock %}

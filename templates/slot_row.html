@@ -1,0 +1,14 @@
+<div class="row gx-2 mb-2 align-items-center slot-row">
+    <div class="col">
+        <input type="text" class="form-control" name="slot_name" placeholder="Nome (Ex: 1ª aula)" value="{{ slot.name }}" required>
+    </div>
+    <div class="col">
+        <select name="slot_type" class="form-select">
+            <option value="aula" {% if slot.type == 'aula' %}selected{% endif %}>Aula</option>
+            <option value="intervalo" {% if slot.type == 'intervalo' %}selected{% endif %}>Intervalo</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <button type="button" class="btn btn-danger" onclick="removeSlot(this)">Remover</button>
+    </div>
+</div>

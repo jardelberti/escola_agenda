@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Painel do Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Painel do Administrador</h2>
+    <div>
+        <a href="{{ url_for('index') }}" class="btn btn-primary me-2">Ver Agendas</a>
+        <a href="{{ url_for('change_password') }}" class="btn btn-outline-secondary me-2">Alterar Senha</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-secondary">Sair</a>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="row gy-4">
+    <!-- Coluna da Esquerda (Ações) -->
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header"><h4>Adicionar Novo Recurso</h4></div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('add_resource') }}">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Nome do Recurso</label>
+                        <input type="text" class="form-control" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Descrição (Opcional)</label>
+                        <input type="text" class="form-control" name="description">
+                    </div>
+                    <div class="mb-3">
+                        <label for="icon" class="form-label">Ícone</label>
+                        <input type="text" class="form-control" name="icon" placeholder="Ex: bi-projector-fill">
+                        <div class="form-text">
+                            Copie o nome da classe da <a href="https://icons.getbootstrap.com/" target="_blank">Biblioteca de Ícones</a>.
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Adicionar Recurso</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header"><h4>Configurar Horários</h4></div>
+            <div class="card-body">
+                <p class="card-text">Defina os horários das aulas e intervalos para os turnos.</p>
+                <a href="{{ url_for('manage_schedules') }}" class="btn btn-info">Gerenciar Horários</a>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header"><h4>Relatórios de Uso</h4></div>
+            <div class="card-body">
+                <p class="card-text">Gere relatórios de utilização dos recursos por professor.</p>
+                <a href="{{ url_for('reports') }}" class="btn btn-success">Gerar Relatórios</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Coluna da Direita (Lista de Recursos) -->
+    <div class="col-md-8">
+        <h4>Recursos Cadastrados</h4>
+        <ul class="list-group">
+            {% for resource in resources %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <strong><i class="{{ resource.icon or 'bi-box' }} me-2"></i>{{ resource.name }}</strong><br>
+                    <small class="text-muted">{{ resource.description or '' }}</small>
+                </div>
+                <div class="d-flex">
+                    <button type="button" class="btn btn-warning btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editResourceModal" 
+                            data-resource-id="{{ resource.id }}"
+                            data-resource-name="{{ resource.name }}"
+                            data-resource-description="{{ resource.description or '' }}"
+                            data-resource-icon="{{ resource.icon or '' }}">
+                        Editar
+                    </button>
+                    <a href="{{ url_for('delete_resource', resource_id=resource.id) }}" class="btn btn-danger btn-sm">Excluir</a>
+                </div>
+            </li>
+            {% else %}
+            <li class="list-group-item">Nenhum recurso cadastrado.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<!-- Modal de Edição -->
+<div class="modal fade" id="editResourceModal" tabindex="-1" aria-labelledby="editResourceModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editResourceModalLabel">Editar Recurso</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editResourceForm" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_name" class="form-label">Nome do Recurso</label>
+                        <input type="text" class="form-control" id="edit_name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_description" class="form-label">Descrição (Opcional)</label>
+                        <input type="text" class="form-control" id="edit_description" name="description">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_icon" class="form-label">Ícone</label>
+                        <input type="text" class="form-control" id="edit_icon" name="icon">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    const editResourceModal = document.getElementById('editResourceModal');
+    if (editResourceModal) {
+        editResourceModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const resourceId = button.getAttribute('data-resource-id');
+            const resourceName = button.getAttribute('data-resource-name');
+            const resourceDescription = button.getAttribute('data-resource-description');
+            const resourceIcon = button.getAttribute('data-resource-icon');
+            
+            const modalForm = editResourceModal.querySelector('#editResourceForm');
+            const modalTitle = editResourceModal.querySelector('.modal-title');
+            
+            modalTitle.textContent = `Editar Recurso: ${resourceName}`;
+            modalForm.action = `/admin/resource/edit/${resourceId}`;
+            modalForm.querySelector('#edit_name').value = resourceName;
+            modalForm.querySelector('#edit_description').value = resourceDescription;
+            modalForm.querySelector('#edit_icon').value = resourceIcon;
+        });
+    }
+</script>
+{% endblock %}
+
