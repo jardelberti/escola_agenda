@@ -78,7 +78,8 @@ def logout():
 @app.route('/home')
 @login_required
 def home():
-    # Removido o redirecionamento automático para o admin.
+    # CORREÇÃO: Removido o redirecionamento automático que causava o loop.
+    # Agora a página de recursos é a 'home' para todos os usuários logados.
     resources = Resource.query.order_by(Resource.name).all()
     return render_template('index.html', resources=resources)
 
@@ -98,11 +99,13 @@ def agenda_view(resource_id, shift, date_str=None):
     resource = Resource.query.get_or_404(resource_id)
     schedule_template = ScheduleTemplate.query.filter_by(shift=shift, resource_id=resource_id).first()
     slots = schedule_template.slots if schedule_template else []
-    bookings = Booking.query.filter_by(resource_id=resource_id, date=current_date).all()
+    
+    bookings = Booking.query.filter_by(resource_id=resource_id, date=current_date, shift=shift).all()
     booked_slots = {booking.slot_name: booking for booking in bookings}
+    
     return render_template('agenda.html', resource=resource, shift=shift, current_date=current_date,
                            next_day_str=(current_date + timedelta(days=1)).strftime('%Y-%m-%d'),
-                           prev_day_str=(current_date - timedelta(days=-1)).strftime('%Y-%m-%d'),
+                           prev_day_str=(current_date - timedelta(days=1)).strftime('%Y-%m-%d'),
                            slots=slots, booked_slots=booked_slots)
 
 @app.route('/agenda/book', methods=['POST'])
@@ -111,13 +114,14 @@ def book_slot():
     resource_id, date_str = request.form.get('resource_id'), request.form.get('date')
     slot_name, shift = request.form.get('slot_name'), request.form.get('shift')
     
-    if Booking.query.filter_by(resource_id=resource_id, date=datetime.strptime(date_str, '%Y-%m-%d').date(), slot_name=slot_name).first():
+    if Booking.query.filter_by(resource_id=resource_id, date=datetime.strptime(date_str, '%Y-%m-%d').date(), slot_name=slot_name, shift=shift).first():
         flash('Este horário foi agendado por outra pessoa.', 'warning')
     else:
         new_booking = Booking(
             resource_id=int(resource_id),
             date=datetime.strptime(date_str, '%Y-%m-%d').date(),
             slot_name=slot_name,
+            shift=shift,
             teacher_id=current_user.id,
             teacher_name=current_user.name
         )
@@ -126,26 +130,23 @@ def book_slot():
         flash('Horário agendado com sucesso!', 'success')
     return redirect(url_for('agenda_view', resource_id=resource_id, shift=shift, date_str=date_str))
 
-# NOVA ROTA PARA O ADMIN FECHAR UM HORÁRIO
 @app.route('/agenda/close', methods=['POST'])
 @admin_required
 def close_slot():
-    resource_id = request.form.get('resource_id')
-    date_str = request.form.get('date')
-    slot_name = request.form.get('slot_name')
-    shift = request.form.get('shift')
-
+    resource_id, date_str = request.form.get('resource_id'), request.form.get('date')
+    slot_name, shift = request.form.get('slot_name'), request.form.get('shift')
     booking_date = datetime.strptime(date_str, '%Y-%m-%d').date()
 
-    if Booking.query.filter_by(resource_id=resource_id, date=booking_date, slot_name=slot_name).first():
+    if Booking.query.filter_by(resource_id=resource_id, date=booking_date, slot_name=slot_name, shift=shift).first():
         flash('Este horário foi agendado ou fechado por outra pessoa.', 'warning')
     else:
         new_booking = Booking(
             resource_id=int(resource_id),
             date=booking_date,
             slot_name=slot_name,
-            teacher_id=current_user.id, # Registra qual admin fechou
-            teacher_name="Fechado",      # Texto que será exibido
+            shift=shift,
+            teacher_id=current_user.id,
+            teacher_name="Fechado",
             status='closed'
         )
         db.session.add(new_booking)
@@ -168,7 +169,6 @@ def delete_booking(booking_id):
         flash('Você não tem permissão para remover este agendamento.', 'danger')
         
     return redirect(url_for('agenda_view', resource_id=resource_id, shift=shift, date_str=date_str))
-
 
 # --- ROTAS DE ADMINISTRAÇÃO ---
 

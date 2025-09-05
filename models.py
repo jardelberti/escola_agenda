@@ -34,6 +34,7 @@ class Booking(db.Model):
     teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'), nullable=False)
     teacher_name = db.Column(db.String(150), nullable=False)
     date = db.Column(db.Date, nullable=False)
+    shift = db.Column(db.String(50), nullable=False) # <-- COLUNA ADICIONADA
     slot_name = db.Column(db.String(100), nullable=False)
     status = db.Column(db.String(50), nullable=False, default='booked') # 'booked' ou 'closed'
 
