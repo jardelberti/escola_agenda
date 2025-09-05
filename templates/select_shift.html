@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Selecionar Turno para {{ resource.name }}{% endblock %}
 {% block content %}
-    <h1 class="mb-3"><a href="{{ url_for('index') }}" class="text-decoration-none">←</a> {{ resource.name }}</h1>
+    <!-- CORREÇÃO AQUI: 'index' mudou para 'home' -->
+    <h1 class="mb-3"><a href="{{ url_for('home') }}" class="text-decoration-none">←</a> {{ resource.name }}</h1>
     <h3 class="mb-4">Selecione o turno para visualizar a agenda:</h3>
     <div class="d-grid gap-3 col-lg-6 col-md-8 mx-auto">
         {% if has_matutino %}
@@ -15,7 +16,7 @@
         </a>
         {% endif %}
         {% if not has_matutino and not has_vespertino %}
-        <div class="alert alert-warning">Nenhum horário (matutino/vespertino) foi configurado pelo administrador.</div>
+        <div class="alert alert-warning">Nenhum horário (matutino/vespertino) foi configurado pelo administrador para este recurso.</div>
         {% endif %}
     </div>
 {% endblock %}

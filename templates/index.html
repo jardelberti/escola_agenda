@@ -1,60 +1,46 @@
 {% extends "base.html" %}
 
-{% block title %}Agendamento de Recursos{% endblock %}
+{% block title %}Recursos Disponíveis{% endblock %}
 
 {% block content %}
-    <div class="text-center mb-5">
-        <h1 class="display-4">Sistema de Agendamento</h1>
-        <p class="lead text-muted">Para começar, clique no recurso que deseja reservar.</p>
+<div class="px-4 py-5 my-5 text-center">
+    <h1 class="display-5 fw-bold">Agenda de Recursos</h1>
+    <div class="col-lg-6 mx-auto">
+        <p class="lead mb-4">Selecione uma sala ou equipamento abaixo para visualizar a agenda e realizar seu agendamento.</p>
     </div>
+</div>
 
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-        {% for resource in resources %}
-        <div class="col">
-            <a href="{{ url_for('select_shift', resource_id=resource.id) }}" class="text-decoration-none">
-                <div class="card h-100 text-center shadow-sm card-hover">
-                    <div class="card-body p-4">
-                        <!-- Ícone do recurso com maior destaque -->
-                        <div class="mb-3">
-                            <i class="{{ resource.icon or 'bi-box' }} display-3 text-primary"></i>
-                        </div>
-                        <h5 class="card-title mb-1">{{ resource.name }}</h5>
-                        {% if resource.description %}
-                        <p class="card-text text-muted small">{{ resource.description }}</p>
-                        {% endif %}
-                    </div>
-                    <div class="card-footer bg-primary text-white">
-                        <strong>Ver Agenda</strong>
-                    </div>
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+    {% for resource in resources %}
+    <div class="col">
+        <a href="{{ url_for('select_shift', resource_id=resource.id) }}" class="text-decoration-none">
+            <div class="card h-100 shadow-sm card-hover">
+                <div class="card-body text-center">
+                    <h1 class="display-3"><i class="{{ resource.icon or 'bi-box' }}"></i></h1>
+                    <h4 class="card-title mt-3">{{ resource.name }}</h4>
+                    <p class="card-text text-muted">{{ resource.description or ' ' }}</p>
                 </div>
-            </a>
-        </div>
-        {% else %}
-        <div class="col-12">
-            <div class="alert alert-warning text-center">
-                <h4 class="alert-heading">Nenhum Recurso Disponível</h4>
-                <p>O administrador ainda não cadastrou nenhuma sala ou equipamento.</p>
+                <div class="card-footer text-center bg-primary text-white">
+                    <strong>Ver Agenda</strong>
+                </div>
             </div>
-        </div>
-        {% endfor %}
+        </a>
     </div>
+    {% else %}
+    <div class="col-12">
+        <div class="alert alert-warning text-center">
+            Nenhum recurso foi cadastrado pelo administrador no momento.
+        </div>
+    </div>
+    {% endfor %}
+</div>
 
-    <footer class="text-center mt-5 pt-3 border-top">
-        <p class="text-muted small">
-            <a href="{{ url_for('login') }}" class="text-decoration-none text-muted">Acesso Administrativo</a>
-        </p>
-    </footer>
-
-    <style>
-        .card-hover:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
-            transition: all 0.2s ease-in-out;
-        }
-        .card .card-footer {
-            border-bottom-left-radius: var(--bs-card-inner-border-radius);
-            border-bottom-right-radius: var(--bs-card-inner-border-radius);
-        }
-    </style>
+<style>
+    .card-hover:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 20px rgba(0,0,0,.12) !important;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+</style>
 {% endblock %}
 

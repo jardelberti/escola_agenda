@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Gerenciar Horários{% endblock %}
+{% block title %}Horários de {{ resource.name }}{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Gerenciar Horários dos Turnos</h2>
+    <h2>Gerenciar Horários de: <span class="text-primary">{{ resource.name }}</span></h2>
     <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Voltar ao Painel</a>
 </div>
 
@@ -22,7 +22,7 @@
         <div class="card">
             <div class="card-header"><h3>Turno Matutino</h3></div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('manage_schedules') }}">
+                <form method="POST" action="{{ url_for('manage_schedules', resource_id=resource.id) }}">
                     <input type="hidden" name="shift" value="matutino">
                     <div id="matutino-slots-container">
                         {% if matutino_schedule and matutino_schedule.slots %}
@@ -44,7 +44,7 @@
         <div class="card">
             <div class="card-header"><h3>Turno Vespertino</h3></div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('manage_schedules') }}">
+                <form method="POST" action="{{ url_for('manage_schedules', resource_id=resource.id) }}">
                     <input type="hidden" name="shift" value="vespertino">
                     <div id="vespertino-slots-container">
                         {% if vespertino_schedule and vespertino_schedule.slots %}
@@ -64,7 +64,7 @@
 
 <!-- Template de Slot (oculto) -->
 <div id="slot-template" class="d-none">
-    {% set slot = {'name':'', 'type':'aula', 'start_time':'', 'end_time':''} %}
+    {% set slot = {'name':'', 'type':'aula'} %}
     {% include 'slot_row.html' %}
 </div>
 
@@ -80,3 +80,4 @@
     }
 </script>
 {% endblock %}
+

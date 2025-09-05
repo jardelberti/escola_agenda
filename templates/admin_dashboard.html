@@ -6,8 +6,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Painel do Administrador</h2>
     <div>
-        <a href="{{ url_for('index') }}" class="btn btn-primary me-2">Ver Agendas</a>
-        <a href="{{ url_for('change_password') }}" class="btn btn-outline-secondary me-2">Alterar Senha</a>
+        <a href="{{ url_for('home') }}" class="btn btn-primary me-2">Ver Agendas</a>
         <a href="{{ url_for('logout') }}" class="btn btn-secondary">Sair</a>
     </div>
 </div>
@@ -51,18 +50,18 @@
         </div>
 
         <div class="card mb-4">
-            <div class="card-header"><h4>Configurar Horários</h4></div>
-            <div class="card-body">
-                <p class="card-text">Defina os horários das aulas e intervalos para os turnos.</p>
-                <a href="{{ url_for('manage_schedules') }}" class="btn btn-info">Gerenciar Horários</a>
-            </div>
-        </div>
-        
-        <div class="card">
             <div class="card-header"><h4>Relatórios de Uso</h4></div>
             <div class="card-body">
                 <p class="card-text">Gere relatórios de utilização dos recursos por professor.</p>
                 <a href="{{ url_for('reports') }}" class="btn btn-success">Gerar Relatórios</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h4>Gerenciar Usuários</h4></div>
+            <div class="card-body">
+                <p class="card-text">Cadastre e gerencie os professores e administradores.</p>
+                <a href="{{ url_for('manage_teachers') }}" class="btn btn-warning">Gerenciar Usuários</a>
             </div>
         </div>
     </div>
@@ -77,7 +76,8 @@
                     <strong><i class="{{ resource.icon or 'bi-box' }} me-2"></i>{{ resource.name }}</strong><br>
                     <small class="text-muted">{{ resource.description or '' }}</small>
                 </div>
-                <div class="d-flex">
+                <div class="d-flex align-items-center">
+                    <a href="{{ url_for('manage_schedules', resource_id=resource.id) }}" class="btn btn-info btn-sm me-2">Horários</a>
                     <button type="button" class="btn btn-warning btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editResourceModal" 
                             data-resource-id="{{ resource.id }}"
                             data-resource-name="{{ resource.name }}"
@@ -95,7 +95,7 @@
     </div>
 </div>
 
-<!-- Modal de Edição -->
+<!-- Modal de Edição de Recurso (inalterado) -->
 <div class="modal fade" id="editResourceModal" tabindex="-1" aria-labelledby="editResourceModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -136,10 +136,8 @@
             const resourceName = button.getAttribute('data-resource-name');
             const resourceDescription = button.getAttribute('data-resource-description');
             const resourceIcon = button.getAttribute('data-resource-icon');
-            
             const modalForm = editResourceModal.querySelector('#editResourceForm');
             const modalTitle = editResourceModal.querySelector('.modal-title');
-            
             modalTitle.textContent = `Editar Recurso: ${resourceName}`;
             modalForm.action = `/admin/resource/edit/${resourceId}`;
             modalForm.querySelector('#edit_name').value = resourceName;

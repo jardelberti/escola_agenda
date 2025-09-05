@@ -1,35 +1,35 @@
 {% extends "base.html" %}
 
-{% block title %}Login do Administrador{% endblock %}
+{% block title %}Acesso ao Sistema{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
+<div class="row justify-content-center align-items-center" style="min-height: 80vh;">
     <div class="col-md-6 col-lg-4">
-        <h2 class="text-center mb-4">Acesso Restrito</h2>
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-        <form method="POST" action="{{ url_for('login') }}">
-            <div class="mb-3">
-                <label for="username" class="form-label">Usuário</label>
-                <input type="text" class="form-control" id="username" name="username" required>
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="text-center mb-4">Agenda de Recursos</h2>
+                <p class="text-center text-muted mb-4">Por favor, insira sua matrícula para continuar.</p>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <form method="POST" action="{{ url_for('login') }}">
+                    <div class="mb-3">
+                        <label for="registration" class="form-label">Matrícula</label>
+                        <input type="text" class="form-control" id="registration" name="registration" required autofocus>
+                    </div>
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+                    </div>
+                </form>
             </div>
-            <div class="mb-3">
-                <label for="password" class="form-label">Senha</label>
-                <input type="password" class="form-control" id="password" name="password" required>
-            </div>
-            
-            <!-- BOTÕES AGRUPADOS -->
-            <div class="d-grid gap-2">
-                <button type="submit" class="btn btn-primary">Entrar</button>
-                <a href="{{ url_for('index') }}" class="btn btn-secondary">Voltar à Tela Principal</a>
-            </div>
-            
-        </form>
+        </div>
     </div>
 </div>
 {% endblock %}
+
