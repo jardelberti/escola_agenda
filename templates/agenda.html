@@ -2,12 +2,21 @@
 {% block title %}Agenda de {{ resource.name }}{% endblock %}
 
 {% block content %}
-    <h3 class="mb-2"><a href="{{ url_for('select_shift', resource_id=resource.id) }}" class="text-decoration-none">←</a> {{ resource.name }}</h3>
-    <div class="card mb-3">
-        <div class="card-body text-center">
-            Turno: <strong>{{ shift.capitalize() }}</strong>
+    <h3 class="mb-2">
+        <a href="{{ url_for('select_shift', resource_id=resource.id) }}" class="text-decoration-none text-dark align-middle">
+            <!-- ÍCONE DA SETA ATUALIZADO -->
+            <i class="bi bi-arrow-left-circle fs-4 me-2"></i>
+        </a>
+        <span class="align-middle">{{ resource.name }}</span>
+    </h3>
+    
+    <!-- DIV COM O TURNO E NOVA COR -->
+    <div class="card mb-3 bg-info text-dark">
+        <div class="card-body text-center py-2">
+            <h5 class="card-title mb-0">Turno: <strong>{{ shift.capitalize() }}</strong></h5>
         </div>
     </div>
+
     <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded shadow-sm">
         <a href="{{ url_for('agenda_view', resource_id=resource.id, shift=shift, date_str=prev_day_str) }}" class="btn btn-outline-primary">← Dia Anterior</a>
         <h4 class="mb-0">{{ current_date.strftime('%d / %m / %Y') }}</h4>

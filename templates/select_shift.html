@@ -1,9 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Selecionar Turno para {{ resource.name }}{% endblock %}
+
 {% block content %}
-    <!-- CORREÇÃO AQUI: 'index' mudou para 'home' -->
-    <h1 class="mb-3"><a href="{{ url_for('home') }}" class="text-decoration-none">←</a> {{ resource.name }}</h1>
-    <h3 class="mb-4">Selecione o turno para visualizar a agenda:</h3>
+    <h2 class="mb-3">
+        <a href="{{ url_for('home') }}" class="text-decoration-none text-dark align-middle">
+            <i class="bi bi-arrow-left-circle fs-4 me-2"></i>
+        </a>
+        <span class="align-middle">{{ resource.name }}</span>
+    </h2>
+    <h4 class="mb-4">Selecione o turno para visualizar a agenda:</h4>
+    
     <div class="d-grid gap-3 col-lg-6 col-md-8 mx-auto">
         {% if has_matutino %}
         <a href="{{ url_for('agenda_view', resource_id=resource.id, shift='matutino') }}" class="btn btn-primary btn-lg p-3">
@@ -20,3 +26,4 @@
         {% endif %}
     </div>
 {% endblock %}
+
