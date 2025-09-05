@@ -1,13 +1,22 @@
+# Arquivos de ambiente virtual
 .venv
-__pycache__
+venv
+env
+
+# Arquivos de cache do Python
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-env
-pip-log.txt
-pip-delete-this-directory.txt
-.idea
-.vscode
+
+# Arquivos de banco de dados local (para não ser copiado para a imagem)
 *.db
 *.db-journal*
+
+# Configurações de IDE
+.vscode/
+.idea/
+
+# Arquivos do Git
+.git
+.gitignore
