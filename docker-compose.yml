@@ -5,12 +5,11 @@ services:
     build: .
     container_name: agenda_escolar_app
     restart: unless-stopped
-    # A seção 'ports' foi removida, pois o container terá seu próprio IP.
     volumes:
       - db_data:/data
     networks:
       escola_net:
-        ipv4_address: 10.0.0.178 # IP fixo para o container
+        ipv4_address: 10.0.0.178
 
 volumes:
   db_data:
@@ -20,41 +19,9 @@ networks:
   escola_net:
     driver: macvlan
     driver_opts:
-      parent: eth0 # Verifique se 'eth0' é o nome correto da sua placa de rede no Ubuntu
+      parent: eth0
     ipam:
       config:
         - subnet: 10.0.0.0/24
           gateway: 10.0.0.1
-```
-
-### O que mudou e como usar:
-
-1.  **Seção `networks` (no final):**
-    * Criamos uma nova rede chamada `escola_net` que usa o driver `macvlan`.
-    * `parent: eth0`: Vincula essa rede à sua placa de rede física. **Confirme se `eth0` é o nome correto no seu servidor Ubuntu** (você pode verificar com o comando `ip a`).
-    * `subnet` e `gateway`: Definem as configurações da sua rede local.
-
-2.  **Seção `services.app`:**
-    * **`ports` foi removido:** Não precisamos mais mapear portas, pois o container será acessado diretamente pelo seu novo IP.
-    * `networks:`: Conecta o serviço `app` à nossa nova rede `escola_net`.
-    * `ipv4_address: 10.0.0.178`: **Esta é a parte crucial.** Atribui o endereço IP estático que você deseja para o container.
-
-### Como Executar (Os Comandos São os Mesmos)
-
-Você continuará usando os mesmos comandos simples do `docker-compose`.
-
-1.  **Construir a Imagem:**
-    ```bash
-    docker-compose build
-    ```
-
-2.  **Iniciar a Aplicação:**
-    ```bash
-    docker-compose up -d
-    ```
-
-3.  **Inicializar o Banco de Dados (Primeira vez):**
-    ```bash
-    docker-compose exec app flask init-db
-    
 
