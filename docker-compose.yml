@@ -3,6 +3,7 @@ version: '3.8'
 services:
   app:
     build: .
+    image: jardelberti/agenda.escola # Nome e tag da imagem a ser criada
     container_name: agenda_escolar_app
     restart: unless-stopped
     volumes:
