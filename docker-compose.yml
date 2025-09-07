@@ -1,28 +1,13 @@
-version: '3.8'
-
 services:
   app:
     build: .
-    image: jardelberti/agenda.escola # Nome e tag da imagem a ser criada
+    image: jardelberti/agenda.escola:latest
     container_name: agenda_escolar_app
     restart: unless-stopped
+    ports:
+      - "8080:5000"
     volumes:
       - db_data:/data
-    networks:
-      escola_net:
-        ipv4_address: 10.0.0.178
-
 volumes:
   db_data:
-    driver: local
-
-networks:
-  escola_net:
-    driver: macvlan
-    driver_opts:
-      parent: eth0
-    ipam:
-      config:
-        - subnet: 10.0.0.0/24
-          gateway: 10.0.0.1
 
