@@ -10,12 +10,18 @@ from models import db, Teacher, Resource, ScheduleTemplate, Booking
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'uma-chave-secreta-muito-dificil-de-adivinhar'
 
-# --- CONFIGURAÇÃO DO BANCO DE DADOS (FLEXÍVEL) ---
-if os.environ.get('DOCKER_ENV'):
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////data/agenda.db'
-else:
-    basedir = os.path.abspath(os.path.dirname(__file__))
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'agenda.db')
+# --- CONFIGURAÇÃO DO BANCO DE DADOS (FLEXÍVEL PARA AWS E LOCAL) ---
+
+# Tenta pegar a URL do banco de dados da variável de ambiente 'DATABASE_URL'.
+# Se não encontrar, usa um banco SQLite local como padrão.
+# Isso permite que a aplicação funcione na AWS (com RDS) e na sua máquina (com SQLite).
+database_uri = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(os.path.abspath(os.path.dirname(__file__)), 'agenda.db'))
+
+# Uma correção comum: A AWS usa 'postgres://' mas o SQLAlchemy prefere 'postgresql://'
+if database_uri.startswith("postgres://"):
+    database_uri = database_uri.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # --- INICIALIZAÇÃO DAS EXTENSÕES ---
