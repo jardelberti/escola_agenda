@@ -49,6 +49,15 @@
             </div>
         </div>
 
+        <!-- NOVO CARD PARA AGENDA SEMANAL -->
+        <div class="card mb-4">
+            <div class="card-header"><h4>Agenda Semanal</h4></div>
+            <div class="card-body">
+                <p class="card-text">Visualize todos os agendamentos da semana atual.</p>
+                <a href="{{ url_for('weekly_view') }}" class="btn btn-info">Ver Agenda Semanal</a>
+            </div>
+        </div>
+
         <div class="card mb-4">
             <div class="card-header"><h4>Relatórios de Uso</h4></div>
             <div class="card-body">
@@ -66,15 +75,18 @@
         </div>
     </div>
 
-    <!-- Coluna da Direita (Lista de Recursos) -->
+    <!-- Coluna da Direita (Recursos Cadastrados) -->
     <div class="col-md-8">
         <h4>Recursos Cadastrados</h4>
-        <ul class="list-group">
+        <p class="text-muted"><i class="bi bi-arrows-move"></i> Arraste os itens para reordenar.</p>
+        
+        <ul class="list-group mb-4" id="resource-list">
             {% for resource in resources %}
-            <li class="list-group-item d-flex justify-content-between align-items-center">
+            <li class="list-group-item d-flex justify-content-between align-items-center" data-id="{{ resource.id }}">
                 <div>
+                    <i class="bi bi-grip-vertical me-2" style="cursor: grab;"></i>
                     <strong><i class="{{ resource.icon or 'bi-box' }} me-2"></i>{{ resource.name }}</strong><br>
-                    <small class="text-muted">{{ resource.description or '' }}</small>
+                    <small class="text-muted ms-5">{{ resource.description or '' }}</small>
                 </div>
                 <div class="d-flex align-items-center">
                     <a href="{{ url_for('manage_schedules', resource_id=resource.id) }}" class="btn btn-info btn-sm me-2">Horários</a>
@@ -92,6 +104,11 @@
             <li class="list-group-item">Nenhum recurso cadastrado.</li>
             {% endfor %}
         </ul>
+
+        <form method="POST" action="{{ url_for('reorder_resources') }}" id="reorder-form" class="mb-4" style="display: none;">
+            <input type="hidden" name="order" id="resource-order-input">
+            <button type="submit" class="btn btn-success">Salvar Nova Ordem</button>
+        </form>
     </div>
 </div>
 
@@ -128,23 +145,48 @@
 </div>
 
 <script>
-    const editResourceModal = document.getElementById('editResourceModal');
-    if (editResourceModal) {
-        editResourceModal.addEventListener('show.bs.modal', function (event) {
-            const button = event.relatedTarget;
-            const resourceId = button.getAttribute('data-resource-id');
-            const resourceName = button.getAttribute('data-resource-name');
-            const resourceDescription = button.getAttribute('data-resource-description');
-            const resourceIcon = button.getAttribute('data-resource-icon');
-            const modalForm = editResourceModal.querySelector('#editResourceForm');
-            const modalTitle = editResourceModal.querySelector('.modal-title');
-            modalTitle.textContent = `Editar Recurso: ${resourceName}`;
-            modalForm.action = `/admin/resource/edit/${resourceId}`;
-            modalForm.querySelector('#edit_name').value = resourceName;
-            modalForm.querySelector('#edit_description').value = resourceDescription;
-            modalForm.querySelector('#edit_icon').value = resourceIcon;
-        });
-    }
+    document.addEventListener('DOMContentLoaded', function() {
+        // Script do modal de edição
+        const editResourceModal = document.getElementById('editResourceModal');
+        if (editResourceModal) {
+            editResourceModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const resourceId = button.getAttribute('data-resource-id');
+                const resourceName = button.getAttribute('data-resource-name');
+                const resourceDescription = button.getAttribute('data-resource-description');
+                const resourceIcon = button.getAttribute('data-resource-icon');
+                const modalForm = editResourceModal.querySelector('#editResourceForm');
+                const modalTitle = editResourceModal.querySelector('.modal-title');
+                modalTitle.textContent = `Editar Recurso: ${resourceName}`;
+                modalForm.action = `/admin/resource/edit/${resourceId}`;
+                modalForm.querySelector('#edit_name').value = resourceName;
+                modalForm.querySelector('#edit_description').value = resourceDescription;
+                modalForm.querySelector('#edit_icon').value = resourceIcon;
+            });
+        }
+
+        // SCRIPT PARA ORDENAÇÃO
+        const resourceList = document.getElementById('resource-list');
+        if (resourceList) {
+            const reorderForm = document.getElementById('reorder-form');
+            const orderInput = document.getElementById('resource-order-input');
+
+            new Sortable(resourceList, {
+                animation: 150,
+                ghostClass: 'bg-light',
+                handle: '.bi-grip-vertical',
+                onEnd: function () {
+                    reorderForm.style.display = 'block';
+                }
+            });
+
+            reorderForm.addEventListener('submit', function (e) {
+                const resourceItems = resourceList.querySelectorAll('li');
+                const newOrder = Array.from(resourceItems).map(item => item.getAttribute('data-id'));
+                orderInput.value = newOrder.join(',');
+            });
+        }
+    });
 </script>
 {% endblock %}
 

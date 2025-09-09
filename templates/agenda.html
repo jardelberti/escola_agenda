@@ -4,13 +4,11 @@
 {% block content %}
     <h3 class="mb-2">
         <a href="{{ url_for('select_shift', resource_id=resource.id) }}" class="text-decoration-none text-dark align-middle">
-            <!-- ÍCONE DA SETA ATUALIZADO -->
             <i class="bi bi-arrow-left-circle fs-4 me-2"></i>
         </a>
         <span class="align-middle">{{ resource.name }}</span>
     </h3>
     
-    <!-- DIV COM O TURNO E NOVA COR -->
     <div class="card mb-3 bg-info text-dark">
         <div class="card-body text-center py-2">
             <h5 class="card-title mb-0">Turno: <strong>{{ shift.capitalize() }}</strong></h5>
@@ -48,14 +46,12 @@
                                 {% else %}
                                     <strong>{{ booking.teacher_name }}</strong>
                                 {% endif %}
-                                <!-- Admin pode excluir qualquer agendamento, professor só pode o seu -->
                                 {% if current_user.is_admin or booking.teacher_id == current_user.id %}
                                     <a href="{{ url_for('delete_booking', booking_id=booking.id, shift=shift) }}" class="btn btn-danger btn-sm ms-2" title="Excluir Agendamento">&times;</a>
                                 {% endif %}
                             {% elif slot.type == 'intervalo' %}
                                 ---
                             {% else %}
-                                <!-- Todos os usuários logados podem ver o botão para agendar -->
                                 <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#bookingModal" data-slot-name="{{ slot.name }}">
                                     Agendar
                                 </button>
@@ -86,30 +82,36 @@
                     <input type="hidden" name="shift" value="{{ shift }}">
                     <input type="hidden" id="slot_name_input" name="slot_name">
                     
-                    {% if current_user.is_admin %}
                     <p>Gerenciando o horário: <strong id="slot_name_text"></strong></p>
-                    <p class="text-center">O que você deseja fazer?</p>
+
+                    {% if current_user.is_admin %}
+                    <div class="mb-3">
+                        <label for="teacher_id" class="form-label">Agendar em nome de:</label>
+                        <select class="form-select" name="teacher_id" id="teacher_id">
+                            {% for teacher in teachers %}
+                            <option value="{{ teacher.id }}" {% if teacher.id == current_user.id %}selected{% endif %}>
+                                {{ teacher.name }} {% if teacher.is_admin %}(Admin){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
                     {% else %}
-                    <p>Você está agendando o horário <strong id="slot_name_text"></strong> em nome de:</p>
+                    <!-- Para professores normais, o agendamento é sempre no nome deles -->
                     <h4 class="text-center text-primary">{{ current_user.name }}</h4>
-                    <p class="text-center">Deseja confirmar?</p>
+                    <p class="text-center">Deseja confirmar o agendamento?</p>
                     {% endif %}
                 </div>
 
-                {% if current_user.is_admin %}
-                <div class="modal-footer justify-content-between">
-                    <button type="submit" class="btn btn-danger" formaction="{{ url_for('close_slot') }}">Marcar como Fechado</button>
-                    <div>
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary" formaction="{{ url_for('book_slot') }}">Agendar para mim</button>
-                    </div>
-                </div>
-                {% else %}
                 <div class="modal-footer">
+                    {% if current_user.is_admin %}
+                    <button type="submit" class="btn btn-danger me-auto" formaction="{{ url_for('close_slot') }}">Marcar como Fechado</button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary" formaction="{{ url_for('book_slot') }}">Confirmar Agendamento</button>
+                    {% else %}
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" formaction="{{ url_for('book_slot') }}">Confirmar Agendamento</button>
+                    {% endif %}
                 </div>
-                {% endif %}
             </form>
         </div>
     </div>
@@ -123,8 +125,8 @@
             const slotName = button.getAttribute('data-slot-name');
             const slotNameText = bookingModal.querySelector('#slot_name_text');
             const slotNameInput = bookingModal.querySelector('#slot_name_input');
-            slotNameText.textContent = slotName;
-            slotNameInput.value = slotName;
+            if(slotNameText) slotNameText.textContent = slotName;
+            if(slotNameInput) slotNameInput.value = slotName;
         });
     }
 </script>

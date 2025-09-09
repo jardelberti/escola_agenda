@@ -1,0 +1,46 @@
+<div class="card">
+    <!-- A classe de cor do cabeçalho agora é dinâmica, vinda do app.py -->
+    <div class="card-header {{ color_class or 'bg-primary' }} text-white">
+        <h5 class="mb-0">{{ title }}</h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped mb-0">
+            <thead>
+                <tr class="text-center bg-light">
+                    {% for day in week_days %}
+                        <th>{{ day }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% if schedule_template %}
+                    {% for slot in schedule_template.slots %}
+                        {% if slot.type == 'aula' %}
+                        <tr>
+                            {% for day_name in week_days %}
+                                {% set booking = weekly_bookings.get(day_name, {}).get(slot.name) %}
+                                <td class="text-center">
+                                    {% if booking %}
+                                        <span class="badge {% if booking.status == 'closed' %}bg-dark{% else %}bg-secondary{% endif %}">
+                                            {{ booking.teacher_name }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted small">Disponível</span>
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                <tr>
+                    <td colspan="{{ week_days|length }}" class="text-center text-muted p-3">
+                        Horários para este turno não foram configurados.
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+

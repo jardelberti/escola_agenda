@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Agenda Semanal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Agenda da Semana Atual</h2>
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Voltar ao Painel</a>
+</div>
+
+<div class="d-grid gap-4">
+    {% for summary in weekly_summaries %}
+        <!-- Passa a nova variável 'color_class' para o template incluído -->
+        {% with title=summary.title, week_days=summary.week_days, schedule_template=summary.schedule_template, weekly_bookings=summary.weekly_bookings, color_class=summary.color_class %}
+            {% include 'admin_weekly_summary.html' %}
+        {% endwith %}
+    {% else %}
+        <p class="text-muted">Nenhum recurso com horários configurados para exibir o resumo.</p>
+    {% endfor %}
+</div>
+{% endblock %}
+

@@ -17,6 +17,10 @@ class Resource(db.Model):
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.String(200))
     icon = db.Column(db.String(50))
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    
+    # CORREÇÃO: Adiciona o relacionamento para encontrar os templates de horário
+    schedule_templates = db.relationship('ScheduleTemplate', backref='resource', lazy=True, cascade='all, delete-orphan')
 
 # Tabela para Estrutura de Horário (ligada ao Recurso)
 class ScheduleTemplate(db.Model):
@@ -34,7 +38,7 @@ class Booking(db.Model):
     teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'), nullable=False)
     teacher_name = db.Column(db.String(150), nullable=False)
     date = db.Column(db.Date, nullable=False)
-    shift = db.Column(db.String(50), nullable=False) # <-- COLUNA ADICIONADA
+    shift = db.Column(db.String(50), nullable=False)
     slot_name = db.Column(db.String(100), nullable=False)
     status = db.Column(db.String(50), nullable=False, default='booked') # 'booked' ou 'closed'
 

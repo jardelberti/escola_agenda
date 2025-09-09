@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Acesso ao Sistema{% endblock %}
+{% block title %}Agenda Escolar{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center align-items-center" style="min-height: 80vh;">
     <div class="col-md-6 col-lg-4">
         <div class="card shadow-sm">
             <div class="card-body p-4">
-                <h2 class="text-center mb-4">Agenda de Recursos</h2>
+                <h2 class="text-center mb-4">Agenda Escolar</h2>
                 <p class="text-center text-muted mb-4">Por favor, insira sua matrícula para continuar.</p>
 
                 {% with messages = get_flashed_messages(with_categories=true) %}
