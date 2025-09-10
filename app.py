@@ -5,7 +5,7 @@ from functools import wraps
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy import func
 from models import db, Teacher, Resource, ScheduleTemplate, Booking
-from flask_migrate import Migrate # <-- Importa a nova biblioteca
+from flask_migrate import Migrate
 
 # --- CONFIGURAÇÃO DA APLICAÇÃO ---
 app = Flask(__name__)
@@ -20,7 +20,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # --- INICIALIZAÇÃO DAS EXTENSÕES ---
 db.init_app(app)
-migrate = Migrate(app, db) # <-- Inicializa o Flask-Migrate
+migrate = Migrate(app, db)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -381,7 +381,23 @@ def reports():
     return render_template('admin_reports.html', resources=resources, report_data=report_data,
                            selected_resource_id=selected_resource_id, start_date=start_date_str, end_date=end_date_str)
 
-
 # --- COMANDOS CLI ---
-# O comando init-db foi removido. Agora usaremos os comandos 'flask db'.
+
+@app.cli.command("seed-db")
+def seed_db_command():
+    """Cria o usuário administrador padrão se ele não existir."""
+    if not Teacher.query.filter_by(registration='7363').first():
+        admin_user = Teacher(
+            name='Jardel',
+            registration='7363',
+            is_admin=True
+        )
+        db.session.add(admin_user)
+        db.session.commit()
+        print('Usuário administrador padrão (Jardel) criado com sucesso.')
+    else:
+        print('Usuário administrador padrão (Jardel) já existe.')
+
+if __name__ == '__main__':
+    app.run()
 
