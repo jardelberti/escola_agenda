@@ -11,19 +11,11 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'uma-chave-secreta-muito-dificil-de-adivinhar'
 
 # --- CONFIGURAÇÃO DO BANCO DE DADOS (FLEXÍVEL PARA AWS E LOCAL) ---
-
-# Tenta pegar a URL do banco de dados da variável de ambiente 'DATABASE_URL'.
-# Se não encontrar, usa um banco SQLite local como padrão.
-# Isso permite que a aplicação funcione na AWS (com RDS) e na sua máquina (com SQLite).
 database_uri = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(os.path.abspath(os.path.dirname(__file__)), 'agenda.db'))
-
-# Uma correção comum: A AWS usa 'postgres://' mas o SQLAlchemy prefere 'postgresql://'
 if database_uri.startswith("postgres://"):
     database_uri = database_uri.replace("postgres://", "postgresql://", 1)
-
 app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
 
 # --- INICIALIZAÇÃO DAS EXTENSÕES ---
 db.init_app(app)
@@ -59,18 +51,15 @@ def root():
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('home'))
-
     if request.method == 'POST':
         registration = request.form.get('registration')
         teacher = Teacher.query.filter_by(registration=registration).first()
-
         if teacher:
             login_user(teacher)
             flash(f'Bem-vindo(a), {teacher.name}!', 'success')
             return redirect(url_for('home'))
         else:
             flash('Matrícula inválida.', 'danger')
-
     return render_template('login.html')
 
 @app.route('/logout')
@@ -104,12 +93,9 @@ def agenda_view(resource_id, shift, date_str=None):
     resource = Resource.query.get_or_404(resource_id)
     schedule_template = ScheduleTemplate.query.filter_by(shift=shift, resource_id=resource_id).first()
     slots = schedule_template.slots if schedule_template else []
-    
     bookings = Booking.query.filter_by(resource_id=resource_id, date=current_date, shift=shift).all()
     booked_slots = {booking.slot_name: booking for booking in bookings}
-    
     teachers = Teacher.query.order_by(Teacher.name).all()
-    
     return render_template('agenda.html', resource=resource, shift=shift, current_date=current_date,
                            next_day_str=(current_date + timedelta(days=1)).strftime('%Y-%m-%d'),
                            prev_day_str=(current_date - timedelta(days=1)).strftime('%Y-%m-%d'),
@@ -120,30 +106,21 @@ def agenda_view(resource_id, shift, date_str=None):
 def book_slot():
     resource_id, date_str = request.form.get('resource_id'), request.form.get('date')
     slot_name, shift = request.form.get('slot_name'), request.form.get('shift')
-    
     if Booking.query.filter_by(resource_id=resource_id, date=datetime.strptime(date_str, '%Y-%m-%d').date(), slot_name=slot_name, shift=shift).first():
         flash('Este horário foi agendado por outra pessoa.', 'warning')
         return redirect(url_for('agenda_view', resource_id=resource_id, shift=shift, date_str=date_str))
-
     book_for_teacher = current_user
     if current_user.is_admin:
         selected_teacher_id = request.form.get('teacher_id')
         if selected_teacher_id:
             selected_teacher = Teacher.query.get(int(selected_teacher_id))
-            if selected_teacher:
-                book_for_teacher = selected_teacher
+            if selected_teacher: book_for_teacher = selected_teacher
             else:
                 flash('Usuário selecionado para o agendamento é inválido.', 'danger')
                 return redirect(url_for('agenda_view', resource_id=resource_id, shift=shift, date_str=date_str))
-
     new_booking = Booking(
-        resource_id=int(resource_id),
-        date=datetime.strptime(date_str, '%Y-%m-%d').date(),
-        slot_name=slot_name,
-        shift=shift,
-        teacher_id=book_for_teacher.id,
-        teacher_name=book_for_teacher.name
-    )
+        resource_id=int(resource_id), date=datetime.strptime(date_str, '%Y-%m-%d').date(),
+        slot_name=slot_name, shift=shift, teacher_id=book_for_teacher.id, teacher_name=book_for_teacher.name)
     db.session.add(new_booking)
     db.session.commit()
     flash('Horário agendado com sucesso!', 'success')
@@ -152,26 +129,17 @@ def book_slot():
 @app.route('/agenda/close', methods=['POST'])
 @admin_required
 def close_slot():
-    resource_id, date_str = request.form.get('resource_id'), request.form.get('date')
-    slot_name, shift = request.form.get('slot_name'), request.form.get('shift')
+    resource_id, date_str, slot_name, shift = (request.form.get(k) for k in ['resource_id', 'date', 'slot_name', 'shift'])
     booking_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-
     if Booking.query.filter_by(resource_id=resource_id, date=booking_date, slot_name=slot_name, shift=shift).first():
         flash('Este horário foi agendado ou fechado por outra pessoa.', 'warning')
     else:
         new_booking = Booking(
-            resource_id=int(resource_id),
-            date=booking_date,
-            slot_name=slot_name,
-            shift=shift,
-            teacher_id=current_user.id,
-            teacher_name="Fechado",
-            status='closed'
-        )
+            resource_id=int(resource_id), date=booking_date, slot_name=slot_name, shift=shift,
+            teacher_id=current_user.id, teacher_name="Fechado", status='closed')
         db.session.add(new_booking)
         db.session.commit()
         flash('Horário fechado com sucesso!', 'success')
-    
     return redirect(url_for('agenda_view', resource_id=resource_id, shift=shift, date_str=date_str))
 
 @app.route('/agenda/booking/delete/<int:booking_id>')
@@ -179,14 +147,12 @@ def close_slot():
 def delete_booking(booking_id):
     booking = Booking.query.get_or_404(booking_id)
     resource_id, date_str, shift = booking.resource_id, booking.date.strftime('%Y-%m-%d'), request.args.get('shift')
-
     if current_user.is_admin or booking.teacher_id == current_user.id:
         db.session.delete(booking)
         db.session.commit()
         flash('Agendamento removido com sucesso.', 'success')
     else:
         flash('Você não tem permissão para remover este agendamento.', 'danger')
-        
     return redirect(url_for('agenda_view', resource_id=resource_id, shift=shift, date_str=date_str))
 
 # --- ROTAS DE ADMINISTRAÇÃO ---
@@ -205,38 +171,29 @@ def weekly_view():
     end_of_week = start_of_week + timedelta(days=4)
     week_days = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"]
     day_map = {0: "Segunda", 1: "Terça", 2: "Quarta", 3: "Quinta", 4: "Sexta"}
-
     all_week_bookings = Booking.query.filter(Booking.date.between(start_of_week, end_of_week)).all()
     weekly_summaries = []
-    
-    # Lista de cores do Bootstrap para alternar
     colors = ['bg-primary', 'bg-success', 'bg-info', 'bg-secondary', 'bg-dark']
-    
     resources_with_schedules = Resource.query.join(ScheduleTemplate).order_by(Resource.sort_order, Resource.name).distinct()
 
     for resource in resources_with_schedules:
-        # Define uma cor consistente para cada recurso baseado no seu ID
         color_class = colors[resource.id % len(colors)]
-        
         for template in sorted(resource.schedule_templates, key=lambda t: t.shift):
             weekly_bookings_data = {}
             resource_bookings = [b for b in all_week_bookings if b.resource_id == resource.id and b.shift == template.shift]
-            
             for booking in resource_bookings:
                 day_name = day_map.get(booking.date.weekday())
                 if day_name:
-                    if day_name not in weekly_bookings_data:
-                        weekly_bookings_data[day_name] = {}
+                    if day_name not in weekly_bookings_data: weekly_bookings_data[day_name] = {}
                     weekly_bookings_data[day_name][booking.slot_name] = booking
-
             weekly_summaries.append({
                 'title': f'{resource.name} - {template.shift.capitalize()}',
+                'icon': resource.icon,  # <-- ÍCONE ADICIONADO AQUI
                 'week_days': week_days,
                 'schedule_template': template,
                 'weekly_bookings': weekly_bookings_data,
-                'color_class': color_class  # Adiciona a cor ao dicionário
+                'color_class': color_class
             })
-    
     return render_template('admin_weekly_view.html', weekly_summaries=weekly_summaries)
 
 @app.route('/admin/resources/reorder', methods=['POST'])
@@ -246,8 +203,7 @@ def reorder_resources():
     if ordered_ids:
         for index, resource_id_str in enumerate(ordered_ids):
             resource = Resource.query.get(int(resource_id_str))
-            if resource:
-                resource.sort_order = index
+            if resource: resource.sort_order = index
         db.session.commit()
         flash('A ordem dos recursos foi salva com sucesso!', 'success')
     return redirect(url_for('admin_dashboard'))
@@ -258,10 +214,8 @@ def manage_teachers():
     if request.method == 'POST':
         name, registration = request.form.get('name'), request.form.get('registration')
         is_admin = 'is_admin' in request.form
-        if not all([name, registration]):
-            flash('Nome e matrícula são obrigatórios.', 'danger')
-        elif Teacher.query.filter_by(registration=registration).first():
-            flash('A matrícula informada já está cadastrada.', 'warning')
+        if not all([name, registration]): flash('Nome e matrícula são obrigatórios.', 'danger')
+        elif Teacher.query.filter_by(registration=registration).first(): flash('A matrícula informada já está cadastrada.', 'warning')
         else:
             db.session.add(Teacher(name=name, registration=registration, is_admin=is_admin))
             db.session.commit()
@@ -275,12 +229,10 @@ def manage_teachers():
 def edit_teacher(teacher_id):
     teacher = Teacher.query.get_or_404(teacher_id)
     new_registration = request.form.get('registration')
-    
     existing_teacher = Teacher.query.filter(Teacher.id != teacher_id, Teacher.registration == new_registration).first()
     if existing_teacher:
         flash(f'A matrícula "{new_registration}" já está em uso por outro usuário.', 'danger')
         return redirect(url_for('manage_teachers'))
-
     teacher.name = request.form.get('name')
     teacher.registration = new_registration
     teacher.is_admin = 'is_admin' in request.form
@@ -294,7 +246,6 @@ def delete_teacher(teacher_id):
     if current_user.id == teacher_id:
         flash('Você não pode se auto-excluir.', 'danger')
         return redirect(url_for('manage_teachers'))
-        
     teacher = Teacher.query.get_or_404(teacher_id)
     Booking.query.filter_by(teacher_id=teacher_id).delete()
     db.session.delete(teacher)
@@ -351,8 +302,7 @@ def manage_schedules(resource_id):
         slot_types = request.form.getlist('slot_type')
         slots_data = [{"name": name, "type": type} for name, type in zip(slot_names, slot_types) if name]
         schedule = ScheduleTemplate.query.filter_by(shift=shift, resource_id=resource_id).first()
-        if schedule:
-            schedule.slots = slots_data
+        if schedule: schedule.slots = slots_data
         else:
             schedule = ScheduleTemplate(shift=shift, slots=slots_data, resource_id=resource_id)
             db.session.add(schedule)
@@ -374,13 +324,11 @@ def reports():
     if request.method == 'POST':
         try:
             selected_resource_id = int(request.form.get('resource_id'))
-            start_date_str = request.form.get('start_date')
-            end_date_str = request.form.get('end_date')
+            start_date_str, end_date_str = request.form.get('start_date'), request.form.get('end_date')
             start_date = datetime.strptime(start_date_str, '%d/%m/%Y').date()
             end_date = datetime.strptime(end_date_str, '%d/%m/%Y').date()
             report_query = db.session.query(Booking.teacher_name, func.count(Booking.id)).filter(
-                Booking.resource_id == selected_resource_id,
-                Booking.date.between(start_date, end_date),
+                Booking.resource_id == selected_resource_id, Booking.date.between(start_date, end_date),
                 Booking.status == 'booked').group_by(Booking.teacher_name).order_by(func.count(Booking.id).desc())
             report_data = report_query.all()
         except (ValueError, TypeError):
@@ -394,11 +342,7 @@ def init_db_command():
     with app.app_context():
         db.create_all()
         if not Teacher.query.filter_by(registration='7363').first():
-            admin_user = Teacher(
-                name='Jardel',
-                registration='7363',
-                is_admin=True
-            )
+            admin_user = Teacher(name='Jardel', registration='7363', is_admin=True)
             db.session.add(admin_user)
             db.session.commit()
             print('Usuário administrador padrão (Jardel) criado com sucesso.')

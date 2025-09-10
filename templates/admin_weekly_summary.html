@@ -1,7 +1,10 @@
 <div class="card">
-    <!-- A classe de cor do cabeçalho agora é dinâmica, vinda do app.py -->
     <div class="card-header {{ color_class or 'bg-primary' }} text-white">
-        <h5 class="mb-0">{{ title }}</h5>
+        <h5 class="mb-0">
+            <!-- Ícone adicionado antes do título -->
+            <i class="{{ icon or 'bi-box' }} me-2"></i>
+            {{ title }}
+        </h5>
     </div>
     <div class="table-responsive">
         <table class="table table-bordered table-striped mb-0">

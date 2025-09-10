@@ -10,8 +10,8 @@
 
 <div class="d-grid gap-4">
     {% for summary in weekly_summaries %}
-        <!-- Passa a nova variável 'color_class' para o template incluído -->
-        {% with title=summary.title, week_days=summary.week_days, schedule_template=summary.schedule_template, weekly_bookings=summary.weekly_bookings, color_class=summary.color_class %}
+        <!-- Passa a nova variável 'icon' para o template incluído -->
+        {% with title=summary.title, icon=summary.icon, week_days=summary.week_days, schedule_template=summary.schedule_template, weekly_bookings=summary.weekly_bookings, color_class=summary.color_class %}
             {% include 'admin_weekly_summary.html' %}
         {% endwith %}
     {% else %}
@@ -19,4 +19,3 @@
     {% endfor %}
 </div>
 {% endblock %}
-
