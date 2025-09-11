@@ -2,22 +2,20 @@
 {% block title %}Agenda de {{ resource.name }}{% endblock %}
 
 {% block content %}
-    <h3 class="mb-2">
-        <a href="{{ url_for('select_shift', resource_id=resource.id) }}" class="text-decoration-none text-dark align-middle">
-            <i class="bi bi-arrow-left-circle fs-4 me-2"></i>
-        </a>
-        <span class="align-middle">{{ resource.name }}</span>
-    </h3>
-    
-    <div class="card mb-3 bg-info text-dark">
-        <div class="card-body text-center py-2">
-            <h5 class="card-title mb-0">Turno: <strong>{{ shift.capitalize() }}</strong></h5>
-        </div>
+    <!-- CABEÇALHO ATUALIZADO COM O TURNO EM EVIDÊNCIA -->
+    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+        <h2 class="mb-0 text-truncate">
+            <a href="{{ url_for('select_shift', resource_id=resource.id) }}" class="text-decoration-none text-dark align-middle">
+                <i class="bi bi-arrow-left-circle fs-4 me-2"></i>
+            </a>
+            <span class="align-middle">{{ resource.name }}</span>
+        </h2>
+        <span class="badge bg-primary fs-5 rounded-pill px-3">{{ shift.capitalize() }}</span>
     </div>
 
     <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded shadow-sm">
         <a href="{{ url_for('agenda_view', resource_id=resource.id, shift=shift, date_str=prev_day_str) }}" class="btn btn-outline-primary">← Dia Anterior</a>
-        <h4 class="mb-0">{{ current_date.strftime('%d / %m / %Y') }}</h4>
+        <h4 class="mb-0">{{ day_name }}, {{ current_date.strftime('%d/%m/%Y') }}</h4>
         <a href="{{ url_for('agenda_view', resource_id=resource.id, shift=shift, date_str=next_day_str) }}" class="btn btn-outline-primary">Próximo Dia →</a>
     </div>
 
@@ -67,7 +65,7 @@
         </tbody>
     </table>
 
-<!-- Modal de Agendamento/Gerenciamento -->
+<!-- Modal de Agendamento/Gerenciamento (inalterado) -->
 <div class="modal fade" id="bookingModal" tabindex="-1" aria-labelledby="bookingModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -96,7 +94,6 @@
                         </select>
                     </div>
                     {% else %}
-                    <!-- Para professores normais, o agendamento é sempre no nome deles -->
                     <h4 class="text-center text-primary">{{ current_user.name }}</h4>
                     <p class="text-center">Deseja confirmar o agendamento?</p>
                     {% endif %}

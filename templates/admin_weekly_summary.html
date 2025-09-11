@@ -1,7 +1,6 @@
 <div class="card">
     <div class="card-header {{ color_class or 'bg-primary' }} text-white">
         <h5 class="mb-0">
-            <!-- Ícone adicionado antes do título -->
             <i class="{{ icon or 'bi-box' }} me-2"></i>
             {{ title }}
         </h5>
@@ -10,8 +9,12 @@
         <table class="table table-bordered table-striped mb-0">
             <thead>
                 <tr class="text-center bg-light">
-                    {% for day in week_days %}
-                        <th>{{ day }}</th>
+                    <!-- CABEÇALHO ATUALIZADO COM DIA E DATA -->
+                    {% for header in week_headers %}
+                        <th>
+                            {{ header.name }}<br>
+                            <small class="fw-normal">{{ header.date }}</small>
+                        </th>
                     {% endfor %}
                 </tr>
             </thead>
@@ -20,8 +23,9 @@
                     {% for slot in schedule_template.slots %}
                         {% if slot.type == 'aula' %}
                         <tr>
-                            {% for day_name in week_days %}
-                                {% set booking = weekly_bookings.get(day_name, {}).get(slot.name) %}
+                            <!-- LOOP ATUALIZADO PARA USAR O NOME DO DIA -->
+                            {% for day_header in week_headers %}
+                                {% set booking = weekly_bookings.get(day_header.name, {}).get(slot.name) %}
                                 <td class="text-center">
                                     {% if booking %}
                                         <span class="badge {% if booking.status == 'closed' %}bg-dark{% else %}bg-secondary{% endif %}">
@@ -37,7 +41,7 @@
                     {% endfor %}
                 {% else %}
                 <tr>
-                    <td colspan="{{ week_days|length }}" class="text-center text-muted p-3">
+                    <td colspan="{{ week_headers|length }}" class="text-center text-muted p-3">
                         Horários para este turno não foram configurados.
                     </td>
                 </tr>

@@ -3,15 +3,21 @@
 {% block title %}Agenda Semanal{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Agenda da Semana Atual</h2>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Agenda Semanal</h2>
     <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Voltar ao Painel</a>
+</div>
+
+<!-- BARRA DE NAVEGAÇÃO DE SEMANAS -->
+<div class="d-flex justify-content-between align-items-center mb-4 p-2 bg-light rounded shadow-sm">
+    <a href="{{ url_for('weekly_view', date_str=prev_week_link) }}" class="btn btn-outline-primary">← Semana Anterior</a>
+    <h4 class="mb-0">Semana de {{ start_date_formatted }} a {{ end_date_formatted }}</h4>
+    <a href="{{ url_for('weekly_view', date_str=next_week_link) }}" class="btn btn-outline-primary">Próxima Semana →</a>
 </div>
 
 <div class="d-grid gap-4">
     {% for summary in weekly_summaries %}
-        <!-- Passa a nova variável 'icon' para o template incluído -->
-        {% with title=summary.title, icon=summary.icon, week_days=summary.week_days, schedule_template=summary.schedule_template, weekly_bookings=summary.weekly_bookings, color_class=summary.color_class %}
+        {% with title=summary.title, icon=summary.icon, week_headers=summary.week_headers, schedule_template=summary.schedule_template, weekly_bookings=summary.weekly_bookings, color_class=summary.color_class %}
             {% include 'admin_weekly_summary.html' %}
         {% endwith %}
     {% else %}
@@ -19,3 +25,4 @@
     {% endfor %}
 </div>
 {% endblock %}
+

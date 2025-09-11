@@ -95,6 +95,24 @@ def select_shift(resource_id):
 @login_required
 def agenda_view(resource_id, shift, date_str=None):
     current_date = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else date.today()
+    
+    # Se a data atual for um fim de semana, avança para a próxima segunda-feira
+    if current_date.weekday() >= 5: # 5 = Sábado, 6 = Domingo
+        current_date += timedelta(days=7 - current_date.weekday())
+
+    # Lógica para pular fins de semana na navegação
+    next_day = current_date + timedelta(days=1)
+    if next_day.weekday() >= 5:
+        next_day += timedelta(days=7 - next_day.weekday())
+
+    prev_day = current_date - timedelta(days=1)
+    if prev_day.weekday() >= 5:
+        prev_day -= timedelta(days=prev_day.weekday() - 4)
+
+    # Mapeia o dia da semana para português
+    day_map_pt = {0: "Segunda-feira", 1: "Terça-feira", 2: "Quarta-feira", 3: "Quinta-feira", 4: "Sexta-feira"}
+    day_name = day_map_pt.get(current_date.weekday())
+
     resource = Resource.query.get_or_404(resource_id)
     schedule_template = ScheduleTemplate.query.filter_by(shift=shift, resource_id=resource_id).first()
     slots = schedule_template.slots if schedule_template else []
@@ -105,8 +123,9 @@ def agenda_view(resource_id, shift, date_str=None):
     teachers = Teacher.query.order_by(Teacher.name).all()
     
     return render_template('agenda.html', resource=resource, shift=shift, current_date=current_date,
-                           next_day_str=(current_date + timedelta(days=1)).strftime('%Y-%m-%d'),
-                           prev_day_str=(current_date - timedelta(days=1)).strftime('%Y-%m-%d'),
+                           day_name=day_name,
+                           next_day_str=next_day.strftime('%Y-%m-%d'),
+                           prev_day_str=prev_day.strftime('%Y-%m-%d'),
                            slots=slots, booked_slots=booked_slots, teachers=teachers)
 
 @app.route('/agenda/book', methods=['POST'])
@@ -192,13 +211,25 @@ def admin_dashboard():
     return render_template('admin_dashboard.html', resources=resources)
 
 @app.route('/admin/weekly-view')
+@app.route('/admin/weekly-view/<string:date_str>')
 @admin_required
-def weekly_view():
-    today = date.today()
-    start_of_week = today - timedelta(days=today.weekday())
+def weekly_view(date_str=None):
+    base_date = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else date.today()
+    
+    start_of_week = base_date - timedelta(days=base_date.weekday())
     end_of_week = start_of_week + timedelta(days=4)
-    week_days = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"]
+    
+    prev_week_date = (start_of_week - timedelta(days=7)).strftime('%Y-%m-%d')
+    next_week_date = (start_of_week + timedelta(days=7)).strftime('%Y-%m-%d')
+    
+    week_headers = []
     day_map = {0: "Segunda", 1: "Terça", 2: "Quarta", 3: "Quinta", 4: "Sexta"}
+    for i in range(5):
+        current_day_date = start_of_week + timedelta(days=i)
+        week_headers.append({
+            'name': day_map[i],
+            'date': current_day_date.strftime('%d/%m')
+        })
 
     all_week_bookings = Booking.query.filter(Booking.date.between(start_of_week, end_of_week)).all()
     weekly_summaries = []
@@ -224,13 +255,18 @@ def weekly_view():
             weekly_summaries.append({
                 'title': f'{resource.name} - {template.shift.capitalize()}',
                 'icon': resource.icon,
-                'week_days': week_days,
+                'week_headers': week_headers,
                 'schedule_template': template,
                 'weekly_bookings': weekly_bookings_data,
                 'color_class': color_class
             })
     
-    return render_template('admin_weekly_view.html', weekly_summaries=weekly_summaries)
+    return render_template('admin_weekly_view.html', 
+                           weekly_summaries=weekly_summaries,
+                           start_date_formatted=start_of_week.strftime('%d/%m/%Y'),
+                           end_date_formatted=end_of_week.strftime('%d/%m/%Y'),
+                           prev_week_link=prev_week_date,
+                           next_week_link=next_week_date)
 
 @app.route('/admin/resources/reorder', methods=['POST'])
 @admin_required
@@ -382,7 +418,6 @@ def reports():
                            selected_resource_id=selected_resource_id, start_date=start_date_str, end_date=end_date_str)
 
 # --- COMANDOS CLI ---
-
 @app.cli.command("seed-db")
 def seed_db_command():
     """Cria o usuário administrador padrão se ele não existir."""
