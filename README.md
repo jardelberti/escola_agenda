@@ -1,139 +1,172 @@
-Agenda Escolar - Sistema de Agendamento de Recursos
-📖 Sobre o Projeto
-A Agenda Escolar é uma aplicação web desenvolvida em Python com o framework Flask, projetada para facilitar o agendamento de recursos compartilhados (como salas de aula, laboratórios e equipamentos) em um ambiente escolar.
+<div align="center">
+  <img src="https://raw.githubusercontent.com/user-attachments/assets/1569a7c3-30b0-4a37-b952-4752b75a40b9" width="150px" />
+  <h1>Agenda Escolar</h1>
+  <p><strong>Um sistema completo de agendamento de recursos para ambientes escolares, conteinerizado com Docker.</strong></p>
+  <p>
+    <a href="#">
+      <img alt="Versão" src="https://img.shields.io/badge/version-1.0.0-blue?style=for-the-badge&logo=appveyor">
+    </a>
+    <a href="#">
+      <img alt="Licença" src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge">
+    </a>
+  </p>
+</div>
+
+## 📖 Sobre o Projeto
+
+A **Agenda Escolar** é uma aplicação web robusta, desenvolvida em Python com o framework Flask, projetada para simplificar o agendamento de recursos compartilhados (como salas, laboratórios e equipamentos) em escolas.
 
 O sistema possui uma interface administrativa para o gerenciamento completo e uma área para professores, que podem visualizar as agendas e realizar agendamentos de forma simples e intuitiva. A aplicação é flexível, podendo rodar tanto em um ambiente de desenvolvimento local com um banco de dados SQLite quanto em produção com Docker e um banco de dados PostgreSQL.
 
-✨ Funcionalidades Principais
-Painel de Administração:
+---
 
-Gerenciamento de usuários (professores e administradores).
+## ✨ Funcionalidades Principais
 
-Cadastro, edição e exclusão de recursos (salas, equipamentos).
+* **Painel de Administração:**
+    * Gerenciamento de usuários (professores e administradores).
+    * Cadastro, edição e exclusão de recursos (salas, equipamentos).
+    * Configuração de grades de horários personalizadas (matutino/vespertino) para cada recurso.
+    * Visualização de uma agenda semanal completa com todos os agendamentos.
+    * Geração de relatórios de utilização por recurso e período.
+    * Ordenação da exibição dos recursos na tela inicial através de "arrastar e soltar".
+* **Área do Professor:**
+    * Login simplificado utilizando apenas a matrícula.
+    * Visualização clara das agendas diárias de cada recurso.
+    * Navegação intuitiva entre os dias, pulando finais de semana.
+    * Agendamento de horários livres com um clique.
+    * Permissão para excluir apenas os seus próprios agendamentos.
 
-Configuração de grades de horários personalizadas (matutino/vespertino) para cada recurso.
+---
 
-Visualização de uma agenda semanal completa com todos os agendamentos.
+## 🛠️ Tecnologias Utilizadas
 
-Geração de relatórios de utilização por recurso e período.
+* **Backend:** Python, Flask, Flask-SQLAlchemy, Flask-Login, Flask-Migrate
+* **Frontend:** HTML, Bootstrap 5, JavaScript
+* **Banco de Dados:** SQLite (para desenvolvimento), PostgreSQL (para produção)
+* **Containerização:** Docker, Docker Compose
+* **Servidor de Produção:** Gunicorn
 
-Ordenação da exibição dos recursos na tela inicial através de "arrastar e soltar".
+---
 
-Área do Professor:
+## 🚀 Como Executar o Projeto
 
-Login simplificado utilizando apenas a matrícula.
-
-Visualização clara das agendas diárias de cada recurso.
-
-Navegação intuitiva entre os dias, pulando finais de semana.
-
-Agendamento de horários livres com um clique.
-
-Permissão para excluir apenas os seus próprios agendamentos.
-
-🛠️ Tecnologias Utilizadas
-Backend: Python, Flask, Flask-SQLAlchemy, Flask-Login, Flask-Migrate
-
-Frontend: HTML, Bootstrap 5, JavaScript
-
-Banco de Dados: SQLite (para desenvolvimento), PostgreSQL (para produção)
-
-Containerização: Docker, Docker Compose
-
-Servidor de Produção: Gunicorn
-
-🚀 Como Executar o Projeto
 Existem duas maneiras principais de rodar a aplicação: localmente para desenvolvimento ou utilizando Docker para uma implantação mais robusta.
 
-Método 1: Ambiente de Desenvolvimento Local
-Pré-requisitos:
+### Método 1: Ambiente de Desenvolvimento Local
 
-Python 3.10 ou superior
+1.  **Pré-requisitos:**
+    * Python 3.10 ou superior
+    * Git
 
-Git
+2.  **Clone o Repositório:**
+    ```bash
+    git clone [https://github.com/seu-usuario/agenda-escola.git](https://github.com/seu-usuario/agenda-escola.git)
+    cd agenda-escola
+    ```
 
-Clone o Repositório:
+3.  **Crie e Ative um Ambiente Virtual:**
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # No macOS/Linux
+    .\venv\Scripts\Activate  # No Windows
+    ```
 
-git clone [https://github.com/seu-usuario/agenda-escola.git](https://github.com/seu-usuario/agenda-escola.git)
-cd agenda-escola
+4.  **Instale as Dependências:**
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-Crie e Ative um Ambiente Virtual:
+5.  **Inicialize e Migre o Banco de Dados:**
+    O Flask-Migrate gerencia a estrutura do banco. Execute estes comandos na primeira vez:
+    ```bash
+    # Cria a pasta de migrações (apenas uma vez)
+    flask db init
+    # Gera o script da primeira migração
+    flask db migrate -m "Criação inicial das tabelas"
+    # Aplica a migração, criando o banco de dados
+    flask db upgrade
+    ```
 
-python -m venv venv
-source venv/bin/activate  # No macOS/Linux
-.\venv\Scripts\Activate  # No Windows
+6.  **Crie o Usuário Administrador Padrão:**
+    Execute o comando `seed-db` para popular o banco com o usuário inicial.
+    ```bash
+    flask seed-db
+    ```
 
-Instale as Dependências:
+7.  **Rode a Aplicação:**
+    ```bash
+    flask run
+    ```
+    A aplicação estará acessível em `http://127.0.0.1:5000`.
 
-pip install -r requirements.txt
+### Método 2: Utilizando Docker (Recomendado para Produção)
 
-Inicialize e Migre o Banco de Dados:
-O Flask-Migrate gerencia a estrutura do banco. Execute estes comandos na primeira vez:
+1.  **Pré-requisitos:**
+    * Docker
+    * Docker Compose
 
-# Cria a pasta de migrações (apenas uma vez)
-flask db init
-# Gera o script da primeira migração
-flask db migrate -m "Criação inicial das tabelas"
-# Aplica a migração, criando o banco de dados
-flask db upgrade
+2.  **Configure o Ambiente:**
+    Crie um arquivo chamado `.env` na raiz do projeto. Copie e cole o conteúdo abaixo, ajustando os valores conforme sua necessidade.
+    ```bash
+    # Arquivo de configuração de ambiente
 
-Crie o Usuário Administrador Padrão:
-Execute o comando seed-db para popular o banco com o usuário inicial.
+    # Credenciais do Banco de Dados PostgreSQL (se usar o compose)
+    POSTGRES_USER=agenda_user
+    POSTGRES_PASSWORD=agenda_password
+    POSTGRES_DB=agenda_db
 
-flask seed-db
+    # Porta que a aplicação irá usar no seu servidor (Host)
+    HOST_PORT=5000
 
-Rode a Aplicação:
+    # Nome da imagem Docker da sua aplicação
+    APP_IMAGE=jardelberti/agenda.escola:VPS
+    ```
 
-flask run
+3.  **Inicie os Contêineres:**
+    O Docker Compose irá construir a imagem, baixar as dependências e iniciar todos os serviços em segundo plano (`-d`).
+    ```bash
+    docker-compose up -d --build
+    ```
 
-A aplicação estará acessível em http://127.0.0.1:5000.
+4.  **Configure o Banco de Dados (Primeira Execução):**
+    Aguarde um minuto para os serviços iniciarem e execute os comandos abaixo.
+    * Para criar as tabelas:
+        ```bash
+        docker-compose exec app flask db upgrade
+        ```
+    * Para criar o usuário admin padrão:
+        ```bash
+        docker-compose exec app flask seed-db
+        ```
 
-Método 2: Utilizando Docker (Recomendado para Produção)
-Pré-requisitos:
+5.  **Acesse a Aplicação:**
+    A aplicação estará disponível no seu navegador em: `http://localhost:5000/` (ou a porta que você definiu em `HOST_PORT`).
 
-Docker
+---
 
-Docker Compose
+## 🗄️ Configuração do Banco de Dados
 
-Construa a Imagem Docker:
-Na raiz do projeto (onde está o docker-compose.yml), execute:
-
-docker-compose build
-
-Inicie o Container:
-Este comando irá iniciar a aplicação em segundo plano.
-
-docker-compose up -d
-
-Crie e Popule o Banco de Dados:
-Com o container rodando, execute estes comandos para criar as tabelas e o usuário admin.
-
-# Aplica as migrações para criar as tabelas
-docker-compose exec app flask db upgrade
-# Popula o banco com o usuário padrão
-docker-compose exec app flask seed-db
-
-Acesse a Aplicação:
-A aplicação estará acessível em http://localhost:8080.
-
-🗄️ Configuração do Banco de Dados
 A aplicação é projetada para ser flexível.
 
-Padrão (SQLite): Se nenhuma configuração for fornecida, ela criará um arquivo agenda.db na pasta do projeto, ideal para desenvolvimento.
+* **Padrão (SQLite):** Se nenhuma configuração for fornecida, ela criará um arquivo `agenda.db` na pasta do projeto, ideal para desenvolvimento.
 
-Produção (PostgreSQL): Para usar um banco de dados PostgreSQL (como o Amazon RDS), você precisa definir uma variável de ambiente chamada DATABASE_URL.
+* **Produção (PostgreSQL):** Para usar um banco de dados PostgreSQL (como o Amazon RDS), você precisa definir uma variável de ambiente chamada `DATABASE_URL`.
 
-Formato da Variável:
+    **Formato da Variável:**
+    ```
+    DATABASE_URL=postgresql://USUARIO:SENHA@HOST:PORTA/NOME_DO_BANCO
+    ```
 
-DATABASE_URL=postgresql://USUARIO:SENHA@HOST:PORTA/NOME_DO_BANCO
+    **Como usar com Docker Compose:**
+    Adicione a variável ao seu arquivo `.env`. A aplicação irá priorizar a `DATABASE_URL` sobre as configurações `POSTGRES_*`.
 
-Como usar com Docker Compose:
-Você pode criar um arquivo .env na raiz do projeto e adicionar a linha acima, ou modificar o docker-compose.yml para incluir a variável de ambiente:
+---
 
-services:
-  app:
-    # ...
-    environment:
-      - DATABASE_URL=postgresql://user:pass@host:port/dbname
+## 🔑 Acesso Inicial
 
-Matrícula padrão para acessar painel admin: 7363
+Após inicializar o banco de dados, um usuário administrador padrão é criado para o primeiro acesso. **O login requer apenas a matrícula.**
+
+* **Nome:** `Jardel`
+* **Matrícula:** `7363`
+
+Use esta matrícula na tela de login para acessar o painel de administração e começar a configurar o sistema.

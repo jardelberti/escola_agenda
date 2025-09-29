@@ -3,26 +3,51 @@
 {% block title %}Agenda Semanal{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>Agenda Semanal</h2>
-    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Voltar ao Painel</a>
-</div>
+<body class="bg-slate-50" style='font-family: Inter, "Noto Sans", sans-serif;'>
+    <div class="container mx-auto px-4 py-8">
+        
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+            <h1 class="text-3xl font-bold text-slate-800">Agenda Semanal</h1>
+            <div class="mt-4 sm:mt-0">
+                <a href="{{ url_for('admin_dashboard') }}" class="bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-lg hover:bg-slate-300 transition-colors inline-flex items-center">
+                    <span class="material-symbols-outlined mr-2">arrow_back</span>
+                    Voltar ao Painel
+                </a>
+            </div>
+        </div>
 
-<!-- BARRA DE NAVEGAÇÃO DE SEMANAS -->
-<div class="d-flex justify-content-between align-items-center mb-4 p-2 bg-light rounded shadow-sm">
-    <a href="{{ url_for('weekly_view', date_str=prev_week_link) }}" class="btn btn-outline-primary">← Semana Anterior</a>
-    <h4 class="mb-0">Semana de {{ start_date_formatted }} a {{ end_date_formatted }}</h4>
-    <a href="{{ url_for('weekly_view', date_str=next_week_link) }}" class="btn btn-outline-primary">Próxima Semana →</a>
-</div>
+        <div class="flex justify-between items-center mb-8 p-4 bg-white rounded-xl border border-slate-200">
+            <a href="{{ url_for('weekly_view', date_str=prev_week_link) }}" class="bg-slate-100 text-slate-600 font-semibold px-4 py-2 rounded-lg hover:bg-slate-200 transition-colors inline-flex items-center">
+                <span class="material-symbols-outlined mr-2">chevron_left</span>
+                Anterior
+            </a>
+            <h2 class="text-lg font-semibold text-slate-700 text-center hidden sm:block">
+                Semana de {{ start_date_formatted }} a {{ end_date_formatted }}
+            </h2>
+            <a href="{{ url_for('weekly_view', date_str=next_week_link) }}" class="bg-slate-100 text-slate-600 font-semibold px-4 py-2 rounded-lg hover:bg-slate-200 transition-colors inline-flex items-center">
+                Próxima
+                <span class="material-symbols-outlined ml-2">chevron_right</span>
+            </a>
+        </div>
 
-<div class="d-grid gap-4">
-    {% for summary in weekly_summaries %}
-        {% with title=summary.title, icon=summary.icon, week_headers=summary.week_headers, schedule_template=summary.schedule_template, weekly_bookings=summary.weekly_bookings, color_class=summary.color_class %}
-            {% include 'admin_weekly_summary.html' %}
-        {% endwith %}
-    {% else %}
-        <p class="text-muted">Nenhum recurso com horários configurados para exibir o resumo.</p>
-    {% endfor %}
-</div>
+        <div class="space-y-8">
+            {% for summary in weekly_summaries %}
+                {% with 
+                    title=summary.title, 
+                    icon=summary.icon, 
+                    week_headers=summary.week_headers, 
+                    schedule_template=summary.schedule_template, 
+                    weekly_bookings=summary.weekly_bookings, 
+                    color_class=summary.color_class 
+                %}
+                    {% include 'admin_weekly_summary.html' %}
+                {% endwith %}
+            {% else %}
+                <div class="bg-white p-8 rounded-xl border border-slate-200 text-center text-slate-500">
+                    <p>Nenhum recurso com horários configurados para exibir o resumo.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</body>
 {% endblock %}
-

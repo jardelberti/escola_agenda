@@ -3,81 +3,170 @@
 {% block title %}Horários de {{ resource.name }}{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Gerenciar Horários de: <span class="text-primary">{{ resource.name }}</span></h2>
-    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Voltar ao Painel</a>
+
+<!-- MACRO JINJA PARA A LINHA DO SLOT (MOVIDA PARA O TOPO) -->
+{% macro render_slot_row(slot) %}
+<div class="slot-row grid grid-cols-12 gap-3 items-center">
+    <div class="col-span-6">
+        <input type="text" name="slot_name" class="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500" placeholder="Nome (ex: 1ª Aula, Intervalo)" value="{{ slot.name if slot else '' }}" required>
+    </div>
+    <div class="col-span-4">
+        <select name="slot_type" class="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500">
+            <option value="aula" {% if slot and slot.type == 'aula' %}selected{% endif %}>Aula</option>
+            <option value="intervalo" {% if slot and slot.type == 'intervalo' %}selected{% endif %}>Intervalo</option>
+        </select>
+    </div>
+    <div class="col-span-2">
+        <button type="button" class="w-full bg-red-100 text-red-700 font-semibold py-2.5 rounded-md text-sm hover:bg-red-200 inline-flex items-center justify-center" onclick="removeSlot(this)">
+            <span class="material-symbols-outlined">delete</span>
+        </button>
+    </div>
 </div>
+{% endmacro %}
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-        {% for category, message in messages %}
-            <div class="alert alert-{{ category }}">{{ message }}</div>
-        {% endfor %}
-    {% endif %}
-{% endwith %}
+<div class="mx-auto px-4 py-8 max-w-4xl">
 
-<div class="row">
-    <!-- Formulário do Turno Matutino -->
-    <div class="col-lg-6 mb-4">
-        <div class="card">
-            <div class="card-header"><h3>Turno Matutino</h3></div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('manage_schedules', resource_id=resource.id) }}">
-                    <input type="hidden" name="shift" value="matutino">
-                    <div id="matutino-slots-container">
-                        {% if matutino_schedule and matutino_schedule.slots %}
-                            {% for slot in matutino_schedule.slots %}
-                                {% include 'slot_row.html' with context %}
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                    <button type="button" class="btn btn-outline-primary mt-2" onclick="addSlot('matutino')">Adicionar Horário</button>
-                    <hr>
-                    <button type="submit" class="btn btn-success">Salvar Horários do Matutino</button>
-                </form>
-            </div>
+    <!-- CABEÇALHO DA PÁGINA -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-slate-800">Gerenciar Horários</h1>
+            <p class="text-slate-500 mt-1">Recurso: <strong class="text-slate-600">{{ resource.name }}</strong></p>
+        </div>
+        <div class="mt-4 sm:mt-0">
+            <a href="{{ url_for('admin_dashboard') }}" class="bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-lg hover:bg-slate-300 transition-colors inline-flex items-center">
+                <span class="material-symbols-outlined mr-2">arrow_back</span>
+                Voltar ao Painel
+            </a>
         </div>
     </div>
 
-    <!-- Formulário do Turno Vespertino -->
-    <div class="col-lg-6 mb-4">
-        <div class="card">
-            <div class="card-header"><h3>Turno Vespertino</h3></div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('manage_schedules', resource_id=resource.id) }}">
-                    <input type="hidden" name="shift" value="vespertino">
-                    <div id="vespertino-slots-container">
-                        {% if vespertino_schedule and vespertino_schedule.slots %}
-                            {% for slot in vespertino_schedule.slots %}
-                                {% include 'slot_row.html' with context %}
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                    <button type="button" class="btn btn-outline-primary mt-2" onclick="addSlot('vespertino')">Adicionar Horário</button>
-                    <hr>
-                    <button type="submit" class="btn btn-success">Salvar Horários do Vespertino</button>
-                </form>
-            </div>
+    <!-- MENSAGENS FLASH -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="space-y-2 mb-6">
+            {% for category, message in messages %}
+                {% set color = 'blue' if category == 'success' else 'red' if category == 'danger' else 'yellow' if category == 'warning' else 'gray' %}
+                <div class="bg-{{ color }}-100 border-l-4 border-{{ color }}-500 text-{{ color }}-700 p-4 rounded-lg" role="alert">
+                    <p>{{ message }}</p>
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- NAVEGAÇÃO POR ABAS -->
+    <div class="border-b border-gray-200">
+        <nav class="-mb-px flex space-x-6" aria-label="Tabs">
+            <a href="#matutino" class="tab-link active-tab shrink-0 border-b-2 font-medium px-1 py-4 text-sm" data-tab="matutino">
+                Turno Matutino
+            </a>
+            <a href="#vespertino" class="tab-link inactive-tab shrink-0 border-b-2 font-medium px-1 py-4 text-sm" data-tab="vespertino">
+                Turno Vespertino
+            </a>
+        </nav>
+    </div>
+
+    <!-- CONTEÚDO DAS ABAS -->
+    <div class="mt-6">
+        <!-- ABA MATUTINO -->
+        <div id="tab-matutino" class="tab-content">
+            <form method="POST" action="{{ url_for('manage_schedules', resource_id=resource.id) }}">
+                <input type="hidden" name="shift" value="matutino">
+                <div id="matutino-slots-container" class="space-y-3">
+                    {% if matutino_schedule and matutino_schedule.slots %}
+                        {% for slot in matutino_schedule.slots %}
+                            {{ render_slot_row(slot) }}
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                <div class="mt-4 flex justify-between items-center">
+                    <button type="button" class="bg-sky-100 text-sky-700 font-semibold px-4 py-2 rounded-md text-sm hover:bg-sky-200 inline-flex items-center" onclick="addSlot('matutino')">
+                        <span class="material-symbols-outlined mr-2">add</span>
+                        Adicionar Horário
+                    </button>
+                    <button type="submit" class="bg-green-600 text-white font-semibold py-2 px-5 rounded-lg shadow-sm hover:bg-green-700 transition-colors">Salvar Turno Matutino</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- ABA VESPERTINO -->
+        <div id="tab-vespertino" class="tab-content hidden">
+            <form method="POST" action="{{ url_for('manage_schedules', resource_id=resource.id) }}">
+                <input type="hidden" name="shift" value="vespertino">
+                <div id="vespertino-slots-container" class="space-y-3">
+                    {% if vespertino_schedule and vespertino_schedule.slots %}
+                        {% for slot in vespertino_schedule.slots %}
+                            {{ render_slot_row(slot) }}
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                <div class="mt-4 flex justify-between items-center">
+                    <button type="button" class="bg-sky-100 text-sky-700 font-semibold px-4 py-2 rounded-md text-sm hover:bg-sky-200 inline-flex items-center" onclick="addSlot('vespertino')">
+                        <span class="material-symbols-outlined mr-2">add</span>
+                        Adicionar Horário
+                    </button>
+                    <button type="submit" class="bg-green-600 text-white font-semibold py-2 px-5 rounded-lg shadow-sm hover:bg-green-700 transition-colors">Salvar Turno Vespertino</button>
+                </div>
+            </form>
         </div>
     </div>
-</div>
-
-<!-- Template de Slot (oculto) -->
-<div id="slot-template" class="d-none">
-    {% set slot = {'name':'', 'type':'aula'} %}
-    {% include 'slot_row.html' %}
 </div>
 
 <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const tabs = document.querySelectorAll('.tab-link');
+        const contents = document.querySelectorAll('.tab-content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('data-tab');
+
+                // Atualiza estilo das abas
+                tabs.forEach(t => {
+                    t.classList.remove('active-tab');
+                    t.classList.add('inactive-tab');
+                });
+                this.classList.add('active-tab');
+                this.classList.remove('inactive-tab');
+
+                // Mostra/esconde conteúdo
+                contents.forEach(content => {
+                    if (content.id === `tab-${targetId}`) {
+                        content.classList.remove('hidden');
+                    } else {
+                        content.classList.add('hidden');
+                    }
+                });
+            });
+        });
+    });
+
+    // As funções addSlot e removeSlot permanecem, mas agora usam o template da macro
     function addSlot(shift) {
         const container = document.getElementById(`${shift}-slots-container`);
-        const template = document.getElementById('slot-template').firstElementChild.cloneNode(true);
-        container.appendChild(template);
+        const newRowHTML = `{{ render_slot_row(None) | e | replace('\n', '') }}`;
+        container.insertAdjacentHTML('beforeend', newRowHTML);
     }
 
     function removeSlot(button) {
         button.closest('.slot-row').remove();
     }
 </script>
+
+<style>
+    .active-tab {
+        border-color: #2563eb; /* blue-600 */
+        color: #1e3a8a; /* blue-900 */
+    }
+    .inactive-tab {
+        border-color: transparent;
+        color: #64748b; /* slate-500 */
+    }
+    .inactive-tab:hover {
+        border-color: #cbd5e1; /* slate-300 */
+        color: #334155; /* slate-700 */
+    }
+</style>
 {% endblock %}
 

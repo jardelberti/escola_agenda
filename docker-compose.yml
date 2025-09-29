@@ -1,13 +1,72 @@
 services:
+  # --- Serviço da Aplicação (Flask) ---
   app:
+    # A instrução para construir a imagem a partir do Dockerfile local
     build: .
-    image: jardelberti/agenda.escola:latest
-    container_name: agenda_escolar_app
+    # Opcional, mas bom para nomear a imagem que será construída
+    image: ${APP_IMAGE}
+    container_name: agenda_app
     restart: unless-stopped
     ports:
-      - "8080:5000"
+      - "${HOST_PORT}:5000"
     volumes:
-      - db_data:/data
-volumes:
-  db_data:
+      - .:/app
+      - app_data:/app/data
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - TZ=America/Sao_Paulo
+    depends_on:
+      db:
+        condition: service_healthy
 
+  # --- Serviço do Banco de Dados (PostgreSQL) ---
+  db:
+    image: postgres:17-alpine
+    container_name: agenda_db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - TZ=America/Sao_Paulo
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- Serviço da Fila (Redis) ---
+  redis:
+    image: redis:alpine
+    container_name: agenda_redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+  # --- Serviço do Trabalhador (Celery) ---
+  worker:
+    # Também precisa ser construído a partir do mesmo código
+    build: .
+    image: ${APP_IMAGE}
+    command: celery -A app.celery worker --loglevel=info
+    volumes:
+      - .:/app
+      - app_data:/app/data
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - TZ=America/Sao_Paulo
+    depends_on:
+      - db
+      - redis
+
+# --- Volumes ---
+volumes:
+  postgres_data:
+  app_data:
+  redis_data:

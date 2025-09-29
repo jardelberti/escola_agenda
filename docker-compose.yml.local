@@ -1,0 +1,13 @@
+services:
+  app:
+    build: .
+    image: jardelberti/agenda.escola:latest
+    container_name: agenda_escolar_app
+    restart: unless-stopped
+    ports:
+      - "8080:5000"
+    volumes:
+      # O banco de dados SQLite e os backups serão salvos aqui
+      - db_data:/app/data 
+volumes:
+  db_data:

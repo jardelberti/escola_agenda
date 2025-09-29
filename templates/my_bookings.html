@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Meus Agendamentos{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-4xl px-4 py-6">
+    
+    <div class="relative flex items-center justify-center mb-6">
+        <a href="{{ url_for('home') }}" class="absolute left-0 flex items-center gap-2 text-slate-600 hover:text-slate-900 pr-4">
+            <span class="material-symbols-outlined">arrow_back</span>
+        </a>
+        <div class="text-center">
+            <h1 class="text-2xl font-bold text-slate-800">Meus Agendamentos</h1>
+            <p class="text-sm text-slate-500 mt-1">Seus agendamentos a partir de hoje.</p>
+        </div>
+    </div>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show mb-4" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% if bookings %}
+        <div class="space-y-4">
+            {% for booking, resource in bookings %}
+                <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex-1">
+                            <h2 class="text-base font-semibold text-slate-800">{{ resource.name }}</h2>
+                            <p class="text-sm text-slate-600 mt-2 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-base">calendar_today</span>
+                                {{ booking.date.strftime('%d/%m/%Y') }} ({{ weekdays_pt[booking.date.weekday()] }})
+                            </p>
+                            <p class="text-sm text-slate-600 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-base">schedule</span>
+                                {{ booking.slot_name }}
+                            </p>
+                        </div>
+                        <div class="flex flex-col items-end gap-3">
+                            {% if booking.shift == 'matutino' %}
+                                <div class="rounded-full bg-sky-100 px-3 py-1 text-xs font-medium text-sky-800">Matutino</div>
+                            {% elif booking.shift == 'vespertino' %}
+                                <div class="rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-800">Vespertino</div>
+                            {% else %}
+                                <div class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800">{{ booking.shift|capitalize }}</div>
+                            {% endif %}
+                            
+                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal" data-booking-id="{{ booking.id }}" data-resource-name="{{ resource.name }}" data-booking-date="{{ booking.date.strftime('%d/%m/%Y') }}">
+                                <span class="material-symbols-outlined text-sm align-middle">delete</span>
+                                Desmarcar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center py-10">
+            <span class="material-symbols-outlined text-5xl text-slate-400">event_busy</span>
+            <p class="mt-4 text-slate-600">Você não possui agendamentos futuros.</p>
+        </div>
+    {% endif %}
+</div>
+
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="deleteForm" method="POST" action="">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="confirmDeleteModalLabel">Confirmar Exclusão</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p>Você tem certeza que deseja desmarcar o uso de <strong id="modalResourceName"></strong> no dia <strong id="modalBookingDate"></strong>?</p>
+            <p class="text-danger small">Esta ação não pode ser desfeita.</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-danger">Sim, Desmarcar</button>
+          </div>
+        </div>
+    </form>
+  </div>
+</div>
+
+<script>
+    const confirmDeleteModal = document.getElementById('confirmDeleteModal');
+    if (confirmDeleteModal) {
+        confirmDeleteModal.addEventListener('show.bs.modal', event => {
+            const button = event.relatedTarget;
+            const bookingId = button.getAttribute('data-booking-id');
+            const resourceName = button.getAttribute('data-resource-name');
+            const bookingDate = button.getAttribute('data-booking-date');
+
+            const modalResourceName = confirmDeleteModal.querySelector('#modalResourceName');
+            const modalBookingDate = confirmDeleteModal.querySelector('#modalBookingDate');
+            modalResourceName.textContent = resourceName;
+            modalBookingDate.textContent = bookingDate;
+
+            const deleteForm = document.getElementById('deleteForm');
+            deleteForm.action = `/my-bookings/delete/${bookingId}`;
+        });
+    }
+</script>
+
+{% endblock %}

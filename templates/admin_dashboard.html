@@ -3,148 +3,194 @@
 {% block title %}Painel do Admin{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Painel do Administrador</h2>
-    <div>
-        <a href="{{ url_for('home') }}" class="btn btn-primary me-2">Ver Agendas</a>
-        <a href="{{ url_for('logout') }}" class="btn btn-secondary">Sair</a>
-    </div>
-</div>
+<body class="bg-slate-50" style='font-family: Inter, "Noto Sans", sans-serif;'>
+    <div class="container mx-auto px-4 py-8">
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-        {% for category, message in messages %}
-            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
+            <h1 class="text-3xl font-bold text-slate-800">Painel do Administrador</h1>
+            <div class="mt-4 sm:mt-0 flex space-x-2">
+                <a href="{{ url_for('home') }}" class="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700 transition-colors">Ver Agendas</a>
+                <a href="{{ url_for('logout') }}" class="bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-lg hover:bg-slate-300 transition-colors">Sair</a>
             </div>
-        {% endfor %}
-    {% endif %}
-{% endwith %}
+        </div>
 
-<div class="row gy-4">
-    <!-- Coluna da Esquerda (Ações) -->
-    <div class="col-md-4">
-        <div class="card mb-4">
-            <div class="card-header"><h4>Adicionar Novo Recurso</h4></div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('add_resource') }}">
-                    <div class="mb-3">
-                        <label for="name" class="form-label">Nome do Recurso</label>
-                        <input type="text" class="form-control" name="name" required>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="space-y-2 mb-6">
+                {% for category, message in messages %}
+                    {% set color = 'blue' if category == 'success' else 'red' if category == 'danger' else 'yellow' if category == 'warning' else 'gray' %}
+                    <div class="bg-{{ color }}-100 border-l-4 border-{{ color }}-500 text-{{ color }}-700 p-4 rounded-lg" role="alert">
+                        <p>{{ message }}</p>
                     </div>
-                    <div class="mb-3">
-                        <label for="description" class="form-label">Descrição (Opcional)</label>
-                        <input type="text" class="form-control" name="description">
+                {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            <div class="lg:col-span-1 space-y-6">
+                
+                <div class="bg-white p-6 rounded-xl border border-slate-200">
+                    <h3 class="text-xl font-bold text-slate-800 mb-4">Adicionar Recurso</h3>
+                    <form method="POST" action="{{ url_for('add_resource') }}" class="space-y-4">
+                        <div>
+                            <label for="name" class="block text-sm font-medium text-slate-600 mb-1">Nome do Recurso</label>
+                            <input type="text" name="name" class="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500" required>
+                        </div>
+                        <div>
+                            <label for="description" class="block text-sm font-medium text-slate-600 mb-1">Descrição (Opcional)</label>
+                            <input type="text" name="description" class="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="icon" class="block text-sm font-medium text-slate-600 mb-1">Ícone</label>
+                            <input type="text" name="icon" class="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500" placeholder="Ex: bi-projector-fill">
+                            <p class="text-xs text-slate-400 mt-1">Use classes do <a href="https://icons.getbootstrap.com/" target="_blank" class="text-blue-500 hover:underline">Bootstrap Icons</a>.</p>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-2 rounded-lg shadow-sm hover:bg-blue-700 transition-colors">Adicionar</button>
+                    </form>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl border border-slate-200">
+                    <h3 class="text-xl font-bold text-slate-800 mb-2">Outras Ações</h3>
+                    <div class="space-y-3 mt-4">
+                        <a href="{{ url_for('weekly_view') }}" class="block w-full text-center bg-teal-500 text-white font-semibold py-2 rounded-lg hover:bg-teal-600 transition-colors">Agenda Semanal</a>
+                        <a href="{{ url_for('reports') }}" class="block w-full text-center bg-green-500 text-white font-semibold py-2 rounded-lg hover:bg-green-600 transition-colors">Gerar Relatórios</a>
+                        <a href="{{ url_for('manage_teachers') }}" class="block w-full text-center bg-amber-500 text-white font-semibold py-2 rounded-lg hover:bg-amber-600 transition-colors">Gerenciar Usuários</a>
+                        <a href="{{ url_for('backup_restore_page') }}" class="block w-full text-center bg-gray-500 text-white font-semibold py-2 rounded-lg hover:bg-gray-600 transition-colors mt-4">Backup e Restauração</a>
                     </div>
-                    <div class="mb-3">
-                        <label for="icon" class="form-label">Ícone</label>
-                        <input type="text" class="form-control" name="icon" placeholder="Ex: bi-projector-fill">
-                        <div class="form-text">
-                            Copie o nome da classe da <a href="https://icons.getbootstrap.com/" target="_blank">Biblioteca de Ícones</a>.
+                </div>
+
+            </div>
+
+            <div class="lg:col-span-2">
+                <h3 class="text-xl font-bold text-slate-800 mb-2">Recursos Cadastrados</h3>
+                <p class="text-sm text-slate-500 mb-4"><i class="bi bi-arrows-move"></i> Arraste os itens para reordenar.</p>
+
+                <div class="space-y-3" id="resource-list">
+                    {% for resource in resources %}
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center" data-id="{{ resource.id }}">
+                        <div class="flex items-center gap-4 mb-4 sm:mb-0">
+                            <i class="bi bi-grip-vertical text-slate-400 cursor-grab"></i>
+                            <div>
+                                <h4 class="font-bold text-slate-800 flex items-center gap-2"><i class="{{ resource.icon or 'bi-box' }}"></i>{{ resource.name }}</h4>
+                                <p class="text-sm text-slate-500">{{ resource.description or '' }}</p>
+                            </div>
+                        </div>
+                        <div class="w-full sm:w-auto flex flex-col items-stretch space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-2">
+                            <a href="{{ url_for('manage_schedules', resource_id=resource.id) }}" class="text-center bg-sky-100 text-sky-700 font-semibold px-3 py-1 rounded-md text-sm hover:bg-sky-200">Horários</a>
+                            <button type="button" class="bg-yellow-100 text-yellow-700 font-semibold px-3 py-1 rounded-md text-sm hover:bg-yellow-200" data-bs-toggle="modal" data-bs-target="#editResourceModal" 
+                                    data-resource-id="{{ resource.id }}" data-resource-name="{{ resource.name }}" data-resource-description="{{ resource.description or '' }}" data-resource-icon="{{ resource.icon or '' }}">
+                                Editar
+                            </button>
+                            <button type="button" class="bg-indigo-100 text-indigo-700 font-semibold px-3 py-1 rounded-md text-sm hover:bg-indigo-200" data-bs-toggle="modal" data-bs-target="#copyResourceModal"
+                                    data-resource-id="{{ resource.id }}" data-resource-name="{{ resource.name }}" data-resource-icon="{{ resource.icon or '' }}">
+                                Copiar
+                            </button>
+                            <button type="button" class="bg-red-100 text-red-700 font-semibold px-3 py-1 rounded-md text-sm hover:bg-red-200" 
+                                    data-bs-toggle="modal" data-bs-target="#deleteResourceModal"
+                                    data-resource-id="{{ resource.id }}" data-resource-name="{{ resource.name }}">
+                                Excluir
+                            </button>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-primary">Adicionar Recurso</button>
+                    {% else %}
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 text-center text-slate-500">
+                        Nenhum recurso cadastrado.
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <form method="POST" action="{{ url_for('reorder_resources') }}" id="reorder-form" class="mt-4" style="display: none;">
+                    <input type="hidden" name="order" id="resource-order-input">
+                    <button type="submit" class="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-green-700 transition-colors">Salvar Nova Ordem</button>
                 </form>
             </div>
         </div>
+    </div>
 
-        <!-- NOVO CARD PARA AGENDA SEMANAL -->
-        <div class="card mb-4">
-            <div class="card-header"><h4>Agenda Semanal</h4></div>
-            <div class="card-body">
-                <p class="card-text">Visualize todos os agendamentos da semana atual.</p>
-                <a href="{{ url_for('weekly_view') }}" class="btn btn-info">Ver Agenda Semanal</a>
-            </div>
-        </div>
-
-        <div class="card mb-4">
-            <div class="card-header"><h4>Relatórios de Uso</h4></div>
-            <div class="card-body">
-                <p class="card-text">Gere relatórios de utilização dos recursos por professor.</p>
-                <a href="{{ url_for('reports') }}" class="btn btn-success">Gerar Relatórios</a>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-header"><h4>Gerenciar Usuários</h4></div>
-            <div class="card-body">
-                <p class="card-text">Cadastre e gerencie os professores e administradores.</p>
-                <a href="{{ url_for('manage_teachers') }}" class="btn btn-warning">Gerenciar Usuários</a>
+    <div class="modal fade" id="editResourceModal" tabindex="-1" aria-labelledby="editResourceModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editResourceModalLabel">Editar Recurso</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="editResourceForm" method="POST">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="edit_name" class="form-label">Nome do Recurso</label>
+                            <input type="text" class="form-control" id="edit_name" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_description" class="form-label">Descrição (Opcional)</label>
+                            <input type="text" class="form-control" id="edit_description" name="description">
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_icon" class="form-label">Ícone</label>
+                            <input type="text" class="form-control" id="edit_icon" name="icon">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
 
-    <!-- Coluna da Direita (Recursos Cadastrados) -->
-    <div class="col-md-8">
-        <h4>Recursos Cadastrados</h4>
-        <p class="text-muted"><i class="bi bi-arrows-move"></i> Arraste os itens para reordenar.</p>
-        
-        <ul class="list-group mb-4" id="resource-list">
-            {% for resource in resources %}
-            <li class="list-group-item d-flex justify-content-between align-items-center" data-id="{{ resource.id }}">
-                <div>
-                    <i class="bi bi-grip-vertical me-2" style="cursor: grab;"></i>
-                    <strong><i class="{{ resource.icon or 'bi-box' }} me-2"></i>{{ resource.name }}</strong><br>
-                    <small class="text-muted ms-5">{{ resource.description or '' }}</small>
+    <div class="modal fade" id="copyResourceModal" tabindex="-1" aria-labelledby="copyResourceModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="copyResourceModalLabel">Copiar Recurso</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="d-flex align-items-center">
-                    <a href="{{ url_for('manage_schedules', resource_id=resource.id) }}" class="btn btn-info btn-sm me-2">Horários</a>
-                    <button type="button" class="btn btn-warning btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editResourceModal" 
-                            data-resource-id="{{ resource.id }}"
-                            data-resource-name="{{ resource.name }}"
-                            data-resource-description="{{ resource.description or '' }}"
-                            data-resource-icon="{{ resource.icon or '' }}">
-                        Editar
-                    </button>
-                    <a href="{{ url_for('delete_resource', resource_id=resource.id) }}" class="btn btn-danger btn-sm">Excluir</a>
-                </div>
-            </li>
-            {% else %}
-            <li class="list-group-item">Nenhum recurso cadastrado.</li>
-            {% endfor %}
-        </ul>
-
-        <form method="POST" action="{{ url_for('reorder_resources') }}" id="reorder-form" class="mb-4" style="display: none;">
-            <input type="hidden" name="order" id="resource-order-input">
-            <button type="submit" class="btn btn-success">Salvar Nova Ordem</button>
-        </form>
-    </div>
-</div>
-
-<!-- Modal de Edição de Recurso (inalterado) -->
-<div class="modal fade" id="editResourceModal" tabindex="-1" aria-labelledby="editResourceModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editResourceModalLabel">Editar Recurso</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <form id="copyResourceForm" method="POST">
+                    <div class="modal-body">
+                        <p class="mb-4">Insira os novos dados para a cópia. A descrição e os horários serão mantidos do original.</p>
+                        <div class="mb-3">
+                            <label for="copy_name" class="form-label">Novo Nome do Recurso</label>
+                            <input type="text" class="form-control" id="copy_name" name="new_name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="copy_icon" class="form-label">Novo Ícone</label>
+                            <input type="text" class="form-control" id="copy_icon" name="new_icon">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar Cópia</button>
+                    </div>
+                </form>
             </div>
-            <form id="editResourceForm" method="POST">
+        </div>
+    </div>
+
+    <div class="modal fade" id="deleteResourceModal" tabindex="-1" aria-labelledby="deleteResourceModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteResourceModalLabel">Confirmar Exclusão</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="edit_name" class="form-label">Nome do Recurso</label>
-                        <input type="text" class="form-control" id="edit_name" name="name" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_description" class="form-label">Descrição (Opcional)</label>
-                        <input type="text" class="form-control" id="edit_description" name="description">
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_icon" class="form-label">Ícone</label>
-                        <input type="text" class="form-control" id="edit_icon" name="icon">
-                    </div>
+                    <p>Você tem certeza que deseja excluir o recurso <strong id="resourceNameToDelete"></strong>?</p>
+                    <p class="mt-2 text-sm text-red-600">
+                        <strong>Atenção:</strong> Todos os horários e agendamentos associados a ele serão <strong>permanentemente removidos</strong>. Esta ação não pode ser desfeita.
+                    </p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                    <a id="deleteConfirmButton" href="#" class="btn btn-danger">Sim, Excluir</a>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
-</div>
 
-<script>
+
+    <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Script do modal de edição
         const editResourceModal = document.getElementById('editResourceModal');
@@ -165,6 +211,38 @@
             });
         }
 
+        // Script para o modal de cópia
+        const copyResourceModal = document.getElementById('copyResourceModal');
+        if (copyResourceModal) {
+            copyResourceModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const resourceId = button.getAttribute('data-resource-id');
+                const resourceName = button.getAttribute('data-resource-name');
+                const resourceIcon = button.getAttribute('data-resource-icon');
+                const modalForm = copyResourceModal.querySelector('#copyResourceForm');
+                const modalTitle = copyResourceModal.querySelector('.modal-title');
+                modalTitle.textContent = `Copiar Recurso: ${resourceName}`;
+                modalForm.action = `/admin/resource/copy/${resourceId}`;
+                modalForm.querySelector('#copy_name').value = `${resourceName} (Cópia)`;
+                modalForm.querySelector('#copy_icon').value = resourceIcon;
+            });
+        }
+
+        // NOVO SCRIPT PARA O MODAL DE EXCLUSÃO
+        const deleteResourceModal = document.getElementById('deleteResourceModal');
+        if (deleteResourceModal) {
+            deleteResourceModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const resourceId = button.getAttribute('data-resource-id');
+                const resourceName = button.getAttribute('data-resource-name');
+                const resourceNameSpan = deleteResourceModal.querySelector('#resourceNameToDelete');
+                const confirmButton = deleteResourceModal.querySelector('#deleteConfirmButton');
+                
+                resourceNameSpan.textContent = resourceName;
+                confirmButton.href = `/admin/resource/delete/${resourceId}`;
+            });
+        }
+
         // SCRIPT PARA ORDENAÇÃO
         const resourceList = document.getElementById('resource-list');
         if (resourceList) {
@@ -173,7 +251,7 @@
 
             new Sortable(resourceList, {
                 animation: 150,
-                ghostClass: 'bg-light',
+                ghostClass: 'opacity-50',
                 handle: '.bi-grip-vertical',
                 onEnd: function () {
                     reorderForm.style.display = 'block';
@@ -181,12 +259,12 @@
             });
 
             reorderForm.addEventListener('submit', function (e) {
-                const resourceItems = resourceList.querySelectorAll('li');
+                const resourceItems = resourceList.querySelectorAll('div[data-id]');
                 const newOrder = Array.from(resourceItems).map(item => item.getAttribute('data-id'));
                 orderInput.value = newOrder.join(',');
             });
         }
     });
-</script>
+    </script>
+</body>
 {% endblock %}
-

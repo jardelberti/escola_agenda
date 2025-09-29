@@ -3,80 +3,154 @@
 {% block title %}Relatórios de Uso{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Relatórios de Utilização</h2>
-    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Voltar ao Painel</a>
-</div>
+<body class="bg-slate-50" style='font-family: Inter, "Noto Sans", sans-serif;'>
+    <div class="container mx-auto px-4 py-8">
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-        {% for category, message in messages %}
-            <div class="alert alert-{{ category }}">{{ message }}</div>
-        {% endfor %}
-    {% endif %}
-{% endwith %}
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
+            <h1 class="text-3xl font-bold text-slate-800">Relatórios de Utilização</h1>
+            <div class="mt-4 sm:mt-0">
+                <a href="{{ url_for('admin_dashboard') }}" class="bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-lg hover:bg-slate-300 transition-colors inline-flex items-center">
+                    <span class="material-symbols-outlined mr-2">arrow_back</span>
+                    Voltar ao Painel
+                </a>
+            </div>
+        </div>
 
-<!-- Formulário para gerar relatório -->
-<div class="card mb-4">
-    <div class="card-header">
-        <h4>Gerar Novo Relatório</h4>
-    </div>
-    <div class="card-body">
-        <form method="POST" action="{{ url_for('reports') }}">
-            <div class="row g-3 align-items-end">
-                <div class="col-md-4">
-                    <label for="resource_id" class="form-label">Recurso</label>
-                    <select name="resource_id" id="resource_id" class="form-select" required>
-                        <option value="">Selecione um recurso...</option>
-                        {% for resource in resources %}
-                            <option value="{{ resource.id }}" {% if selected_resource_id == resource.id %}selected{% endif %}>{{ resource.name }}</option>
-                        {% endfor %}
-                    </select>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="space-y-2 mb-6">
+                {% for category, message in messages %}
+                    {% set color = 'red' if category == 'danger' else 'yellow' if category == 'warning' else 'gray' %}
+                    <div class="bg-{{ color }}-100 border-l-4 border-{{ color }}-500 text-{{ color }}-700 p-4 rounded-lg" role="alert">
+                        <p>{{ message }}</p>
+                    </div>
+                {% endfor %}
                 </div>
-                <div class="col-md-3">
-                    <label for="start_date" class="form-label">Data Inicial</label>
-                    <input type="text" class="form-control datepicker" id="start_date" name="start_date" placeholder="dd/mm/aaaa" value="{{ start_date }}" required>
+            {% endif %}
+        {% endwith %}
+
+        <div class="bg-white p-6 rounded-xl border border-slate-200 mb-8">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">Gerar Novo Relatório</h3>
+            <form method="POST" action="{{ url_for('reports') }}">
+                <div class="grid grid-cols-1 md:grid-cols-10 gap-4 items-end">
+                    <div class="md:col-span-3">
+                        <label for="resource_id" class="block text-sm font-medium text-slate-600 mb-1">Recurso</label>
+                        <select name="resource_id" id="resource_id" class="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500" required>
+                            <option value="">Selecione um recurso...</option>
+                            {% for resource in resources %}
+                                <option value="{{ resource.id }}" {% if selected_resource_id == resource.id %}selected{% endif %}>{{ resource.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="md:col-span-3">
+                        <label for="start_date" class="block text-sm font-medium text-slate-600 mb-1">Data Inicial</label>
+                        <input type="text" class="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500 datepicker" id="start_date" name="start_date" placeholder="dd/mm/aaaa" value="{{ start_date }}" required>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="end_date" class="block text-sm font-medium text-slate-600 mb-1">Data Final</label>
+                        <input type="text" class="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500 datepicker" id="end_date" name="end_date" placeholder="dd/mm/aaaa" value="{{ end_date }}" required>
+                    </div>
+                    <div class="md:col-span-2">
+                        <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-2.5 rounded-lg shadow-sm hover:bg-blue-700 transition-colors">Gerar</button>
+                    </div>
                 </div>
-                <div class="col-md-3">
-                    <label for="end_date" class="form-label">Data Final</label>
-                    <input type="text" class="form-control datepicker" id="end_date" name="end_date" placeholder="dd/mm/aaaa" value="{{ end_date }}" required>
-                </div>
-                <div class="col-md-2">
-                    <button type="submit" class="btn btn-primary w-100">Gerar</button>
+            </form>
+        </div>
+
+        {% if report_data is not none %}
+        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div class="p-6 border-b border-slate-200">
+                <h3 class="text-xl font-bold text-slate-800">Resultado do Relatório</h3>
+            </div>
+
+            {% if chart_labels and chart_data and chart_labels != '[]' %}
+             <div class="p-6">
+                <div class="max-w-2xl mx-auto">
+                    <canvas id="usageChart"></canvas>
                 </div>
             </div>
-        </form>
-    </div>
-</div>
+            {% endif %}
 
-<!-- Resultados do Relatório -->
-{% if report_data is not none %}
-<div class="card">
-    <div class="card-header">
-        <h4>Resultado do Relatório</h4>
-    </div>
-    <div class="card-body">
-        {% if report_data %}
-        <table class="table table-striped table-hover">
-            <thead>
-                <tr>
-                    <th>Professor</th>
-                    <th class="text-center">Quantidade de Usos</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for teacher, count in report_data %}
-                <tr>
-                    <td>{{ teacher }}</td>
-                    <td class="text-center">{{ count }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p class="text-muted">Nenhum agendamento encontrado para os filtros selecionados.</p>
+            <div class="p-6">
+                {% if report_data %}
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Professor</th>
+                            <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Quantidade de Usos</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-slate-200">
+                        {% for teacher, count in report_data %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{{ teacher }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">{{ count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="bg-slate-100 border-t-2 border-slate-300">
+                        <tr>
+                            <td class="px-6 py-3 text-right text-sm font-bold text-slate-800">Total Geral de Usos:</td>
+                            <td class="px-6 py-3 text-center text-sm font-bold text-slate-800">{{ report_data | sum(attribute=1) }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                {% else %}
+                <p class="text-slate-500 text-center py-4">Nenhum agendamento encontrado para os filtros selecionados.</p>
+                {% endif %}
+            </div>
+        </div>
         {% endif %}
     </div>
-</div>
-{% endif %}
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        // Garante que o script só execute após os dados serem passados pelo Flask
+        document.addEventListener('DOMContentLoaded', function() {
+            // Pega as variáveis do Flask. Se não existirem, usa um array vazio.
+            const chartLabels = {{ chart_labels|safe if chart_labels else '[]' }};
+            const chartData = {{ chart_data|safe if chart_data else '[]' }};
+
+            // Só tenta renderizar o gráfico se houver dados
+            if (chartLabels.length > 0 && chartData.length > 0) {
+                const ctx = document.getElementById('usageChart').getContext('2d');
+                const usageChart = new Chart(ctx, {
+                    type: 'bar', // Outras opções: 'pie', 'line', 'doughnut'
+                    data: {
+                        labels: chartLabels,
+                        datasets: [{
+                            label: 'Quantidade de Usos',
+                            data: chartData,
+                            backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    // Garante que o eixo Y só tenha números inteiros
+                                    precision: 0
+                                }
+                            }
+                        },
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                display: false // A legenda é desnecessária aqui
+                            },
+                            title: {
+                                display: true,
+                                text: 'Uso de Recurso por Professor'
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
 {% endblock %}

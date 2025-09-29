@@ -1,131 +1,256 @@
 {% extends "base.html" %}
+
 {% block title %}Agenda de {{ resource.name }}{% endblock %}
 
 {% block content %}
-    <!-- CABEÇALHO ATUALIZADO COM O TURNO EM EVIDÊNCIA -->
-    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
-        <h2 class="mb-0 text-truncate">
-            <a href="{{ url_for('select_shift', resource_id=resource.id) }}" class="text-decoration-none text-dark align-middle">
-                <i class="bi bi-arrow-left-circle fs-4 me-2"></i>
-            </a>
-            <span class="align-middle">{{ resource.name }}</span>
-        </h2>
-        <span class="badge bg-primary fs-5 rounded-pill px-3">{{ shift.capitalize() }}</span>
-    </div>
-
-    <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded shadow-sm">
-        <a href="{{ url_for('agenda_view', resource_id=resource.id, shift=shift, date_str=prev_day_str) }}" class="btn btn-outline-primary">← Dia Anterior</a>
-        <h4 class="mb-0">{{ day_name }}, {{ current_date.strftime('%d/%m/%Y') }}</h4>
-        <a href="{{ url_for('agenda_view', resource_id=resource.id, shift=shift, date_str=next_day_str) }}" class="btn btn-outline-primary">Próximo Dia →</a>
+<div class="mx-auto max-w-2xl px-4 py-4 pb-24">
+    
+    <div class="relative flex items-center justify-center mb-6">
+        <a href="{{ url_for('home') }}" class="absolute left-0 flex items-center gap-2 text-slate-600 hover:text-slate-900 pr-4">
+            <span class="material-symbols-outlined">arrow_back</span>
+        </a>
+        <h1 class="text-2xl sm:text-3xl font-bold text-slate-800 flex items-center gap-2">
+            <i class="{{ resource.icon or 'bi-box' }}"></i>
+            <span>{{ resource.name }}</span>
+        </h1>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
+        <div class="space-y-2 mb-4">
             {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                {% set color = 'blue' if category == 'success' else 'red' if category == 'danger' else 'yellow' if category == 'warning' else 'gray' %}
+                <div class="bg-{{ color }}-100 border-l-4 border-{{ color }}-500 text-{{ color }}-700 p-4 rounded-lg" role="alert">
+                    <p>{{ message }}</p>
                 </div>
             {% endfor %}
+        </div>
         {% endif %}
     {% endwith %}
 
-    <table class="table table-bordered text-center table-hover">
-        <tbody class="align-middle">
-            {% if slots %}
-                {% for slot in slots %}
-                    <tr>
-                        <th class="w-25 bg-light">{{ slot.name }}</th>
-                        <td>
-                            {% set booking = booked_slots.get(slot.name) %}
-                            {% if booking %}
-                                {% if booking.status == 'closed' %}
-                                    <span class="badge bg-dark fs-6">FECHADO</span>
-                                {% else %}
-                                    <strong>{{ booking.teacher_name }}</strong>
-                                {% endif %}
-                                {% if current_user.is_admin or booking.teacher_id == current_user.id %}
-                                    <a href="{{ url_for('delete_booking', booking_id=booking.id, shift=shift) }}" class="btn btn-danger btn-sm ms-2" title="Excluir Agendamento">&times;</a>
-                                {% endif %}
-                            {% elif slot.type == 'intervalo' %}
-                                ---
-                            {% else %}
-                                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#bookingModal" data-slot-name="{{ slot.name }}">
-                                    Agendar
-                                </button>
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% endfor %}
-            {% else %}
-                <tr>
-                    <td colspan="2" class="text-muted p-4">A estrutura de horários para este recurso ainda não foi definida pelo administrador.</td>
-                </tr>
-            {% endif %}
-        </tbody>
-    </table>
+    <div id="calendar-container"></div>
+    
+    <div id="selected-date-display" class="text-center text-lg font-semibold text-slate-700 mt-4 mb-2"></div>
 
-<!-- Modal de Agendamento/Gerenciamento (inalterado) -->
-<div class="modal fade" id="bookingModal" tabindex="-1" aria-labelledby="bookingModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="bookingModalLabel">Gerenciar Horário</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="grid grid-cols-2 gap-4 my-6">
+        <button id="shift-matutino" class="shift-toggle-btn w-full font-semibold py-3 rounded-lg transition-colors">Matutino</button>
+        <button id="shift-vespertino" class="shift-toggle-btn w-full font-semibold py-3 rounded-lg transition-colors">Vespertino</button>
+    </div>
+
+    <div id="slots-list-container" class="space-y-3">
+        <div id="loading-spinner" class="text-center py-8">
+            <div role="status">
+                <svg aria-hidden="true" class="inline w-8 h-8 text-gray-200 animate-spin fill-blue-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
+                    <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0492C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5424 39.6781 93.9676 39.0409Z" fill="currentFill"/>
+                </svg>
+                <span class="sr-only">A carregar...</span>
             </div>
-            <form id="bookingForm" method="POST">
-                <div class="modal-body">
-                    <input type="hidden" name="resource_id" value="{{ resource.id }}">
-                    <input type="hidden" name="date" value="{{ current_date.strftime('%Y-%m-%d') }}">
-                    <input type="hidden" name="shift" value="{{ shift }}">
-                    <input type="hidden" id="slot_name_input" name="slot_name">
-                    
-                    <p>Gerenciando o horário: <strong id="slot_name_text"></strong></p>
-
-                    {% if current_user.is_admin %}
-                    <div class="mb-3">
-                        <label for="teacher_id" class="form-label">Agendar em nome de:</label>
-                        <select class="form-select" name="teacher_id" id="teacher_id">
-                            {% for teacher in teachers %}
-                            <option value="{{ teacher.id }}" {% if teacher.id == current_user.id %}selected{% endif %}>
-                                {{ teacher.name }} {% if teacher.is_admin %}(Admin){% endif %}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    {% else %}
-                    <h4 class="text-center text-primary">{{ current_user.name }}</h4>
-                    <p class="text-center">Deseja confirmar o agendamento?</p>
-                    {% endif %}
-                </div>
-
-                <div class="modal-footer">
-                    {% if current_user.is_admin %}
-                    <button type="submit" class="btn btn-danger me-auto" formaction="{{ url_for('close_slot') }}">Marcar como Fechado</button>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary" formaction="{{ url_for('book_slot') }}">Confirmar Agendamento</button>
-                    {% else %}
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary" formaction="{{ url_for('book_slot') }}">Confirmar Agendamento</button>
-                    {% endif %}
-                </div>
-            </form>
         </div>
     </div>
-</div>
 
-<script>
-    const bookingModal = document.getElementById('bookingModal');
-    if (bookingModal) {
-        bookingModal.addEventListener('show.bs.modal', function (event) {
-            const button = event.relatedTarget;
-            const slotName = button.getAttribute('data-slot-name');
-            const slotNameText = bookingModal.querySelector('#slot_name_text');
-            const slotNameInput = bookingModal.querySelector('#slot_name_input');
-            if(slotNameText) slotNameText.textContent = slotName;
-            if(slotNameInput) slotNameInput.value = slotName;
+    <div class="modal fade" id="bookingModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmar Agendamento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="bookingForm" method="POST">
+                    <div class="modal-body">
+                        <input type="hidden" name="resource_id" value="{{ resource.id }}">
+                        <input type="hidden" id="modal_date_input" name="date">
+                        <input type="hidden" id="modal_shift_input" name="shift">
+                        <input type="hidden" id="modal_slot_name_input" name="slot_name">
+                        <p>Deseja confirmar o agendamento para o horário <strong id="modal_slot_name_text"></strong>?</p>
+                        {% if current_user.is_admin %}
+                        <div class="mt-3">
+                            <label for="teacher_id" class="form-label">Agendar em nome de:</label>
+                            <select class="form-select" name="teacher_id" id="teacher_id">
+                                {% for teacher in teachers %}
+                                <option value="{{ teacher.id }}" {% if teacher.id == current_user.id %}selected{% endif %}>
+                                    {{ teacher.name }} {% if teacher.is_admin %}(Admin){% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="modal-footer">
+                        {% if current_user.is_admin %}
+                        <button type="submit" class="btn btn-danger me-auto" formaction="{{ url_for('close_slot') }}">Marcar como Fechado</button>
+                        {% endif %}
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" formaction="{{ url_for('book_slot') }}">Confirmar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- 1. VARIÁVEIS DE ESTADO E REFERÊNCIAS ---
+        const calendarContainer = document.getElementById('calendar-container');
+        const slotsContainer = document.getElementById('slots-list-container');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const btnMatutino = document.getElementById('shift-matutino');
+        const btnVespertino = document.getElementById('shift-vespertino');
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        let selectedDate = urlParams.get('date') || '{{ current_date.strftime("%Y-%m-%d") }}';
+        
+        let selectedShift = urlParams.get('shift') || 'matutino';
+
+        // --- NOVO: Função para mostrar a data selecionada ---
+        function updateDateDisplay(dateStr) {
+            const displayElement = document.getElementById('selected-date-display');
+            if (!displayElement) return;
+
+            // Adicionar 'T00:00:00' previne problemas de fuso horário que podem mudar o dia
+            const dateObj = new Date(dateStr + 'T00:00:00');
+            
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const formattedDate = dateObj.toLocaleDateString('pt-BR', options);
+            
+            // Coloca a primeira letra em maiúsculo
+            displayElement.textContent = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
+        }
+
+        // --- 2. FUNÇÃO PRINCIPAL PARA BUSCAR E RENDERIZAR DADOS ---
+        async function fetchAndRenderSlots() {
+            loadingSpinner.style.display = 'block';
+            slotsContainer.innerHTML = '';
+            slotsContainer.appendChild(loadingSpinner);
+
+            try {
+                const newUrl = window.location.pathname + `?date=${selectedDate}`;
+                window.history.pushState({ path: newUrl }, '', newUrl);
+
+                const response = await fetch(`/api/agenda/{{ resource.id }}/${selectedDate}`);
+                if (!response.ok) throw new Error('Erro ao buscar dados.');
+                const data = await response.json();
+                renderSlots(data[selectedShift]);
+            } catch (error) {
+                console.error(error);
+                slotsContainer.innerHTML = `<div class="bg-red-100 text-red-700 p-4 rounded-lg">Erro ao carregar a agenda. Tente novamente.</div>`;
+            }
+        }
+
+        // --- 3. FUNÇÃO PARA RENDERIZAR A LISTA DE HORÁRIOS ---
+        function renderSlots(slots) {
+            loadingSpinner.style.display = 'none';
+            slotsContainer.innerHTML = '';
+
+            if (!slots || slots.length === 0) {
+                slotsContainer.innerHTML = `<div class="bg-white p-6 rounded-xl border text-center text-slate-500">A estrutura de horários para este turno ainda não foi definida.</div>`;
+                return;
+            }
+
+            slots.forEach(slot => {
+                let slotHTML = '';
+                let statusBadge = '';
+
+                if (slot.booked_by === 'Fechado') {
+                    statusBadge = `<span class="bg-black text-white text-xs font-semibold px-3 py-1 rounded-full">Fechado</span>`;
+                } else if (slot.booked_by) {
+                    statusBadge = `<span class="bg-blue-600 text-white text-xs font-semibold px-3 py-1 rounded-full">${slot.booked_by}</span>`;
+                } else if (slot.type !== 'intervalo') {
+                    statusBadge = `<span class="bg-green-600 text-white text-xs font-semibold px-3 py-1 rounded-full">Disponível</span>`;
+                }
+
+                if (slot.type === 'intervalo') {
+                    slotHTML = `<div class="w-full flex items-center gap-4 bg-slate-100 p-4 rounded-lg border text-left"><div class="flex-grow"><p class="text-slate-500 font-medium text-center">${slot.name}</p></div></div>`;
+                } else {
+                    let mainElement = '';
+                    let deleteButton = '';
+
+                    if ((slot.is_mine || slot.is_admin) && slot.booking_id) {
+                        deleteButton = `<a href="/agenda/booking/delete/${slot.booking_id}?shift=${selectedShift}&date=${selectedDate}" class="flex items-center justify-center size-8 rounded-full bg-red-100 text-red-600 hover:bg-red-200 flex-shrink-0" title="Excluir Agendamento">&times;</a>`;
+                    }
+
+                    if (!slot.booked_by) {
+                        mainElement = `<button class="w-full flex items-center gap-4 bg-white p-3 rounded-lg border border-slate-200 text-left hover:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600" data-bs-toggle="modal" data-bs-target="#bookingModal" data-slot-name="${slot.name}"><p class="text-slate-800 font-medium flex-grow">${slot.name}</p>${statusBadge}</button>`;
+                    } else {
+                        mainElement = `<div class="w-full flex items-center gap-4 bg-white p-3 rounded-lg border border-slate-200 text-left"><p class="text-slate-800 font-medium flex-grow">${slot.name}</p>${statusBadge}${deleteButton}</div>`;
+                    }
+                    slotHTML = mainElement;
+                }
+                slotsContainer.innerHTML += slotHTML;
+            });
+        }
+        
+        // --- 4. FUNÇÃO PARA ATUALIZAR ESTILO DOS BOTÕES DE TURNO ---
+        function updateShiftButtons() {
+            if (selectedShift === 'matutino') {
+                btnMatutino.classList.add('bg-blue-600', 'text-white');
+                btnMatutino.classList.remove('bg-slate-200', 'text-slate-700');
+                btnVespertino.classList.add('bg-slate-200', 'text-slate-700');
+                btnVespertino.classList.remove('bg-blue-600', 'text-white');
+            } else {
+                btnVespertino.classList.add('bg-blue-600', 'text-white');
+                btnVespertino.classList.remove('bg-slate-200', 'text-slate-700');
+                btnMatutino.classList.add('bg-slate-200', 'text-slate-700');
+                btnMatutino.classList.remove('bg-blue-600', 'text-white');
+            }
+        }
+
+        // --- 5. INICIALIZAÇÃO E EVENT LISTENERS ---
+        flatpickr(calendarContainer, {
+            inline: true,
+            dateFormat: "Y-m-d",
+            defaultDate: selectedDate,
+            locale: {
+                firstDayOfWeek: 0,
+                weekdays: { shorthand: ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"], longhand: ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"] },
+                months: { shorthand: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"], longhand: ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"] },
+            },
+            disable: [ function(date) { return (date.getDay() === 0 || date.getDay() === 6); } ],
+            onChange: function(selectedDates, dateStr, instance) {
+                selectedDate = dateStr;
+                updateDateDisplay(selectedDate); // ATUALIZADO: Chama a função ao mudar de data
+                fetchAndRenderSlots();
+            }
         });
-    }
-</script>
-{% endblock %}
 
+        btnMatutino.addEventListener('click', () => {
+            if (selectedShift !== 'matutino') {
+                selectedShift = 'matutino';
+                updateShiftButtons();
+                fetchAndRenderSlots();
+            }
+        });
+
+        btnVespertino.addEventListener('click', () => {
+            if (selectedShift !== 'vespertino') {
+                selectedShift = 'vespertino';
+                updateShiftButtons();
+                fetchAndRenderSlots();
+            }
+        });
+
+        const bookingModal = document.getElementById('bookingModal');
+        if (bookingModal) {
+            bookingModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const slotName = button.getAttribute('data-slot-name');
+                bookingModal.querySelector('#modal_slot_name_text').textContent = slotName;
+                bookingModal.querySelector('#modal_slot_name_input').value = slotName;
+                bookingModal.querySelector('#modal_date_input').value = selectedDate;
+                bookingModal.querySelector('#modal_shift_input').value = selectedShift;
+            });
+        }
+        
+        updateShiftButtons();
+        fetchAndRenderSlots();
+        updateDateDisplay(selectedDate); // ATUALIZADO: Chama a função no carregamento inicial
+    });
+    </script>
+
+    <style>
+        .flatpickr-calendar {
+            margin: 0 auto !important;
+        }
+    </style>
+</div>
+{% endblock %}

@@ -1,0 +1,8 @@
+# Ignorar arquivos de ambiente com segredos
+.env
+
+# Outras coisas úteis para ignorar em projetos Python
+venv/
+__pycache__/
+*.pyc
+.vscode/
