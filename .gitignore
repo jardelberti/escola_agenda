@@ -1,8 +1,19 @@
-# Ignorar arquivos de ambiente com segredos
-.env
-
-# Outras coisas úteis para ignorar em projetos Python
+# Arquivos de ambiente virtual
+.venv/
 venv/
+env/
+
+# Arquivos de cache do Python
 __pycache__/
 *.pyc
+
+# Banco de dados local
+*.db
+*.db-journal*
+
+# Configurações de IDE
 .vscode/
+.idea/
+
+# Arquivos do sistema
+.DS_Store
