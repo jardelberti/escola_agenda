@@ -119,7 +119,7 @@ Existem duas maneiras principais de rodar a aplicação: localmente para desenvo
     HOST_PORT=5000
 
     # Nome da imagem Docker da sua aplicação
-    APP_IMAGE=jardelberti/agenda.escola:VPS
+    APP_IMAGE=jardelberti/agenda.escola:latest
     ```
 
 3.  **Inicie os Contêineres:**
