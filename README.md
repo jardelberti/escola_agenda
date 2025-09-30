@@ -60,8 +60,8 @@ Existem duas maneiras principais de rodar a aplicação: localmente para desenvo
 
 2.  **Clone o Repositório:**
     ```bash
-    git clone [https://github.com/seu-usuario/agenda-escola.git](https://github.com/seu-usuario/agenda-escola.git)
-    cd agenda-escola
+    git clone [https://github.com/jardelberti/escola_agenda.git](https://github.com/jardelberti/escola_agenda.git)
+    cd escola_agenda
     ```
 
 3.  **Crie e Ative um Ambiente Virtual:**
