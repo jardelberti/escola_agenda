@@ -1,19 +1,23 @@
-# Arquivos de ambiente virtual
-.venv/
-venv/
-env/
-
-# Arquivos de cache do Python
-__pycache__/
-*.pyc
-
-# Banco de dados local
-*.db
-*.db-journal*
+# Ambiente
+.env
+.venv
+venv
+env
 
 # Configurações de IDE
 .vscode/
-.idea/
 
-# Arquivos do sistema
+# Banco de dados local e dados de produção
+*.db
+*.db-journal*
+data/
+
+# Cache do Python
+__pycache__/
+*.pyc
+
+# Arquivos do Flask
+.flaskenv
+
+# Outros
 .DS_Store
