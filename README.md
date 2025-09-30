@@ -1,5 +1,4 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/user-attachments/assets/1569a7c3-30b0-4a37-b952-4752b75a40b9" width="150px" />
   <h1>Agenda Escolar</h1>
   <p><strong>Um sistema completo de agendamento de recursos para ambientes escolares, conteinerizado com Docker.</strong></p>
   <p>
