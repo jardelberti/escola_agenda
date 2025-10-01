@@ -53,6 +53,7 @@ services:
     build: .
     image: ${APP_IMAGE}
     command: celery -A app.celery worker --loglevel=info
+    restart: unless-stopped
     volumes:
       - .:/app
       - app_data:/app/data
