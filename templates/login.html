@@ -7,8 +7,8 @@
 <div class="flex flex-col items-center justify-center px-4" style="min-height: 85vh;">
     <div class="w-full max-w-sm mx-auto">
 
-        <div class="flex justify-center mb-8">
-            <span class="material-symbols-outlined text-blue-600 text-6xl">calendar_month</span>
+        <div class="flex justify-center mb-6">
+            <img src="{{ url_for('static', filename='logo_agenda.png') }}" alt="Logo Agenda Escolar" class="h-30 w-auto">
         </div>
 
         <h1 class="text-2xl font-bold text-center text-slate-800 mb-2">Acesse sua Conta</h1>
@@ -59,6 +59,11 @@
                 <button type="submit" class="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-14 px-5 bg-blue-600 text-slate-50 text-base font-bold leading-normal tracking-wide shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 transition-colors duration-300">
                     <span class="truncate">Entrar</span>
                 </button>
+            </div>
+            <div class="text-center mt-4">
+                <a href="{{ url_for('forgot_password') }}" class="text-sm font-medium text-blue-600 hover:text-blue-500">
+                    Esqueceu sua senha?
+                </a>
             </div>
         </form>
 

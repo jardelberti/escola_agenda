@@ -69,8 +69,9 @@
                 <h3 class="text-xl font-bold text-slate-800 mb-4">Usuários Cadastrados</h3>
                 <div class="space-y-3">
                     {% for membro in membros %}
-                    <div class="bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center">
-                        <div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:justify-between sm:items-center">
+                        
+                        <div class="mb-4 sm:mb-0">
                             <h4 class="font-bold text-slate-800">{{ membro.usuario.nome }}</h4>
                             <p class="text-sm text-slate-500">E-mail: {{ membro.usuario.email }}</p>
                             {% if membro.matricula %}
@@ -85,8 +86,9 @@
                                 <span class="inline-block mt-2 bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">Professor</span>
                             {% endif %}
                         </div>
-                        <div class="flex items-center space-x-2 flex-shrink-0">
-                            <button type="button" class="bg-yellow-100 text-yellow-800 font-semibold px-3 py-1.5 rounded-md text-sm hover:bg-yellow-200" data-bs-toggle="modal" data-bs-target="#editUserModal"
+
+                        <div class="flex items-center space-x-2 flex-shrink-0 w-full sm:w-auto">
+                            <button type="button" class="flex-1 sm:flex-none bg-yellow-100 text-yellow-800 font-semibold px-3 py-1.5 rounded-md text-sm hover:bg-yellow-200" data-bs-toggle="modal" data-bs-target="#editUserModal"
                                     data-user-id="{{ membro.usuario.id }}"
                                     data-user-name="{{ membro.usuario.nome }}"
                                     data-user-email="{{ membro.usuario.email }}"
@@ -94,11 +96,13 @@
                                     data-user-role="{{ membro.papel }}">
                                 Editar
                             </button>
-                            <a href="{{ url_for('send_reset_link', user_id=membro.usuario.id) }}" class="bg-teal-100 text-teal-800 font-semibold px-3 py-1.5 rounded-md text-sm hover:bg-teal-200" title="Enviar link de redefinição de senha">
+                            
+                            <a href="{{ url_for('send_reset_link', user_id=membro.usuario.id) }}" class="flex-1 sm:flex-none text-center bg-teal-100 text-teal-800 font-semibold px-3 py-1.5 rounded-md text-sm hover:bg-teal-200" title="Enviar link de redefinição de senha">
                                 Resetar Senha
                             </a>
+
                             {% if membro.usuario.id != current_user.id %}
-                                <button type="button" class="bg-red-100 text-red-800 font-semibold px-3 py-1.5 rounded-md text-sm hover:bg-red-200" 
+                                <button type="button" class="flex-1 sm:flex-none bg-red-100 text-red-800 font-semibold px-3 py-1.5 rounded-md text-sm hover:bg-red-200" 
                                         data-bs-toggle="modal" data-bs-target="#confirmDeleteModal"
                                         data-delete-url="{{ url_for('delete_user', user_id=membro.usuario.id) }}"
                                         data-user-name="{{ membro.usuario.nome }}">

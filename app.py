@@ -217,8 +217,15 @@ def home():
 @login_required
 def select_shift(resource_id):
     """Esta rota agora carrega a nova página de agenda dinâmica."""
-    resource = Resource.query.get_or_404(resource_id)
-    teachers = Teacher.query.order_by(Teacher.name).all()
+    escola_id = session.get('escola_id')
+    # Garante que o recurso pertence à escola do usuário
+    resource = Resource.query.filter_by(
+        id=resource_id, escola_id=escola_id).first_or_404()
+
+    # --- CORREÇÃO AQUI ---
+    # Busca apenas os usuários associados à escola atual
+    usuarios = Usuario.query.join(UsuarioEscola).filter(
+        UsuarioEscola.escola_id == escola_id).order_by(Usuario.nome).all()
 
     # --- LÓGICA ATUALIZADA PARA A DATA INICIAL ---
     # Pega a data de hoje como base
@@ -232,23 +239,27 @@ def select_shift(resource_id):
     elif weekday == 6:
         initial_date += timedelta(days=1)
 
-    # O JavaScript dará prioridade ao parâmetro 'date' da URL,
-    # então esta lógica só se aplica no primeiro acesso.
-    return render_template('agenda.html', resource=resource, teachers=teachers, current_date=initial_date)
+    return render_template('agenda.html', resource=resource, teachers=usuarios, current_date=initial_date)
 
 
 @app.route('/api/agenda/<int:resource_id>/<string:date_str>')
 @login_required
 def get_agenda_data(resource_id, date_str):
     """(VERSÃO CORRIGIDA E ROBUSTA) Retorna os dados da agenda em formato JSON."""
+    escola_id = session.get('escola_id')
+    # Verifica se o recurso acessado pertence à escola
+    Resource.query.filter_by(
+        id=resource_id, escola_id=escola_id).first_or_404()
+
     try:
         current_date = datetime.strptime(date_str, '%Y-%m-%d').date()
     except ValueError:
         return jsonify({'error': 'Formato de data inválido'}), 400
 
     templates = ScheduleTemplate.query.filter_by(resource_id=resource_id).all()
+    # Adiciona o filtro de escola na busca por agendamentos
     bookings = Booking.query.filter_by(
-        resource_id=resource_id, date=current_date).all()
+        resource_id=resource_id, date=current_date, escola_id=escola_id).all()
 
     booked_slots = {(b.shift, b.slot_name): b for b in bookings}
 
@@ -277,7 +288,9 @@ def get_agenda_data(resource_id, date_str):
                 'type': slot.get('type', 'aula'),
                 'booked_by': booked_by_name,
                 'booking_id': booking.id if booking else None,
-                'is_mine': booking.teacher_id == current_user.id if booking else False,
+                # --- CORREÇÃO AQUI ---
+                # Trocamos booking.teacher_id por booking.usuario_id
+                'is_mine': booking.usuario_id == current_user.id if booking else False,
                 'is_admin': current_user.is_admin
             }
             shift_slots.append(slot_info)
@@ -292,23 +305,29 @@ def close_slot():
     if not current_user.is_admin:
         return jsonify({'error': 'Acesso negado'}), 403
 
+    escola_id = session.get('escola_id')
     resource_id = request.form.get('resource_id')
     date_str = request.form.get('date')
-    shift = request.form.get('shift')  # Captura o turno do formulário
+    shift = request.form.get('shift')
     slot_name = request.form.get('slot_name')
+
+    # Validação
+    Resource.query.filter_by(
+        id=resource_id, escola_id=escola_id).first_or_404()
 
     try:
         booking_date = datetime.strptime(date_str, '%Y-%m-%d').date()
 
-        if Booking.query.filter_by(resource_id=resource_id, date=booking_date, slot_name=slot_name, shift=shift).first():
+        if Booking.query.filter_by(resource_id=resource_id, date=booking_date, slot_name=slot_name, shift=shift, escola_id=escola_id).first():
             flash('Este horário já foi agendado ou fechado.', 'warning')
         else:
             new_booking = Booking(
+                escola_id=escola_id,
                 resource_id=int(resource_id),
                 date=booking_date,
                 slot_name=slot_name,
                 shift=shift,
-                teacher_id=current_user.id,
+                usuario_id=current_user.id,  # <-- CORREÇÃO AQUI
                 teacher_name="Fechado",
                 status='closed'
             )
@@ -319,53 +338,61 @@ def close_slot():
         db.session.rollback()
         flash(f'Ocorreu um erro ao tentar fechar o horário: {e}', 'danger')
 
-    # Redireciona com 'date' e o 'shift'
     return redirect(url_for('select_shift', resource_id=resource_id, date=date_str, shift=shift))
 
 
 @app.route('/agenda/book', methods=['POST'])
 @login_required
 def book_slot():
+    escola_id = session.get('escola_id')
     resource_id = request.form.get('resource_id')
     date_str = request.form.get('date')
     slot_name = request.form.get('slot_name')
-    shift = request.form.get('shift')  # Captura o turno do formulário
+    shift = request.form.get('shift')
 
-    if Booking.query.filter_by(resource_id=resource_id, date=datetime.strptime(date_str, '%Y-%m-%d').date(), slot_name=slot_name, shift=shift).first():
+    # Validação para garantir que o recurso pertence à escola
+    Resource.query.filter_by(
+        id=resource_id, escola_id=escola_id).first_or_404()
+
+    if Booking.query.filter_by(resource_id=resource_id, date=datetime.strptime(date_str, '%Y-%m-%d').date(), slot_name=slot_name, shift=shift, escola_id=escola_id).first():
         flash('Este horário foi agendado por outra pessoa.', 'warning')
-        # Redireciona com 'date' e o 'shift'
         return redirect(url_for('select_shift', resource_id=resource_id, date=date_str, shift=shift))
 
     book_for_teacher = current_user
     if current_user.is_admin:
         selected_teacher_id = request.form.get('teacher_id')
         if selected_teacher_id:
-            book_for_teacher = Teacher.query.get(int(selected_teacher_id))
+            # --- CORREÇÃO AQUI ---
+            # Trocamos Teacher por Usuario
+            book_for_teacher = Usuario.query.get(int(selected_teacher_id))
 
     new_booking = Booking(
+        escola_id=escola_id,
         resource_id=int(resource_id),
         date=datetime.strptime(date_str, '%Y-%m-%d').date(),
         slot_name=slot_name,
         shift=shift,
-        teacher_id=book_for_teacher.id,
-        teacher_name=book_for_teacher.name
+        usuario_id=book_for_teacher.id,
+        teacher_name=book_for_teacher.nome
     )
     db.session.add(new_booking)
     db.session.commit()
     flash('Horário agendado com sucesso!', 'success')
-    # Redireciona com 'date' e o 'shift'
     return redirect(url_for('select_shift', resource_id=resource_id, date=date_str, shift=shift))
 
 
 @app.route('/agenda/booking/delete/<int:booking_id>')
 @login_required
 def delete_booking(booking_id):
-    booking = Booking.query.get_or_404(booking_id)
+    escola_id = session.get('escola_id')
+    # Busca o agendamento E verifica se ele pertence à escola do usuário
+    booking = Booking.query.filter_by(
+        id=booking_id, escola_id=escola_id).first_or_404()
     resource_id = booking.resource_id
     date_str = request.args.get('date')
     shift = request.args.get('shift')  # Captura o turno da URL
 
-    if current_user.is_admin or booking.teacher_id == current_user.id:
+    if current_user.is_admin or booking.usuario_id == current_user.id:
         db.session.delete(booking)
         db.session.commit()
         flash('Agendamento removido com sucesso.', 'success')
@@ -381,18 +408,21 @@ def delete_booking(booking_id):
 @app.route('/admin')
 @admin_required
 def admin_dashboard():
-    resources = Resource.query.order_by(
+    escola_id = session.get('escola_id')
+    # ADICIONA O FILTRO DE ESCOLA NA CONSULTA DE RECURSOS
+    resources = Resource.query.filter_by(escola_id=escola_id).order_by(
         Resource.sort_order, Resource.name).all()
     return render_template('admin_dashboard.html', resources=resources)
 
 
-@app.route('/admin/resources/reorder', methods=['POST'])
-@admin_required
 def reorder_resources():
+    escola_id = session.get('escola_id')
     ordered_ids = request.form.get('order', '').split(',')
     if ordered_ids and ordered_ids[0] != '':
         for index, resource_id_str in enumerate(ordered_ids):
-            resource = Resource.query.get(int(resource_id_str))
+            # Garante que o admin só possa reordenar recursos da sua própria escola
+            resource = Resource.query.filter_by(
+                id=int(resource_id_str), escola_id=escola_id).first()
             if resource:
                 resource.sort_order = index
         db.session.commit()
@@ -404,9 +434,21 @@ def reorder_resources():
 @admin_required
 def add_resource():
     name = request.form.get('name')
+    # 1. Pega o ID da escola da sessão do usuário
+    escola_id = session.get('escola_id')
+
+    if not escola_id:
+        flash('Erro: Não foi possível identificar a sua escola. Por favor, faça login novamente.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
     if name:
-        new_resource = Resource(name=name, description=request.form.get(
-            'description'), icon=request.form.get('icon') or 'bi-box')
+        # 2. Adiciona o escola_id ao criar o novo recurso
+        new_resource = Resource(
+            name=name,
+            description=request.form.get('description'),
+            icon=request.form.get('icon') or 'bi-box',
+            escola_id=escola_id
+        )
         db.session.add(new_resource)
         db.session.commit()
         flash('Recurso adicionado com sucesso!', 'success')
@@ -418,7 +460,10 @@ def add_resource():
 @app.route('/admin/resource/edit/<int:resource_id>', methods=['POST'])
 @admin_required
 def edit_resource(resource_id):
-    resource = Resource.query.get_or_404(resource_id)
+    escola_id = session.get('escola_id')
+    # Garante que o admin só possa editar um recurso da sua própria escola
+    resource = Resource.query.filter_by(
+        id=resource_id, escola_id=escola_id).first_or_404()
     name = request.form.get('name')
     if name:
         resource.name = name
@@ -434,9 +479,12 @@ def edit_resource(resource_id):
 @app.route('/admin/resource/delete/<int:resource_id>')
 @admin_required
 def delete_resource(resource_id):
-    Booking.query.filter_by(resource_id=resource_id).delete()
-    ScheduleTemplate.query.filter_by(resource_id=resource_id).delete()
-    resource = Resource.query.get_or_404(resource_id)
+    escola_id = session.get('escola_id')
+    # Garante que o admin só possa deletar um recurso da sua própria escola
+    resource = Resource.query.filter_by(
+        id=resource_id, escola_id=escola_id).first_or_404()
+
+    # A lógica de deleção em cascata já remove os Bookings e ScheduleTemplates associados
     db.session.delete(resource)
     db.session.commit()
     flash('Recurso e todos os seus dados foram removidos com sucesso!', 'success')
@@ -446,7 +494,16 @@ def delete_resource(resource_id):
 @app.route('/admin/resource/copy/<int:original_id>', methods=['POST'])
 @admin_required
 def copy_resource(original_id):
-    original_resource = Resource.query.get_or_404(original_id)
+    # Pega o ID da escola da sessão do usuário
+    escola_id = session.get('escola_id')
+    if not escola_id:
+        flash('Erro: Não foi possível identificar a sua escola.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
+    # Garante que o recurso original pertence à escola do usuário
+    original_resource = Resource.query.filter_by(
+        id=original_id, escola_id=escola_id).first_or_404()
+
     new_name = request.form.get('new_name')
     new_icon = request.form.get('new_icon') or 'bi-box'
 
@@ -458,11 +515,13 @@ def copy_resource(original_id):
         name=new_name,
         description=original_resource.description,
         icon=new_icon,
-        sort_order=original_resource.sort_order + 1
+        sort_order=original_resource.sort_order + 1,
+        escola_id=escola_id  # Adiciona o ID da escola à nova cópia
     )
     db.session.add(new_resource)
-    db.session.commit()
+    db.session.commit()  # Commit para que o new_resource tenha um ID
 
+    # Copia os templates de horário do recurso original para o novo
     for template in original_resource.schedule_templates:
         new_template = ScheduleTemplate(
             resource_id=new_resource.id,
@@ -476,12 +535,36 @@ def copy_resource(original_id):
         f'Recurso "{original_resource.name}" copiado com sucesso para "{new_name}"!', 'success')
     return redirect(url_for('admin_dashboard'))
 
+# Em app.py, junto com as outras rotas de administração
+
+
+@app.route('/admin/resources/reorder', methods=['POST'])
+@admin_required
+def reorder_resources():
+    escola_id = session.get('escola_id')
+    ordered_ids = request.form.get('order', '').split(',')
+    if ordered_ids and ordered_ids[0] != '':
+        for index, resource_id_str in enumerate(ordered_ids):
+            # Garante que o admin só possa reordenar recursos da sua própria escola
+            resource = Resource.query.filter_by(
+                id=int(resource_id_str), escola_id=escola_id).first()
+            if resource:
+                resource.sort_order = index
+        db.session.commit()
+        flash('A ordem dos recursos foi salva com sucesso!', 'success')
+    return redirect(url_for('admin_dashboard'))
+
 
 @app.route('/admin/schedules/<int:resource_id>', methods=['GET', 'POST'])
 @admin_required
 def manage_schedules(resource_id):
-    resource = Resource.query.get_or_404(resource_id)
+    escola_id = session.get('escola_id')
+    # Garante que o admin só possa gerenciar horários de um recurso da sua própria escola
+    resource = Resource.query.filter_by(
+        id=resource_id, escola_id=escola_id).first_or_404()
+
     if request.method == 'POST':
+        # ... (o resto da lógica da função continua igual)
         shift = request.form.get('shift')
         slot_names = request.form.getlist('slot_name')
         slot_types = request.form.getlist('slot_type')
@@ -499,6 +582,7 @@ def manage_schedules(resource_id):
         flash(
             f'Horários do turno {shift} para {resource.name} salvos com sucesso!', 'success')
         return redirect(url_for('manage_schedules', resource_id=resource_id))
+
     matutino_schedule = ScheduleTemplate.query.filter_by(
         shift='matutino', resource_id=resource_id).first()
     vespertino_schedule = ScheduleTemplate.query.filter_by(
@@ -647,6 +731,7 @@ def delete_teacher(teacher_id):
 @app.route('/admin/weekly-view/<string:date_str>')
 @admin_required
 def weekly_view(date_str=None):
+    escola_id = session.get('escola_id')
     base_date = datetime.strptime(
         date_str, '%Y-%m-%d').date() if date_str else date.today()
     start_of_week = base_date - timedelta(days=base_date.weekday())
@@ -661,19 +746,22 @@ def weekly_view(date_str=None):
         week_headers.append(
             {'name': day_map[i], 'date': current_day_date.strftime('%d/%m')})
 
+    # ADICIONA O FILTRO DE ESCOLA NA CONSULTA DE AGENDAMENTOS
     all_week_bookings = Booking.query.filter(
-        Booking.date.between(start_of_week, end_of_week)).all()
+        Booking.escola_id == escola_id,
+        Booking.date.between(start_of_week, end_of_week)
+    ).all()
+
     weekly_summaries = []
 
-    # --- ALTERAÇÃO AQUI ---
-    # 1. Lista de cores reordenada e com amarelo ('bg-warning') adicionado.
     colors = ['bg-success', 'bg-primary', 'bg-warning',
               'bg-info', 'bg-secondary', 'bg-dark']
 
-    resources_with_schedules = Resource.query.join(ScheduleTemplate).order_by(
-        Resource.sort_order, Resource.name).distinct()
+    # ADICIONA O FILTRO DE ESCOLA NA CONSULTA DE RECURSOS
+    resources_with_schedules = Resource.query.join(ScheduleTemplate).filter(
+        Resource.escola_id == escola_id
+    ).order_by(Resource.sort_order, Resource.name).distinct()
 
-    # 2. Lógica de atribuição de cor usa 'enumerate' para ser mais estável.
     for index, resource in enumerate(resources_with_schedules):
         color_class = colors[index % len(colors)]
 
@@ -703,10 +791,12 @@ def weekly_view(date_str=None):
 @app.route('/admin/reports', methods=['GET', 'POST'])
 @admin_required
 def reports():
-    resources = Resource.query.order_by(Resource.name).all()
+    escola_id = session.get('escola_id')
+    # ADICIONA O FILTRO DE ESCOLA NA CONSULTA DE RECURSOS
+    resources = Resource.query.filter_by(
+        escola_id=escola_id).order_by(Resource.name).all()
     report_data, selected_resource_id, start_date_str, end_date_str = None, None, '', ''
 
-    # --- NOVAS VARIÁVEIS PARA O GRÁFICO ---
     chart_labels, chart_data = [], []
 
     if request.method == 'POST':
@@ -717,18 +807,17 @@ def reports():
             start_date = datetime.strptime(start_date_str, '%d/%m/%Y').date()
             end_date = datetime.strptime(end_date_str, '%d/%m/%Y').date()
 
+            # ADICIONA O FILTRO DE ESCOLA NA CONSULTA PRINCIPAL DO RELATÓRIO
             report_query = db.session.query(Booking.teacher_name, func.count(Booking.id)).filter(
+                Booking.escola_id == escola_id,
                 Booking.resource_id == selected_resource_id,
                 Booking.date.between(start_date, end_date),
                 Booking.status == 'booked').group_by(Booking.teacher_name).order_by(func.count(Booking.id).desc())
 
             report_data = report_query.all()
 
-            # --- LÓGICA PARA PREPARAR OS DADOS DO GRÁFICO ---
             if report_data:
-                # Descompacta os dados da query em duas listas separadas
                 labels, data = zip(*report_data)
-                # Converte para JSON para ser usado de forma segura no JavaScript
                 chart_labels = json.dumps(list(labels))
                 chart_data = json.dumps(list(data))
 
@@ -736,11 +825,9 @@ def reports():
             flash(
                 'Filtros inválidos. Verifique o recurso e as datas (dd/mm/aaaa).', 'danger')
 
-    # Adiciona as novas variáveis no retorno para o template
     return render_template('admin_reports.html', resources=resources, report_data=report_data,
                            selected_resource_id=selected_resource_id, start_date=start_date_str, end_date=end_date_str,
                            chart_labels=chart_labels, chart_data=chart_data)
-# --- ROTA PARA MEUS AGENDAMENTOS ---
 
 
 @app.route('/my-bookings')
@@ -758,8 +845,8 @@ def my_bookings():
     # Busca os agendamentos futuros do professor, juntando com os dados do recurso
     bookings_query = db.session.query(Booking, Resource)\
         .join(Resource, Booking.resource_id == Resource.id)\
-        .filter(Booking.teacher_id == current_user.id)\
-        .filter(Booking.date >= today)\
+        .filter(Booking.usuario_id == current_user.id)\
+        .filter(Booking.escola_id == session.get('escola_id'))\
         .order_by(Booking.date, Booking.shift)\
         .all()
 
@@ -770,10 +857,15 @@ def my_bookings():
 @login_required
 def delete_my_booking(booking_id):
     """Remove um agendamento a partir da página 'Meus Agendamentos'."""
-    booking = Booking.query.get_or_404(booking_id)
+    escola_id = session.get('escola_id')
 
-    # Garante que o usuário só pode apagar seus próprios agendamentos
-    if booking.teacher_id == current_user.id or current_user.is_admin:
+    # Busca o agendamento E garante que ele pertence à escola do usuário
+    booking = Booking.query.filter_by(
+        id=booking_id, escola_id=escola_id).first_or_404()
+
+    # --- CORREÇÃO AQUI ---
+    # Garante que o usuário só pode apagar seus próprios agendamentos, usando o campo correto
+    if booking.usuario_id == current_user.id or current_user.is_admin:
         db.session.delete(booking)
         db.session.commit()
         flash('Agendamento removido com sucesso.', 'success')
@@ -943,30 +1035,12 @@ def restore_database():
 @admin_required
 def send_reset_link(user_id):
     user = Usuario.query.get_or_404(user_id)
-    try:
-        # Gera um token seguro que expira em 1 hora (3600 segundos)
-        token = serializer.dumps(user.email, salt='password-reset-salt')
-        # Cria o link que será enviado no e-mail
-        reset_url = url_for('reset_password', token=token, _external=True)
-
-        # Cria e envia o e-mail
-        msg = Message('Redefinição de Senha - Agenda Escolar',
-                      recipients=[user.email])
-        msg.body = f'''Olá {user.nome},
-
-Para redefinir sua senha, clique no link abaixo:
-{reset_url}
-
-Se você não solicitou esta redefinição, por favor ignore este e-mail.
-
-Obrigado,
-Equipe Agenda Escolar
-'''
-        mail.send(msg)
+    if send_password_reset_email(user):
         flash(
             f'Um link de redefinição de senha foi enviado para {user.email}.', 'success')
-    except Exception as e:
-        flash(f'Ocorreu um erro ao tentar enviar o e-mail: {e}', 'danger')
+    else:
+        flash(
+            f'Ocorreu um erro ao tentar enviar o e-mail para {user.email}.', 'danger')
 
     return redirect(url_for('manage_teachers'))
 
@@ -999,6 +1073,53 @@ def reset_password(token):
         return redirect(url_for('login'))
 
     return render_template('reset_password.html', token=token)
+
+
+def send_password_reset_email(user):
+    """Gera o token e envia o e-mail de redefinição de senha."""
+    try:
+        token = serializer.dumps(user.email, salt='password-reset-salt')
+        reset_url = url_for('reset_password', token=token, _external=True)
+
+        # URL completa para a logo
+        logo_url = url_for(
+            'static', filename='logo_agenda.png', _external=True)
+
+        # Renderiza o template HTML do e-mail
+        html_body = render_template('email/reset_password_email.html',
+                                    user=user,
+                                    reset_url=reset_url,
+                                    logo_url=logo_url)
+
+        # Cria a mensagem com o corpo em HTML
+        msg = Message('Redefinição de Senha - Agenda Escolar',
+                      recipients=[user.email],
+                      html=html_body)
+
+        mail.send(msg)
+        return True  # Retorna sucesso
+    except Exception as e:
+        # Em um app real, seria bom logar este erro
+        print(f"Erro ao enviar e-mail: {e}")
+        return False  # Retorna falha
+
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        user = Usuario.query.filter_by(email=email).first()
+
+        # Por segurança, não informamos se o e-mail foi encontrado ou não
+        # Apenas enviamos o e-mail se o usuário existir
+        if user:
+            # Aqui vamos reutilizar a mesma lógica de envio de e-mail do admin
+            send_password_reset_email(user)
+
+        flash('Se um usuário com este e-mail existir em nosso sistema, um link de redefinição de senha foi enviado.', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('forgot_password.html')
 
 
 if __name__ == '__main__':

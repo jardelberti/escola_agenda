@@ -64,12 +64,12 @@
                         <input type="hidden" id="modal_slot_name_input" name="slot_name">
                         <p>Deseja confirmar o agendamento para o horário <strong id="modal_slot_name_text"></strong>?</p>
                         {% if current_user.is_admin %}
-                        <div class="mt-3">
+                         <div class="mt-3">
                             <label for="teacher_id" class="form-label">Agendar em nome de:</label>
                             <select class="form-select" name="teacher_id" id="teacher_id">
-                                {% for teacher in teachers %}
-                                <option value="{{ teacher.id }}" {% if teacher.id == current_user.id %}selected{% endif %}>
-                                    {{ teacher.name }} {% if teacher.is_admin %}(Admin){% endif %}
+                                {% for user in teachers %}
+                                <option value="{{ user.id }}" {% if user.id == current_user.id %}selected{% endif %}>
+                                    {{ user.nome }} {% if user.is_admin %}(Admin){% endif %}
                                 </option>
                                 {% endfor %}
                             </select>
