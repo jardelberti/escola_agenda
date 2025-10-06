@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Painel do Super Admin{% endblock %}
+
+{% block content %}
+<body class="bg-slate-50" style='font-family: Inter, "Noto Sans", sans-serif;'>
+    <div class="container mx-auto px-4 py-8">
+
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
+            <h1 class="text-3xl font-bold text-slate-800">Painel do Super Administrador</h1>
+            <div class="mt-4 sm:mt-0">
+                <a href="{{ url_for('logout') }}" class="bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-lg hover:bg-slate-300 transition-colors">Sair</a>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="space-y-2 mb-6">
+                {% for category, message in messages %}
+                    {% set color = 'blue' if category == 'success' else 'red' if category == 'danger' else 'yellow' %}
+                    <div class="bg-{{ color }}-100 border-l-4 border-{{ color }}-500 text-{{ color }}-700 p-4 rounded-lg" role="alert">
+                        <p>{{ message }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+       <div class="bg-white p-6 rounded-xl border border-slate-200 mb-8">
+            <h3 class="text-lg font-bold text-slate-800 mb-4">Ações do Super Admin</h3>
+            <div class="flex flex-wrap gap-4">
+                <a href="{{ url_for('manage_plans') }}" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700">
+                    Gerenciar Planos
+                </a>
+                <a href="{{ url_for('backup_restore_page') }}" class="bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-700">
+                    Backup do Sistema
+                </a>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl border border-slate-200 mb-8">
+            <h3 class="text-lg font-bold text-slate-800 mb-4">Configurações do Sistema</h3>
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-500">Servidor de E-mail:</span>
+                    <span class="font-semibold text-slate-700 font-mono text-xs">{{ config_info.mail_server }}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-500">Remetente Padrão:</span>
+                    <span class="font-semibold text-slate-700 font-mono text-xs">{{ config_info.mail_sender }}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-500">Stripe Public Key:</span>
+                    <span class="font-semibold text-slate-700 font-mono text-xs">{{ config_info.stripe_public_key[:20] }}...</span>
+                </div>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-xl border border-slate-200"><div class="flex items-center"><div class="bg-indigo-100 text-indigo-600 rounded-lg p-3"><span class="material-symbols-outlined">school</span></div><div class="ml-4"><p class="text-sm text-slate-500">Escolas Cadastradas</p><p class="text-2xl font-bold text-slate-800">{{ total_escolas }}</p></div></div></div>
+            <div class="bg-white p-6 rounded-xl border border-slate-200"><div class="flex items-center"><div class="bg-green-100 text-green-600 rounded-lg p-3"><span class="material-symbols-outlined">group</span></div><div class="ml-4"><p class="text-sm text-slate-500">Usuários Ativos</p><p class="text-2xl font-bold text-slate-800">{{ total_usuarios }}</p></div></div></div>
+            <div class="bg-white p-6 rounded-xl border border-slate-200"><div class="flex items-center"><div class="bg-amber-100 text-amber-600 rounded-lg p-3"><span class="material-symbols-outlined">calendar_month</span></div><div class="ml-4"><p class="text-sm text-slate-500">Agendamentos no Mês</p><p class="text-2xl font-bold text-slate-800">{{ total_agendamentos_mes }}</p></div></div></div>
+        </div>
+        
+        <div class="bg-white p-6 rounded-xl border border-slate-200 mb-8">
+            <h3 class="text-lg font-bold text-slate-800 mb-4">Distribuição de Planos</h3>
+            {% if chart_planos_data and chart_planos_data != '[]' %}
+                <div class="max-w-xs mx-auto">
+                    <canvas id="planosChart"></canvas>
+                </div>
+            {% else %}
+                <p class="text-slate-500 text-center py-8">Nenhuma assinatura encontrada para gerar o gráfico.</p>
+            {% endif %}
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div class="p-6 border-b border-slate-200">
+                <h3 class="text-xl font-bold text-slate-800">Gerenciamento de Escolas</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Escola</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Usuários</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Recursos</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Plano</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Vencimento</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-slate-200">
+                        {% for item in dados_escolas %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{{ item.escola.nome }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm"><span class="status-badge status-{{ item.escola.status }}">{{ item.escola.status|capitalize }}</span></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{{ item.contagem_usuarios }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{{ item.contagem_recursos }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{{ item.assinatura.plano.nome if item.assinatura and item.assinatura.plano else 'N/A' }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm"><span class="vencimento-badge vencimento-{{ item.vencimento_info.classe }}">{{ item.vencimento_info.texto }}</span></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button type="button" class="bg-yellow-100 text-yellow-800 font-semibold px-3 py-1.5 rounded-md text-sm hover:bg-yellow-200"
+                                        data-bs-toggle="modal" data-bs-target="#editSchoolModal"
+                                        data-school-id="{{ item.escola.id }}" data-school-name="{{ item.escola.nome }}" data-school-status="{{ item.escola.status }}">
+                                    Editar
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="px-6 py-8 text-center text-slate-500">Nenhuma escola cadastrada ainda.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editSchoolModal" tabindex="-1" aria-labelledby="editSchoolModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editSchoolModalLabel">Editar Escola</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="editSchoolForm" method="POST">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="edit_name" class="form-label">Nome da Escola</label>
+                            <input type="text" class="form-control" name="name" id="edit_name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_status" class="form-label">Status</label>
+                            <select class="form-select" name="status" id="edit_status" required>
+                                <option value="ativo">Ativo</option>
+                                <option value="inativo">Inativo</option>
+                                <option value="aguardando_pagamento">Aguardando Pagamento</option>
+                                <option value="cancelado">Cancelado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const editSchoolModal = document.getElementById('editSchoolModal');
+            if (editSchoolModal) {
+                editSchoolModal.addEventListener('show.bs.modal', function (event) {
+                    const button = event.relatedTarget;
+                    const schoolId = button.getAttribute('data-school-id');
+                    const schoolName = button.getAttribute('data-school-name');
+                    const schoolStatus = button.getAttribute('data-school-status');
+
+                    const modalForm = editSchoolModal.querySelector('#editSchoolForm');
+                    const modalTitle = editSchoolModal.querySelector('.modal-title');
+                    
+                    modalTitle.textContent = `Editar Escola: ${schoolName}`;
+                    modalForm.action = `/superadmin/school/edit/${schoolId}`;
+                    modalForm.querySelector('#edit_name').value = schoolName;
+                    modalForm.querySelector('#edit_status').value = schoolStatus;
+                });
+            }
+            const chartPlanosLabels = {{ chart_planos_labels|safe if chart_planos_labels else '[]' }};
+            const chartPlanosData = {{ chart_planos_data|safe if chart_planos_data else '[]' }};
+
+            if (chartPlanosLabels.length > 0 && chartPlanosData.length > 0) {
+                const ctx = document.getElementById('planosChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'pie', // Gráfico de pizza
+                    data: {
+                        labels: chartPlanosLabels,
+                        datasets: [{
+                            label: 'Nº de Escolas',
+                            data: chartPlanosData,
+                            backgroundColor: ['rgba(59, 130, 246, 0.7)', 'rgba(22, 163, 74, 0.7)'],
+                            borderColor: ['rgba(59, 130, 246, 1)', 'rgba(22, 163, 74, 1)'],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: { responsive: true, plugins: { legend: { position: 'top' } } }
+                });
+            }
+    });
+    </script>
+     <style>
+        .status-badge { font-weight: 600; padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; }
+        .status-ativo { background-color: #dcfce7; color: #166534; }
+        .status-inativo, .status-cancelado { background-color: #fee2e2; color: #991b1b; }
+        .status-aguardando_pagamento { background-color: #fef3c7; color: #92400e; }
+        
+        .vencimento-badge { padding: 4px 8px; border-radius: 6px; }
+        .vencimento-alerta { background-color: #fef3c7; color: #92400e; font-weight: 600; }
+        .vencimento-vencido { background-color: #fee2e2; color: #991b1b; font-weight: 600; }
+    </style>
+</body>
+{% endblock %}

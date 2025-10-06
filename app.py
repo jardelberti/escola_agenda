@@ -1,4 +1,5 @@
 # Adicione 'session' aqui
+import stripe
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, session
 import os
 import json
@@ -7,21 +8,24 @@ import shutil
 from urllib.parse import urlparse
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta, date
+from dateutil.relativedelta import relativedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, session
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer
 from functools import wraps
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from sqlalchemy import func
-from models import db, Usuario, Escola, UsuarioEscola, Resource, ScheduleTemplate, Booking
+from sqlalchemy import func, distinct
+from models import db, Usuario, Escola, UsuarioEscola, Resource, ScheduleTemplate, Booking, Plano, Assinatura
 from flask_migrate import Migrate
 from celery import Celery
 from logging import getLogger
+import calendar
 
 migrate = Migrate()
 mail = Mail()
 login_manager = LoginManager()
 serializer = None  # Será inicializado depois
+stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
 
 # --- INICIALIZAÇÃO E CONFIGURAÇÃO DA APLICAÇÃO ---
 app = Flask(__name__)
@@ -142,6 +146,16 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+
+def superadmin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_superadmin:
+            flash('Acesso restrito ao Super Administrador.', 'danger')
+            return redirect(url_for('home'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 # --- ROTAS DE AUTENTICAÇÃO ---
 
 
@@ -153,6 +167,104 @@ def root():
 
 
 # Em app.py
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    # Se o usuário já estiver logado, redireciona para a home
+    if current_user.is_authenticated:
+        return redirect(url_for('home'))
+
+    if request.method == 'POST':
+        # --- Coleta de dados do formulário ---
+        nome_admin = request.form.get('name')
+        email_admin = request.form.get('email')
+        senha_admin = request.form.get('password')
+        nome_escola = request.form.get('school_name')
+        plano_id = request.form.get('plan_id')
+
+        # --- Validação ---
+        if not all([nome_admin, email_admin, senha_admin, nome_escola, plano_id]):
+            flash('Todos os campos são obrigatórios.', 'danger')
+            return redirect(url_for('register'))
+
+        if Usuario.query.filter_by(email=email_admin).first():
+            flash('Este e-mail já está em uso.', 'danger')
+            return redirect(url_for('register'))
+
+        plano = Plano.query.get(plano_id)
+        if not plano:
+            flash('Plano selecionado é inválido.', 'danger')
+            return redirect(url_for('register'))
+
+        # --- Criação das Entidades no Banco de Dados ---
+        try:
+            # 1. Cria a nova escola
+            nova_escola = Escola(nome=nome_escola)
+
+            # 2. Cria o novo usuário (com email_confirmado=False por padrão)
+            novo_admin = Usuario(nome=nome_admin, email=email_admin)
+            novo_admin.set_password(senha_admin)
+
+            db.session.add(nova_escola)
+            db.session.add(novo_admin)
+
+            # Commit para que nova_escola e novo_admin recebam seus IDs
+            db.session.flush()
+
+            # 3. Associa o usuário à escola como admin
+            associacao = UsuarioEscola(
+                usuario_id=novo_admin.id,
+                escola_id=nova_escola.id,
+                papel='admin'
+            )
+            db.session.add(associacao)
+
+            # 4. Cria a assinatura para a escola
+            data_inicio = date.today()
+            # Simplificação: assume 30 dias por mês. Para precisão, usar relativedelta.
+            data_fim = data_inicio + relativedelta(months=plano.duracao_meses)
+            nova_assinatura = Assinatura(
+                escola_id=nova_escola.id,
+                plano_id=plano.id,
+                data_inicio=data_inicio,
+                data_fim=data_fim,
+                status='ativa'  # Futuramente pode ser 'aguardando_pagamento'
+            )
+            db.session.add(nova_assinatura)
+
+            # 5. Envia o e-mail de confirmação
+            send_confirmation_email(novo_admin)
+
+            # Efetiva todas as criações
+            db.session.commit()
+
+            # 6. Redireciona para a página de aviso
+            return redirect(url_for('check_your_email'))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(
+                f'Ocorreu um erro inesperado durante o cadastro: {e}', 'danger')
+            return redirect(url_for('register'))
+
+    # Para a requisição GET, busca os planos e calcula a economia
+    planos = Plano.query.order_by(Plano.preco).all()
+    plano_mensal_base = Plano.query.filter_by(nome='Mensal').first()
+    if plano_mensal_base:
+        custo_anual_base = plano_mensal_base.preco * 12
+        for plano in planos:
+            if plano.nome == 'Anual':
+                plano.economia = custo_anual_base - plano.preco
+            else:
+                plano.economia = 0
+
+    return render_template('register.html', planos=planos)
+
+
+@app.route('/check-email')
+def check_your_email():
+    """Exibe a página de aviso para o usuário checar o e-mail."""
+    return render_template('check_your_email.html')
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -166,16 +278,22 @@ def login():
         user = Usuario.query.filter_by(email=email).first()
 
         if user and user.check_password(password):
+
+            # VERIFICA SE O E-MAIL FOI CONFIRMADO
+            if not user.email_confirmado and not user.is_superadmin:  # Superadmin não precisa confirmar
+                flash(
+                    'Sua conta ainda não foi confirmada. Por favor, verifique seu e-mail.', 'warning')
+                return redirect(url_for('login'))
+
             login_user(user)
 
-            # --- NOVA LÓGICA AQUI ---
             # Encontra a primeira associação de escola do usuário
             primeira_associacao = user.escolas.first()
             if primeira_associacao:
                 # Guarda o ID da escola na sessão do usuário
                 session['escola_id'] = primeira_associacao.escola_id
             else:
-                # Se o usuário não estiver em nenhuma escola (raro, mas possível)
+                # Se o usuário não estiver em nenhuma escola
                 session['escola_id'] = None
 
             flash(f'Bem-vindo(a), {user.nome}!', 'success')
@@ -197,16 +315,17 @@ def logout():
 
 
 # Em app.py
+
 @app.route('/home')
 @login_required
 def home():
-    # Verifica se o ID da escola está na sessão
+    # Pega o ID da escola da sessão do usuário
     escola_id = session.get('escola_id')
     if not escola_id:
-        flash("Você não está associado a nenhuma escola.", "warning")
-        return redirect(url_for('logout'))  # Ou uma página de erro
+        flash("Você não está associado a nenhuma escola. Por favor, faça login novamente.", "warning")
+        return redirect(url_for('logout'))
 
-    # Busca apenas os recursos da escola do usuário logado
+    # A linha mais importante: filtra os recursos pelo escola_id da sessão
     resources = Resource.query.filter_by(escola_id=escola_id).order_by(
         Resource.sort_order, Resource.name).all()
 
@@ -405,29 +524,56 @@ def delete_booking(booking_id):
 # --- ROTAS DE ADMINISTRAÇÃO (sem alterações) ---
 
 
+# Em app.py
+
 @app.route('/admin')
 @admin_required
 def admin_dashboard():
     escola_id = session.get('escola_id')
-    # ADICIONA O FILTRO DE ESCOLA NA CONSULTA DE RECURSOS
+    if not escola_id:
+        flash("Sua sessão expirou ou não foi possível identificar a escola.", "warning")
+        return redirect(url_for('login'))
+
+    # --- CÁLCULO DOS KPIs (ESTATÍSTICAS) ---
+    total_recursos = Resource.query.filter_by(escola_id=escola_id).count()
+    total_usuarios = UsuarioEscola.query.filter_by(escola_id=escola_id).count()
+
+    today = date.today()
+    _, last_day_of_month = calendar.monthrange(today.year, today.month)
+    start_of_month = today.replace(day=1)
+    end_of_month = today.replace(day=last_day_of_month)
+
+    total_agendamentos_mes = Booking.query.filter(
+        Booking.escola_id == escola_id,
+        Booking.date.between(start_of_month, end_of_month)
+    ).count()
+
+    # --- PREPARAÇÃO DOS DADOS PARA O GRÁFICO ---
+    dados_grafico_query = db.session.query(
+        Resource.name,
+        func.count(Booking.id).label('total')
+    ).join(Booking, Resource.id == Booking.resource_id).filter(
+        Resource.escola_id == escola_id,
+        Booking.date.between(start_of_month, end_of_month)
+    ).group_by(Resource.name).order_by(
+        func.count(Booking.id).desc()
+    ).limit(5).all()
+
+    chart_labels = json.dumps([item[0] for item in dados_grafico_query])
+    chart_data = json.dumps([item[1] for item in dados_grafico_query])
+
+    # A linha mais importante para a lista de gerenciamento:
+    # Garante que a lista de recursos na parte de baixo do dashboard também seja filtrada.
     resources = Resource.query.filter_by(escola_id=escola_id).order_by(
         Resource.sort_order, Resource.name).all()
-    return render_template('admin_dashboard.html', resources=resources)
 
-
-def reorder_resources():
-    escola_id = session.get('escola_id')
-    ordered_ids = request.form.get('order', '').split(',')
-    if ordered_ids and ordered_ids[0] != '':
-        for index, resource_id_str in enumerate(ordered_ids):
-            # Garante que o admin só possa reordenar recursos da sua própria escola
-            resource = Resource.query.filter_by(
-                id=int(resource_id_str), escola_id=escola_id).first()
-            if resource:
-                resource.sort_order = index
-        db.session.commit()
-        flash('A ordem dos recursos foi salva com sucesso!', 'success')
-    return redirect(url_for('admin_dashboard'))
+    return render_template('admin_dashboard.html',
+                           resources=resources,
+                           total_recursos=total_recursos,
+                           total_usuarios=total_usuarios,
+                           total_agendamentos_mes=total_agendamentos_mes,
+                           chart_labels=chart_labels,
+                           chart_data=chart_data)
 
 
 @app.route('/admin/resource/add', methods=['POST'])
@@ -596,46 +742,66 @@ def manage_schedules(resource_id):
 @app.route('/admin/teachers', methods=['GET', 'POST'])
 @admin_required
 def manage_teachers():
-    # Futuramente, vamos pegar a escola do admin logado.
-    # Por enquanto, como só temos uma, vamos usar a primeira.
-    escola_atual = Escola.query.first()
-    if not escola_atual:
-        flash('Nenhuma escola encontrada. Crie uma escola primeiro.', 'danger')
-        return redirect(url_for('admin_dashboard'))
+    # --- CORREÇÃO AQUI ---
+    # Busca o ID da escola diretamente da sessão do usuário logado.
+    escola_id = session.get('escola_id')
+    if not escola_id:
+        flash('Não foi possível identificar la escuela. Por favor, faça login novamente.', 'danger')
+        return redirect(url_for('login'))
+
+    escola_atual = Escola.query.get_or_404(escola_id)
 
     if request.method == 'POST':
-        # 1. Obter os novos dados do formulário
+        # --- Coleta dos dados do formulário ---
         nome = request.form.get('name')
         email = request.form.get('email')
-        senha = request.form.get('password')  # Campo novo
         papel = 'admin' if 'is_admin' in request.form else 'professor'
-        matricula = request.form.get('registration')  # Agora é opcional
+        matricula = request.form.get('registration')
 
-        # 2. Validações
-        if not all([nome, email, senha]):
-            flash('Nome, e-mail e senha são obrigatórios.', 'danger')
-        elif Usuario.query.filter_by(email=email).first():
-            flash('O e-mail informado já está cadastrado.', 'warning')
-        else:
-            # 3. Criar o novo usuário e associá-lo à escola
+        # --- Validações ---
+        if not all([nome, email]):
+            flash('Nome e e-mail são obrigatórios.', 'danger')
+            return redirect(url_for('manage_teachers'))
+
+        usuario_existente = Usuario.query.filter_by(email=email).first()
+        if not usuario_existente:
+            # Se o usuário não existe, cria um novo
             novo_usuario = Usuario(nome=nome, email=email)
-            novo_usuario.set_password(senha)
+            db.session.add(novo_usuario)
+            db.session.flush()  # Para obter o ID do novo usuário
+            usuario_para_associar = novo_usuario
+        else:
+            # Se o usuário já existe, usa o existente
+            usuario_para_associar = usuario_existente
 
-            associacao = UsuarioEscola(
-                usuario=novo_usuario,
-                escola=escola_atual,
+        associacao_existente = UsuarioEscola.query.filter_by(
+            usuario_id=usuario_para_associar.id,
+            escola_id=escola_id
+        ).first()
+
+        if not associacao_existente:
+            nova_associacao = UsuarioEscola(
+                usuario_id=usuario_para_associar.id,
+                escola_id=escola_id,
                 papel=papel,
                 matricula=matricula
             )
+            db.session.add(nova_associacao)
 
-            db.session.add(novo_usuario)
-            db.session.add(associacao)
+            # Envia e-mail de convite apenas se o usuário for novo (sem senha)
+            if not usuario_para_associar.password_hash:
+                send_invitation_email(usuario_para_associar, escola_atual)
+
             db.session.commit()
-            flash('Usuário cadastrado com sucesso!', 'success')
+            flash(
+                f'Usuário "{usuario_para_associar.nome}" associado a esta escola com sucesso!', 'success')
+        else:
+            flash('Este usuário já está associado a esta escola.', 'warning')
+
         return redirect(url_for('manage_teachers'))
 
-    # Busca apenas usuários associados à escola atual
-    membros = UsuarioEscola.query.filter_by(escola_id=escola_atual.id).all()
+    # Busca apenas os membros (associações) da escola do admin logado
+    membros = UsuarioEscola.query.filter_by(escola_id=escola_id).all()
     return render_template('admin_teachers.html', membros=membros)
 
 
@@ -883,7 +1049,7 @@ def seed_db_command():
 
     # 1. Cria o usuário Super Admin
     # Use um e-mail real seu para o super admin
-    super_admin_email = 'jardelberti@gmail.com'
+    super_admin_email = 'admin@agenda123.com'
     if not Usuario.query.filter_by(email=super_admin_email).first():
         print('Criando usuário Super Admin...')
         super_admin = Usuario(
@@ -892,7 +1058,7 @@ def seed_db_command():
             is_superadmin=True
         )
         # IMPORTANTE: Defina uma senha forte aqui!
-        super_admin.set_password('admnistrador@agenda123')
+        super_admin.set_password('admin@agenda123')
         db.session.add(super_admin)
     else:
         super_admin = Usuario.query.filter_by(email=super_admin_email).first()
@@ -933,64 +1099,52 @@ def seed_db_command():
     print('Banco de dados inicializado com sucesso!')
 
 
-@app.route('/admin/backup-restore')
-@admin_required
+# Em app.py
+
+@app.route('/superadmin/backup-restore')
+@login_required
+@superadmin_required
 def backup_restore_page():
-    """Renderiza a página de backup e restauração."""
-    return render_template('admin_backup_restore.html')
+    """Renderiza a página de backup e restauração para o Super Admin."""
+    return render_template('superadmin_backup_restore.html')
 
 
-@app.route('/admin/backup')
-@admin_required
+@app.route('/superadmin/backup')
+@login_required
+@superadmin_required
 def backup_database():
-    """Cria um backup do banco de dados e o oferece para download."""
+    """Cria um backup do banco de dados completo e o oferece para download."""
     db_uri = app.config['SQLALCHEMY_DATABASE_URI']
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
     try:
-        # Lógica para PostgreSQL
         if db_uri.startswith('postgresql'):
             filename = f'backup_postgres_{timestamp}.sql'
             filepath = os.path.join(BACKUP_FOLDER, filename)
 
-            # Extrai os detalhes da conexão da URI
             parsed_uri = urlparse(db_uri)
-            db_name = parsed_uri.path.lstrip('/')
-            user = parsed_uri.username
-            password = parsed_uri.password
-            host = parsed_uri.hostname
-            port = parsed_uri.port
+            db_name, user, password, host, port = parsed_uri.path.lstrip(
+                '/'), parsed_uri.username, parsed_uri.password, parsed_uri.hostname, parsed_uri.port
 
-            # Define a variável de ambiente PGPASSWORD para segurança
             env = os.environ.copy()
             env['PGPASSWORD'] = password
 
-            # Comando para o pg_dump
             command = [
-                'pg_dump',
-                '--host', host,
-                '--port', str(port),
-                '--username', user,
-                '--dbname', db_name,
-                '--no-password',
-                '--format=c',  # Formato customizado, mais robusto
-                '--blobs',
-                '--no-owner',
-                '--file', filepath
+                'pg_dump', '--host', host, '--port', str(
+                    port), '--username', user,
+                '--dbname', db_name, '--no-password', '--format=c', '--blobs',
+                '--no-owner', '--file', filepath
             ]
 
             subprocess.run(command, check=True, env=env)
-            flash('Backup do PostgreSQL gerado com sucesso!', 'success')
+            flash('Backup completo do PostgreSQL gerado com sucesso!', 'success')
 
-        # Lógica para SQLite
         elif db_uri.startswith('sqlite'):
             filename = f'backup_sqlite_{timestamp}.db'
             filepath = os.path.join(BACKUP_FOLDER, filename)
-
-            # O caminho do DB SQLite está após 'sqlite:///'
             db_path = db_uri.split('///')[1]
             shutil.copy2(db_path, filepath)
-            flash('Backup do SQLite gerado com sucesso!', 'success')
+            flash('Backup completo do SQLite gerado com sucesso!', 'success')
 
         else:
             flash('Tipo de banco de dados não suportado para backup.', 'danger')
@@ -1003,10 +1157,11 @@ def backup_database():
         return redirect(url_for('backup_restore_page'))
 
 
-@app.route('/admin/restore', methods=['POST'])
-@admin_required
+@app.route('/superadmin/restore', methods=['POST'])
+@login_required
+@superadmin_required
 def restore_database():
-    """Salva o arquivo e agenda a restauração em segundo plano."""
+    """Salva o arquivo e agenda a restauração completa em segundo plano."""
     if 'backup_file' not in request.files:
         flash('Nenhum arquivo selecionado.', 'danger')
         return redirect(url_for('backup_restore_page'))
@@ -1022,11 +1177,9 @@ def restore_database():
         file.save(filepath)
 
         db_uri_str = app.config['SQLALCHEMY_DATABASE_URI']
-
-        # Chama a tarefa em segundo plano, passando o caminho do arquivo
         restore_task_bg.delay(filepath, db_uri_str)
 
-        flash('Restauração iniciada em segundo plano! O processo pode levar alguns minutos para ser concluído.', 'success')
+        flash('Restauração do banco de dados iniciada em segundo plano! O processo pode levar alguns minutos e irá desconectar todos os usuários.', 'success')
 
     return redirect(url_for('backup_restore_page'))
 
@@ -1120,6 +1273,475 @@ def forgot_password():
         return redirect(url_for('login'))
 
     return render_template('forgot_password.html')
+
+
+@app.cli.command("seed-plans")
+def seed_plans_command():
+    """Cria os planos de assinatura padrão se eles não existirem."""
+
+    plano_mensal = Plano.query.filter_by(nome='Mensal').first()
+    if not plano_mensal:
+        plano_mensal = Plano(nome='Mensal', preco=9990, duracao_meses=1,
+                             stripe_price_id='price_1SEwrV3sOK4brDIgNNl4Z2Pf')
+        db.session.add(plano_mensal)
+        print("Plano 'Mensal' criado.")
+    else:
+        # Atualiza o ID caso já exista, mas não tenha o ID do stripe
+        if not plano_mensal.stripe_price_id:
+            plano_mensal.stripe_price_id = 'price_1SEwrV3sOK4brDIgNNl4Z2Pf'
+            print("Atualizado Plano 'Mensal' com ID do Stripe.")
+
+    plano_anual = Plano.query.filter_by(nome='Anual').first()
+    if not plano_anual:
+        plano_anual = Plano(nome='Anual', preco=99900, duracao_meses=12,
+                            stripe_price_id='price_1SEzD93sOK4brDIgAlsFe1ih')
+        db.session.add(plano_anual)
+        print("Plano 'Anual' criado.")
+    else:
+        if not plano_anual.stripe_price_id:
+            plano_anual.stripe_price_id = 'price_1SEzD93sOK4brDIgAlsFe1ih'
+            print("Atualizado Plano 'Anual' com ID do Stripe.")
+
+    db.session.commit()
+    print("Planos semeados com sucesso!")
+
+
+@app.route('/admin/upgrade-plan')
+@admin_required
+def upgrade_plan():
+    # Lógica para buscar os planos e calcular a economia (reaproveitada da rota register)
+    planos = Plano.query.order_by(Plano.preco).all()
+    plano_mensal_base = Plano.query.filter_by(nome='Mensal').first()
+    if plano_mensal_base:
+        custo_anual_base = plano_mensal_base.preco * 12
+        for plano in planos:
+            if plano.nome == 'Anual':
+                plano.economia = custo_anual_base - plano.preco
+            else:
+                plano.economia = 0
+    return render_template('upgrade_plan.html', planos=planos)
+
+
+def send_confirmation_email(user):
+    """Gera o token e envia o e-mail de confirmação."""
+    try:
+        token = serializer.dumps(user.email, salt='email-confirm-salt')
+        confirm_url = url_for('confirm_email', token=token, _external=True)
+        logo_url = 'URL_PUBLICO_DA_SUA_LOGO'  # Substitua se estiver testando
+
+        html_body = render_template('email/confirmation_email.html',
+                                    user=user,
+                                    confirm_url=confirm_url,
+                                    logo_url=logo_url)
+
+        msg = Message('Confirme seu Cadastro - Agenda Escolar',
+                      recipients=[user.email],
+                      html=html_body)
+        mail.send(msg)
+        return True
+    except Exception as e:
+        print(f"Erro ao enviar e-mail de confirmação: {e}")
+        return False
+
+
+@app.route('/confirm/<token>')
+def confirm_email(token):
+    try:
+        # Token válido por 1 hora
+        email = serializer.loads(
+            token, salt='email-confirm-salt', max_age=3600)
+    except Exception:
+        flash('O link de confirmação é inválido ou expirou.', 'danger')
+        return redirect(url_for('login'))
+
+    user = Usuario.query.filter_by(email=email).first_or_404()
+
+    if user.email_confirmado:
+        flash('Esta conta já foi confirmada. Por favor, faça login.', 'info')
+    else:
+        user.email_confirmado = True
+        db.session.commit()
+        flash(
+            'Sua conta foi confirmada com sucesso! Agora você pode fazer login.', 'success')
+
+    return redirect(url_for('login'))
+
+
+def send_invitation_email(user, escola):
+    """Gera um token e envia o e-mail de convite para um novo usuário."""
+    try:
+        token = serializer.dumps(user.email, salt='user-invitation-salt')
+        accept_url = url_for('accept_invitation', token=token, _external=True)
+        # Lembre-se de usar o link público para testes
+        logo_url = 'URL_PUBLICO_DA_SUA_LOGO'
+
+        html_body = render_template('email/invitation_email.html',
+                                    user=user,
+                                    escola=escola,
+                                    accept_url=accept_url,
+                                    logo_url=logo_url)
+
+        msg = Message(f'Você foi convidado para a Agenda Escolar da {escola.nome}',
+                      recipients=[user.email],
+                      html=html_body)
+        mail.send(msg)
+        return True
+    except Exception as e:
+        print(f"Erro ao enviar e-mail de convite: {e}")
+        return False
+
+
+@app.route('/accept-invitation/<token>', methods=['GET', 'POST'])
+def accept_invitation(token):
+    try:
+        # Token válido por 7 dias
+        email = serializer.loads(
+            token, salt='user-invitation-salt', max_age=604800)
+    except Exception:
+        flash('O link de convite é inválido ou expirou.', 'danger')
+        return redirect(url_for('login'))
+
+    user = Usuario.query.filter_by(email=email).first_or_404()
+
+    if user.password_hash:
+        flash('Este convite já foi aceito. Por favor, faça login.', 'info')
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+
+        if new_password != confirm_password:
+            flash('As senhas não coincidem.', 'danger')
+            return render_template('accept_invitation.html', token=token, user=user)
+
+        user.set_password(new_password)
+        user.email_confirmado = True  # O convite também confirma o e-mail
+        db.session.commit()
+
+        flash('Sua conta foi ativada com sucesso! Você já pode fazer o login.', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('accept_invitation.html', token=token, user=user)
+
+
+@app.route('/admin/subscription')
+@admin_required
+def subscription_page():
+    escola_id = session.get('escola_id')
+
+    # Busca a assinatura mais recente da escola
+    assinatura = Assinatura.query.filter_by(
+        escola_id=escola_id).order_by(Assinatura.data_fim.desc()).first()
+
+    dias_restantes = None
+    if assinatura:
+        # Calcula a diferença de dias entre a data final e hoje
+        dias_restantes = (assinatura.data_fim - date.today()).days
+
+    return render_template('admin_subscription.html', assinatura=assinatura, dias_restantes=dias_restantes)
+
+
+@app.route('/create-checkout-session', methods=['POST'])
+@login_required
+def create_checkout_session():
+    escola_id = session.get('escola_id')
+    escola = Escola.query.get_or_404(escola_id)
+
+    # Busca a assinatura atual para saber qual plano renovar
+    assinatura = Assinatura.query.filter_by(
+        escola_id=escola_id).order_by(Assinatura.data_fim.desc()).first()
+    if not assinatura:
+        flash("Nenhuma assinatura encontrada para renovar.", "danger")
+        return redirect(url_for('subscription_page'))
+
+    try:
+        # Você precisará criar um ID de preço no painel do Stripe (ver abaixo)
+        price_id = request.form.get('price_id')
+
+        checkout_session = stripe.checkout.Session.create(
+            line_items=[
+                {
+                    'price': price_id,
+                    'quantity': 1,
+                },
+            ],
+            mode='subscription',
+            success_url=url_for('payment_success', _external=True) +
+            '?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url=url_for('payment_cancel', _external=True),
+            # Passa metadados para sabermos qual escola e assinatura atualizar depois
+            subscription_data={
+                "metadata": {
+                    "escola_id": escola.id,
+                    "assinatura_id": assinatura.id
+                }
+            }
+        )
+    except Exception as e:
+        flash(f"Erro ao comunicar com o sistema de pagamento: {e}", "danger")
+        return redirect(url_for('subscription_page'))
+
+    return redirect(checkout_session.url, code=303)
+
+
+@app.route('/payment-success')
+@login_required
+def payment_success():
+    flash("Pagamento realizado com sucesso! Sua assinatura foi atualizada.", "success")
+    # No futuro, aqui verificaremos a sessão e atualizaremos o banco de dados via webhook
+    return redirect(url_for('subscription_page'))
+
+
+@app.route('/payment-cancel')
+@login_required
+def payment_cancel():
+    flash("O pagamento foi cancelado. Você pode tentar novamente a qualquer momento.", "warning")
+    return redirect(url_for('subscription_page'))
+
+
+@app.route('/stripe-webhook', methods=['POST'])
+def stripe_webhook():
+    endpoint_secret = os.environ.get('STRIPE_WEBHOOK_SECRET')
+    payload = request.data
+    sig_header = request.headers.get('Stripe-Signature')
+    event = None
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, endpoint_secret
+        )
+    except ValueError as e:
+        return 'Invalid payload', 400
+    except stripe.SignatureVerificationError as e:
+        return 'Invalid signature', 400
+
+    if event['type'] == 'checkout.session.completed':
+        checkout_session = event['data']['object']
+
+        if checkout_session.mode == 'subscription':
+            subscription_id = checkout_session.get('subscription')
+            try:
+                subscription_object = stripe.Subscription.retrieve(
+                    subscription_id)
+                metadata = subscription_object.metadata
+                escola_id = metadata.get('escola_id')
+                assinatura_id = metadata.get('assinatura_id')
+
+                if escola_id and assinatura_id:
+                    assinatura = Assinatura.query.get(assinatura_id)
+
+                    # --- CORREÇÃO FINAL AQUI ---
+                    # Acessando os dados como um dicionário para mais segurança
+                    price_id_pago = subscription_object['items']['data'][0]['price']['id']
+                    plano_pago = Plano.query.filter_by(
+                        stripe_price_id=price_id_pago).first()
+
+                    if assinatura and plano_pago:
+                        data_base = max(date.today(), assinatura.data_fim)
+                        nova_data_fim = data_base + \
+                            relativedelta(months=plano_pago.duracao_meses)
+
+                        assinatura.plano_id = plano_pago.id
+                        assinatura.data_fim = nova_data_fim
+                        assinatura.status = 'ativa'
+                        db.session.commit()
+
+            except Exception as e:
+                print(f"ERRO ao processar a assinatura no webhook: {e}")
+
+    return jsonify(success=True)
+
+
+@app.route('/superadmin')
+@login_required
+@superadmin_required
+def superadmin_dashboard():
+    # --- 1. BUSCA DE CONFIGURAÇÕES DO AMBIENTE ---
+    config_info = {
+        'stripe_public_key': os.environ.get('STRIPE_PUBLIC_KEY', 'Não configurada'),
+        'mail_server': os.environ.get('MAIL_SERVER', 'Não configurado'),
+        'mail_sender': os.environ.get('MAIL_DEFAULT_SENDER', 'Não configurado')
+    }
+
+    # --- 2. CÁLCULO DOS KPIs GLOBAIS ---
+    total_escolas = Escola.query.count()
+    total_usuarios = db.session.query(func.count(
+        distinct(UsuarioEscola.usuario_id))).scalar()
+
+    today = date.today()
+    _, last_day_of_month = calendar.monthrange(today.year, today.month)
+    start_of_month = today.replace(day=1)
+    end_of_month = today.replace(day=last_day_of_month)
+    total_agendamentos_mes = Booking.query.filter(
+        Booking.date.between(start_of_month, end_of_month)).count()
+
+    # --- 3. DADOS PARA O GRÁFICO DE PLANOS ---
+    dados_grafico_planos = db.session.query(
+        Plano.nome,
+        func.count(Assinatura.id)
+    ).join(Assinatura).group_by(Plano.nome).all()
+
+    chart_planos_labels = json.dumps(
+        [item[0] for item in dados_grafico_planos])
+    chart_planos_data = json.dumps([item[1] for item in dados_grafico_planos])
+
+    # --- 4. DADOS DETALHADOS PARA A TABELA DE ESCOLAS ---
+    escolas = db.session.query(Escola).options(
+        db.joinedload(Escola.assinaturas).subqueryload(Assinatura.plano)
+    ).order_by(Escola.nome).all()
+
+    dados_escolas = []
+    for escola in escolas:
+        assinatura_recente = max(
+            escola.assinaturas, key=lambda a: a.data_fim, default=None)
+
+        vencimento_info = {'classe': 'text-slate-500', 'texto': 'N/A'}
+        if assinatura_recente:
+            dias_restantes = (assinatura_recente.data_fim - today).days
+            vencimento_info['texto'] = assinatura_recente.data_fim.strftime(
+                '%d/%m/%Y')
+            if dias_restantes < 0:
+                vencimento_info['classe'] = 'vencido'
+            elif dias_restantes <= 15:
+                vencimento_info['classe'] = 'alerta'
+
+        dados_escolas.append({
+            'escola': escola,
+            'assinatura': assinatura_recente,
+            'contagem_usuarios': UsuarioEscola.query.filter_by(escola_id=escola.id).count(),
+            'contagem_recursos': Resource.query.filter_by(escola_id=escola.id).count(),
+            'vencimento_info': vencimento_info
+        })
+
+    return render_template('superadmin_dashboard.html',
+                           config_info=config_info,
+                           total_escolas=total_escolas,
+                           total_usuarios=total_usuarios,
+                           total_agendamentos_mes=total_agendamentos_mes,
+                           chart_planos_labels=chart_planos_labels,
+                           chart_planos_data=chart_planos_data,
+                           dados_escolas=dados_escolas)
+
+
+@app.route('/superadmin/school/edit/<int:escola_id>', methods=['POST'])
+@login_required
+@superadmin_required
+def edit_school(escola_id):
+    # Busca a escola no banco de dados
+    escola = Escola.query.get_or_404(escola_id)
+
+    # Pega os novos dados do formulário
+    novo_nome = request.form.get('name')
+    novo_status = request.form.get('status')
+
+    if novo_nome and novo_status:
+        escola.nome = novo_nome
+        escola.status = novo_status
+        db.session.commit()
+        flash(
+            f'Os dados da escola "{escola.nome}" foram atualizados com sucesso!', 'success')
+    else:
+        flash('Ocorreu um erro ao tentar atualizar os dados.', 'danger')
+
+    return redirect(url_for('superadmin_dashboard'))
+
+
+@app.route('/superadmin/plans', methods=['GET', 'POST'])
+@login_required
+@superadmin_required
+def manage_plans():
+    if request.method == 'POST':
+        # --- Lógica para ADICIONAR um novo plano ---
+        nome = request.form.get('nome')
+        preco_str = request.form.get('preco')
+        duracao = request.form.get('duracao_meses')
+        stripe_id = request.form.get('stripe_price_id')
+
+        # Validação
+        if not all([nome, preco_str, duracao, stripe_id]):
+            flash('Todos os campos são obrigatórios.', 'danger')
+        else:
+            try:
+                # Converte o preço de R$ (ex: 99,90) para centavos (9990)
+                preco_em_centavos = int(
+                    float(preco_str.replace(',', '.')) * 100)
+
+                novo_plano = Plano(
+                    nome=nome,
+                    preco=preco_em_centavos,
+                    duracao_meses=int(duracao),
+                    stripe_price_id=stripe_id
+                )
+                db.session.add(novo_plano)
+                db.session.commit()
+                flash('Novo plano adicionado com sucesso!', 'success')
+            except ValueError:
+                flash(
+                    'O valor do preço é inválido. Use um formato como 99,90.', 'danger')
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Ocorreu um erro: {e}', 'danger')
+
+        return redirect(url_for('manage_plans'))
+
+    # --- Lógica para EXIBIR a página (GET) ---
+    planos = Plano.query.order_by(Plano.preco).all()
+    return render_template('superadmin_plans.html', planos=planos)
+
+
+@app.route('/superadmin/plans/edit/<int:plan_id>', methods=['POST'])
+@login_required
+@superadmin_required
+def edit_plan(plan_id):
+    plano = Plano.query.get_or_404(plan_id)
+
+    nome = request.form.get('nome')
+    preco_str = request.form.get('preco')
+    duracao = request.form.get('duracao_meses')
+    stripe_id = request.form.get('stripe_price_id')
+
+    if not all([nome, preco_str, duracao, stripe_id]):
+        flash('Todos os campos são obrigatórios.', 'danger')
+    else:
+        try:
+            plano.nome = nome
+            plano.preco = int(float(preco_str.replace(',', '.')) * 100)
+            plano.duracao_meses = int(duracao)
+            plano.stripe_price_id = stripe_id
+            db.session.commit()
+            flash('Plano atualizado com sucesso!', 'success')
+        except ValueError:
+            flash('O valor do preço é inválido. Use um formato como 99,90.', 'danger')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Ocorreu um erro ao atualizar o plano: {e}', 'danger')
+
+    return redirect(url_for('manage_plans'))
+
+
+@app.route('/superadmin/plans/delete/<int:plan_id>')
+@login_required
+@superadmin_required
+def delete_plan(plan_id):
+    plano = Plano.query.get_or_404(plan_id)
+
+    # Lógica de segurança: Verifica se alguma assinatura está usando este plano
+    assinaturas_ativas = Assinatura.query.filter_by(plano_id=plan_id).first()
+    if assinaturas_ativas:
+        flash(
+            f'Não é possível excluir o plano "{plano.nome}", pois ele está em uso por uma ou mais escolas.', 'danger')
+        return redirect(url_for('manage_plans'))
+
+    try:
+        db.session.delete(plano)
+        db.session.commit()
+        flash(f'Plano "{plano.nome}" excluído com sucesso!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ocorreu um erro ao excluir o plano: {e}', 'danger')
+
+    return redirect(url_for('manage_plans'))
 
 
 if __name__ == '__main__':

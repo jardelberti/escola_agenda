@@ -21,6 +21,8 @@ class Escola(db.Model):
     # Relacionamentos
     recursos = db.relationship(
         'Resource', backref='escola', lazy=True, cascade='all, delete-orphan')
+    assinaturas = db.relationship(
+        'Assinatura', backref='escola', lazy=True, cascade='all, delete-orphan')
 
 # 2. Tabela 'Teacher' renomeada para 'Usuario' e modernizada
 
@@ -31,6 +33,7 @@ class Usuario(UserMixin, db.Model):
     email = db.Column(db.String(150), unique=True, nullable=False)
     password_hash = db.Column(db.String(255))
     is_superadmin = db.Column(db.Boolean, default=False)
+    email_confirmado = db.Column(db.Boolean, nullable=False, default=False)
 
     escolas = db.relationship(
         'UsuarioEscola', backref='usuario', lazy='dynamic', cascade='all, delete-orphan')
@@ -114,3 +117,32 @@ class Booking(db.Model):
     shift = db.Column(db.String(50), nullable=False)
     slot_name = db.Column(db.String(100), nullable=False)
     status = db.Column(db.String(50), nullable=False, default='booked')
+
+# 4. Nova tabela para os planos de assinatura disponíveis
+
+
+class Plano(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), unique=True,
+                     nullable=False)  # Ex: "Mensal", "Anual"
+    # Preço em centavos para evitar problemas com ponto flutuante
+    preco = db.Column(db.Integer, nullable=False)
+    # Duração do plano em meses
+    duracao_meses = db.Column(db.Integer, nullable=False)
+    stripe_price_id = db.Column(db.String(100))
+
+# 5. Nova tabela para registrar a assinatura de cada escola
+
+
+class Assinatura(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    escola_id = db.Column(db.Integer, db.ForeignKey(
+        'escola.id'), nullable=False)
+    plano_id = db.Column(db.Integer, db.ForeignKey('plano.id'), nullable=False)
+    data_inicio = db.Column(db.Date, nullable=False)
+    data_fim = db.Column(db.Date, nullable=False)
+    # Status pode ser 'ativa', 'vencida', 'cancelada'
+    status = db.Column(db.String(50), nullable=False, default='ativa')
+
+    # Relacionamentos para facilitar as consultas
+    plano = db.relationship('Plano')

@@ -57,16 +57,23 @@
                 <span class="material-symbols-outlined">calendar_month</span>
                 <p class="text-xs font-medium">Agendamento</p>
             </a>
-            {% if current_user.is_admin %}
+            {% if current_user.is_authenticated and not current_user.is_superadmin and current_user.is_admin %}
                 <a href="{{ url_for('admin_dashboard') }}" class="flex flex-col items-center justify-end gap-1 py-1 {% if request.path.startswith('/admin') %}text-blue-600{% else %}text-slate-500{% endif %}">
                     <span class="material-symbols-outlined">admin_panel_settings</span>
                     <p class="text-xs font-medium">Painel Admin</p>
                 </a>
-            {% else %}
-                <a href="{{ url_for('my_bookings') }}" class="flex flex-col items-center justify-end gap-1 py-1 {% if request.endpoint == 'my_bookings' %}text-blue-600{% else %}text-slate-500{% endif %}">
+            {% elif current_user.is_authenticated and not current_user.is_superadmin %}
+                 <a href="{{ url_for('my_bookings') }}" class="flex flex-col items-center justify-end gap-1 py-1 {% if request.endpoint == 'my_bookings' %}text-blue-600{% else %}text-slate-500{% endif %}">
                     <span class="material-symbols-outlined">list_alt</span>
                     <p class="text-xs font-medium">Meus Agendamentos</p>
                 </a>
+            {% endif %}
+
+            {% if current_user.is_superadmin %}
+            <a href="{{ url_for('superadmin_dashboard') }}" class="flex flex-col items-center justify-end gap-1 py-1 {% if request.path.startswith('/superadmin') %}text-blue-600{% else %}text-slate-500{% endif %}">
+                <span class="material-symbols-outlined">shield_person</span>
+                <p class="text-xs font-medium">Super Admin</p>
+            </a>
             {% endif %}
             <a href="{{ url_for('logout') }}" class="flex flex-col items-center justify-end gap-1 text-slate-500 py-1">
                 <span class="material-symbols-outlined">logout</span>

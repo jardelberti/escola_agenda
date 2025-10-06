@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Confirme seu E-mail{% endblock %}
+
+{% block content %}
+<body class="bg-slate-50">
+<div class="flex flex-col items-center justify-center px-4 text-center" style="min-height: 85vh;">
+    <div class="w-full max-w-md mx-auto">
+        <span class="material-symbols-outlined text-green-500 text-7xl">mark_email_read</span>
+        <h1 class="text-3xl font-bold text-slate-800 mt-4">Quase lá!</h1>
+        <p class="text-lg text-slate-600 mt-2">
+            Enviamos um e-mail de confirmação para o endereço que você informou.
+        </p>
+        <p class="mt-4 text-slate-500">
+            Por favor, clique no link dentro do e-mail para ativar sua conta e poder fazer o login.
+        </p>
+        <a href="{{ url_for('login') }}" class="mt-8 inline-block bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-sm hover:bg-blue-700">
+            Voltar para a Página de Login
+        </a>
+    </div>
+</div>
+</body>
+{% endblock %}

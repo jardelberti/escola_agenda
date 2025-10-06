@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Meu Plano e Assinatura{% endblock %}
+
+{% block content %}
+<body class="bg-slate-50" style='font-family: Inter, "Noto Sans", sans-serif;'>
+    <div class="container mx-auto px-4 py-8">
+
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
+            <h1 class="text-3xl font-bold text-slate-800">Meu Plano e Assinatura</h1>
+            <div class="mt-4 sm:mt-0">
+                <a href="{{ url_for('admin_dashboard') }}" class="bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-lg hover:bg-slate-300 transition-colors inline-flex items-center">
+                    <span class="material-symbols-outlined mr-2">arrow_back</span>
+                    Voltar ao Dashboard
+                </a>
+            </div>
+        </div>
+
+        {% if assinatura %}
+        <div class="max-w-2xl mx-auto bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
+            <h2 class="text-2xl font-bold text-slate-800 mb-6">Detalhes da sua Assinatura</h2>
+            
+            <div class="space-y-4">
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-500">Plano Atual:</span>
+                    <span class="font-bold text-slate-800 text-lg">{{ assinatura.plano.nome }}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-500">Status:</span>
+                    <span>
+                        {% if assinatura.status == 'ativa' %}
+                            <span class="bg-green-100 text-green-800 font-semibold px-3 py-1 rounded-full text-sm">Ativa</span>
+                        {% else %}
+                            <span class="bg-red-100 text-red-800 font-semibold px-3 py-1 rounded-full text-sm">{{ assinatura.status|capitalize }}</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-500">Válido até:</span>
+                    <span class="font-semibold text-slate-700">{{ assinatura.data_fim.strftime('%d/%m/%Y') }}</span>
+                </div>
+                
+                {% if dias_restantes is not none and dias_restantes >= 0 %}
+                <div class="flex justify-between items-center pt-2">
+                    <span class="text-slate-500">Tempo restante:</span>
+                    <span class="font-semibold text-blue-600">{{ dias_restantes }} dias</span>
+                </div>
+                {% elif dias_restantes is not none and dias_restantes < 0 %}
+                <div class="flex justify-between items-center pt-2">
+                    <span class="text-slate-500">Status:</span>
+                    <span class="font-semibold text-red-600">Plano Vencido</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="mt-8 border-t pt-6 text-center">
+                <p class="text-slate-600 mb-4">Gerencie sua assinatura e pagamentos.</p>
+                
+                <a href="{{ url_for('upgrade_plan') }}" class="w-full sm:w-auto inline-block bg-blue-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg hover:bg-blue-700 transition-colors">
+                    Renovar / Alterar Plano
+                </a>
+
+            </div>
+        </div>
+        {% else %}
+        <div class="max-w-2xl mx-auto bg-white p-8 rounded-xl border border-slate-200 text-center">
+            <p class="text-slate-500">Nenhuma assinatura encontrada para esta escola.</p>
+        </div>
+        {% endif %}
+    </div>
+</body>
+{% endblock %}

@@ -17,7 +17,14 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-4" role="alert">
+                    {% if category == 'success' %}
+                        {% set color = 'green' %}
+                    {% elif category == 'danger' %}
+                        {% set color = 'red' %}
+                    {% else %}
+                        {% set color = 'yellow' %}
+                    {% endif %}
+                    <div class="bg-{{ color }}-100 border border-{{ color }}-400 text-{{ color }}-700 px-4 py-3 rounded-lg relative mb-4" role="alert">
                         <span class="block sm:inline">{{ message }}</span>
                     </div>
                 {% endfor %}
@@ -83,6 +90,12 @@
                 <span>Entrar com Microsoft</span>
             </a>
         </div>
+        <div class="w-full max-w-sm mx-auto mt-8 text-center bg-slate-100 p-4 rounded-lg border border-slate-200">
+        <p class="text-slate-700">Novo por aqui?</p>
+        <a href="{{ url_for('register') }}" class="font-bold text-blue-600 hover:text-blue-700">
+            Crie uma conta e cadastre sua escola
+        </a>
+    </div>
     </div>
 </div>
 </body>

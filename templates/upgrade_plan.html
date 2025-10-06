@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Alterar Plano de Assinatura{% endblock %}
+
+{% block content %}
+<body class="bg-slate-50" style='font-family: Inter, "Noto Sans", sans-serif;'>
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-2xl mx-auto">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-slate-800">Alterar Plano</h1>
+                <p class="mt-2 text-lg text-slate-600">Escolha o plano que melhor se adapta às suas necessidades.</p>
+            </div>
+
+            <form action="{{ url_for('create_checkout_session') }}" method="POST">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {% for plano in planos %}
+                    <label class="block cursor-pointer plan-label">
+                        <input type="radio" name="price_id" value="{{ plano.stripe_price_id }}" class="sr-only plan-radio" {% if plano.nome == 'Anual' %}checked{% endif %}>
+                        
+                        <div class="p-8 rounded-xl border-2 h-full plan-card relative transition-all duration-300 flex flex-col">
+                            {% if plano.nome == 'Anual' %}
+                            <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider">Mais Popular</div>
+                            {% endif %}
+
+                            <div class="flex-grow">
+                                <h3 class="text-2xl font-bold text-slate-900">{{ plano.nome }}</h3>
+                                <p class="mt-2 text-4xl font-bold text-slate-800">R$ {{ "%.2f"|format(plano.preco / 100) }}</p>
+                                <p class="text-slate-500 text-lg">/ {{ 'mês' if plano.duracao_meses == 1 else 'ano' }}</p>
+                                
+                                {% if plano.economia and plano.economia > 0 %}
+                                <p class="mt-4 font-semibold text-green-600 bg-green-100 p-2 rounded-md text-sm">
+                                    Você economiza R$ {{ "%.2f"|format(plano.economia / 100) }}!
+                                </p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+
+                <div class="text-center mt-10">
+                    <button type="submit" class="w-full md:w-auto bg-green-600 text-white font-bold py-4 px-12 rounded-lg shadow-lg hover:bg-green-700 transition-colors text-lg">
+                        Ir para o Pagamento
+                    </button>
+                </div>
+            </form>
+             <div class="text-center mt-6">
+                <a href="{{ url_for('subscription_page') }}" class="text-sm font-medium text-slate-600 hover:text-slate-800">
+                    Cancelar e voltar
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+    .plan-card {
+        border-color: #cbd5e1; /* slate-300 */
+        background-color: white;
+    }
+    .plan-card.plan-selected {
+        border-color: #3b82f6; /* blue-500 */
+        box-shadow: 0 0 0 2px #3b82f6;
+    }
+    .plan-card.plan-selected .select-button {
+        background-color: #3b82f6;
+        border-color: #3b82f6;
+        color: white;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const planLabels = document.querySelectorAll('.plan-label');
+    const planRadios = document.querySelectorAll('.plan-radio');
+    
+    function updateSelectionStyles() {
+        planLabels.forEach(label => {
+            const radio = label.querySelector('.plan-radio');
+            const card = label.querySelector('.plan-card');
+            if (radio.checked) {
+                card.classList.add('plan-selected');
+            } else {
+                card.classList.remove('plan-selected');
+            }
+        });
+    }
+
+    planLabels.forEach(label => {
+        label.addEventListener('click', function() {
+            // Encontra o radio button dentro do label clicado e o marca
+            const radio = this.querySelector('.plan-radio');
+            radio.checked = true;
+            // Atualiza os estilos de todos os cards
+            updateSelectionStyles();
+        });
+    });
+
+    // Chama a função uma vez no início para aplicar o estilo ao plano pré-selecionado
+    updateSelectionStyles();
+});
+</script>
+
+</body>
+{% endblock %}

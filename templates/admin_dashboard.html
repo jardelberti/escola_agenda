@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Painel do Admin{% endblock %}
+{% block title %}Dashboard do Admin{% endblock %}
 
 {% block content %}
 <body class="bg-slate-50" style='font-family: Inter, "Noto Sans", sans-serif;'>
     <div class="container mx-auto px-4 py-8">
 
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
-            <h1 class="text-3xl font-bold text-slate-800">Painel do Administrador</h1>
+            <h1 class="text-3xl font-bold text-slate-800">Dashboard</h1>
             <div class="mt-4 sm:mt-0 flex space-x-2">
                 <a href="{{ url_for('home') }}" class="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700 transition-colors">Ver Agendas</a>
                 <a href="{{ url_for('logout') }}" class="bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-lg hover:bg-slate-300 transition-colors">Sair</a>
@@ -26,6 +26,55 @@
                 </div>
             {% endif %}
         {% endwith %}
+        
+        <div class="mb-8">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-xl border border-slate-200">
+                    <div class="flex items-center">
+                        <div class="bg-blue-100 text-blue-600 rounded-lg p-3">
+                            <span class="material-symbols-outlined">layers</span>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm text-slate-500">Total de Recursos</p>
+                            <p class="text-2xl font-bold text-slate-800">{{ total_recursos }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl border border-slate-200">
+                    <div class="flex items-center">
+                        <div class="bg-green-100 text-green-600 rounded-lg p-3">
+                            <span class="material-symbols-outlined">group</span>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm text-slate-500">Total de Usuários</p>
+                            <p class="text-2xl font-bold text-slate-800">{{ total_usuarios }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl border border-slate-200">
+                    <div class="flex items-center">
+                        <div class="bg-amber-100 text-amber-600 rounded-lg p-3">
+                            <span class="material-symbols-outlined">calendar_month</span>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm text-slate-500">Agendamentos no Mês</p>
+                            <p class="text-2xl font-bold text-slate-800">{{ total_agendamentos_mes }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl border border-slate-200">
+                <h3 class="text-lg font-bold text-slate-800 mb-4">Recursos Mais Utilizados no Mês</h3>
+                {% if chart_data and chart_data != '[]' %}
+                    <div class="max-w-4xl mx-auto">
+                        <canvas id="recursosChart"></canvas>
+                    </div>
+                {% else %}
+                    <p class="text-slate-500 text-center py-8">Nenhum agendamento encontrado no mês atual para gerar o gráfico.</p>
+                {% endif %}
+            </div>
+        </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
@@ -54,13 +103,13 @@
                 <div class="bg-white p-6 rounded-xl border border-slate-200">
                     <h3 class="text-xl font-bold text-slate-800 mb-2">Outras Ações</h3>
                     <div class="space-y-3 mt-4">
+                        <a href="{{ url_for('subscription_page') }}" class="block w-full text-center bg-violet-500 text-white font-semibold py-2 rounded-lg hover:bg-violet-600 transition-colors">Meu Plano e Assinatura</a>
                         <a href="{{ url_for('weekly_view') }}" class="block w-full text-center bg-teal-500 text-white font-semibold py-2 rounded-lg hover:bg-teal-600 transition-colors">Agenda Semanal</a>
                         <a href="{{ url_for('reports') }}" class="block w-full text-center bg-green-500 text-white font-semibold py-2 rounded-lg hover:bg-green-600 transition-colors">Gerar Relatórios</a>
                         <a href="{{ url_for('manage_teachers') }}" class="block w-full text-center bg-amber-500 text-white font-semibold py-2 rounded-lg hover:bg-amber-600 transition-colors">Gerenciar Usuários</a>
-                        <a href="{{ url_for('backup_restore_page') }}" class="block w-full text-center bg-gray-500 text-white font-semibold py-2 rounded-lg hover:bg-gray-600 transition-colors mt-4">Backup e Restauração</a>
+                        
                     </div>
                 </div>
-
             </div>
 
             <div class="lg:col-span-2">
@@ -189,10 +238,10 @@
         </div>
     </div>
 
-
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Script do modal de edição
+        // --- CÓDIGO ANTIGO DOS MODAIS E SORTABLE ---
         const editResourceModal = document.getElementById('editResourceModal');
         if (editResourceModal) {
             editResourceModal.addEventListener('show.bs.modal', function (event) {
@@ -211,7 +260,6 @@
             });
         }
 
-        // Script para o modal de cópia
         const copyResourceModal = document.getElementById('copyResourceModal');
         if (copyResourceModal) {
             copyResourceModal.addEventListener('show.bs.modal', function (event) {
@@ -228,7 +276,6 @@
             });
         }
 
-        // NOVO SCRIPT PARA O MODAL DE EXCLUSÃO
         const deleteResourceModal = document.getElementById('deleteResourceModal');
         if (deleteResourceModal) {
             deleteResourceModal.addEventListener('show.bs.modal', function (event) {
@@ -243,7 +290,6 @@
             });
         }
 
-        // SCRIPT PARA ORDENAÇÃO
         const resourceList = document.getElementById('resource-list');
         if (resourceList) {
             const reorderForm = document.getElementById('reorder-form');
@@ -262,6 +308,39 @@
                 const resourceItems = resourceList.querySelectorAll('div[data-id]');
                 const newOrder = Array.from(resourceItems).map(item => item.getAttribute('data-id'));
                 orderInput.value = newOrder.join(',');
+            });
+        }
+
+        // --- NOVO CÓDIGO PARA O GRÁFICO DO DASHBOARD ---
+        const chartLabels = {{ chart_labels|safe if chart_labels else '[]' }};
+        const chartData = {{ chart_data|safe if chart_data else '[]' }};
+
+        if (chartLabels.length > 0 && chartData.length > 0) {
+            const ctx = document.getElementById('recursosChart').getContext('2d');
+            const recursosChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: chartLabels,
+                    datasets: [{
+                        label: 'Nº de Agendamentos',
+                        data: chartData,
+                        backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { precision: 0 }
+                        }
+                    },
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
             });
         }
     });

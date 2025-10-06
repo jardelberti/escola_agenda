@@ -1,8 +1,8 @@
-"""Criação inicial do schema multi-tenant
+"""Criação inicial do schema
 
-Revision ID: 2c4e70393536
+Revision ID: e7ffa6180e15
 Revises: 
-Create Date: 2025-10-03 18:37:05.307323
+Create Date: 2025-10-05 15:10:35.770820
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '2c4e70393536'
+revision = 'e7ffa6180e15'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -26,14 +26,34 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('nome')
     )
+    op.create_table('plano',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('nome', sa.String(length=100), nullable=False),
+    sa.Column('preco', sa.Integer(), nullable=False),
+    sa.Column('duracao_meses', sa.Integer(), nullable=False),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('nome')
+    )
     op.create_table('usuario',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('nome', sa.String(length=150), nullable=False),
     sa.Column('email', sa.String(length=150), nullable=False),
     sa.Column('password_hash', sa.String(length=255), nullable=True),
     sa.Column('is_superadmin', sa.Boolean(), nullable=True),
+    sa.Column('email_confirmado', sa.Boolean(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('email')
+    )
+    op.create_table('assinatura',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('escola_id', sa.Integer(), nullable=False),
+    sa.Column('plano_id', sa.Integer(), nullable=False),
+    sa.Column('data_inicio', sa.Date(), nullable=False),
+    sa.Column('data_fim', sa.Date(), nullable=False),
+    sa.Column('status', sa.String(length=50), nullable=False),
+    sa.ForeignKeyConstraint(['escola_id'], ['escola.id'], ),
+    sa.ForeignKeyConstraint(['plano_id'], ['plano.id'], ),
+    sa.PrimaryKeyConstraint('id')
     )
     op.create_table('resource',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -87,6 +107,8 @@ def downgrade():
     op.drop_table('booking')
     op.drop_table('usuario_escola')
     op.drop_table('resource')
+    op.drop_table('assinatura')
     op.drop_table('usuario')
+    op.drop_table('plano')
     op.drop_table('escola')
     # ### end Alembic commands ###
