@@ -160,13 +160,28 @@ def superadmin_required(f):
 
 
 @app.route('/')
-def root():
+def landing_page():
     if current_user.is_authenticated:
         return redirect(url_for('home'))
-    return redirect(url_for('login'))
 
+    planos = Plano.query.order_by(Plano.preco).all()
 
-# Em app.py
+    # --- LÓGICA ATUALIZADA ---
+    plano_mensal_base = next((p for p in planos if p.nome == 'Mensal'), None)
+    # Encontra o ID do plano gratuito para usar nos botões
+    plano_gratuito_id = next(
+        (p.id for p in planos if p.nome == 'Teste Gratuito'), None)
+
+    if plano_mensal_base:
+        custo_anual_base = plano_mensal_base.preco * 12
+        for plano in planos:
+            if plano.nome == 'Anual':
+                plano.economia = custo_anual_base - plano.preco
+            else:
+                plano.economia = 0
+
+    return render_template('landing_page.html', planos=planos, plano_gratuito_id=plano_gratuito_id)
+
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -248,8 +263,13 @@ def register():
             return redirect(url_for('register'))
 
     # Para a requisição GET, busca os planos e calcula a economia
+    # Para a requisição GET, busca os planos e o plano selecionado
     planos = Plano.query.order_by(Plano.preco).all()
-    plano_mensal_base = Plano.query.filter_by(nome='Mensal').first()
+    # Pega o ID do plano da URL, se ele existir
+    plano_selecionado_id = request.args.get('plan_id', type=int)
+
+    # Lógica do cálculo de economia...
+    plano_mensal_base = next((p for p in planos if p.nome == 'Mensal'), None)
     if plano_mensal_base:
         custo_anual_base = plano_mensal_base.preco * 12
         for plano in planos:
@@ -258,7 +278,7 @@ def register():
             else:
                 plano.economia = 0
 
-    return render_template('register.html', planos=planos)
+    return render_template('register.html', planos=planos, plano_selecionado_id=plano_selecionado_id)
 
 
 @app.route('/check-email')
@@ -1275,32 +1295,44 @@ def forgot_password():
     return render_template('forgot_password.html')
 
 
+# Em app.py
+
 @app.cli.command("seed-plans")
 def seed_plans_command():
     """Cria os planos de assinatura padrão se eles não existirem."""
 
+    # --- NOVO PLANO DE TESTE GRATUITO ---
+    plano_teste = Plano.query.filter_by(nome='Teste Gratuito').first()
+    if not plano_teste:
+        # Preço 0, duração de 1 mês, sem ID do Stripe
+        plano_teste = Plano(nome='Teste Gratuito', preco=0,
+                            duracao_meses=1, stripe_price_id=None)
+        db.session.add(plano_teste)
+        print("Plano 'Teste Gratuito' criado.")
+    else:
+        # Garante que o preço e a duração estão corretos
+        plano_teste.preco = 0
+        plano_teste.duracao_meses = 1
+        print("Plano 'Teste Gratuito' já existe.")
+
+    # --- PLANOS PAGOS ---
     plano_mensal = Plano.query.filter_by(nome='Mensal').first()
     if not plano_mensal:
-        plano_mensal = Plano(nome='Mensal', preco=9990, duracao_meses=1,
-                             stripe_price_id='price_1SEwrV3sOK4brDIgNNl4Z2Pf')
+        plano_mensal = Plano(nome='Mensal', preco=2000, duracao_meses=1,
+                             stripe_price_id='SEU_ID_DE_PRECO_MENSAL_AQUI')
         db.session.add(plano_mensal)
         print("Plano 'Mensal' criado.")
     else:
-        # Atualiza o ID caso já exista, mas não tenha o ID do stripe
-        if not plano_mensal.stripe_price_id:
-            plano_mensal.stripe_price_id = 'price_1SEwrV3sOK4brDIgNNl4Z2Pf'
-            print("Atualizado Plano 'Mensal' com ID do Stripe.")
+        print("Plano 'Mensal' já existe.")
 
     plano_anual = Plano.query.filter_by(nome='Anual').first()
     if not plano_anual:
-        plano_anual = Plano(nome='Anual', preco=99900, duracao_meses=12,
-                            stripe_price_id='price_1SEzD93sOK4brDIgAlsFe1ih')
+        plano_anual = Plano(nome='Anual', preco=20000, duracao_meses=12,
+                            stripe_price_id='SEU_ID_DE_PRECO_ANUAL_AQUI')
         db.session.add(plano_anual)
         print("Plano 'Anual' criado.")
     else:
-        if not plano_anual.stripe_price_id:
-            plano_anual.stripe_price_id = 'price_1SEzD93sOK4brDIgAlsFe1ih'
-            print("Atualizado Plano 'Anual' com ID do Stripe.")
+        print("Plano 'Anual' já existe.")
 
     db.session.commit()
     print("Planos semeados com sucesso!")

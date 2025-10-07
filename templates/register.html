@@ -7,16 +7,17 @@
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?display=swap&family=Inter%3Awght%40400%3B500%3B700%3B900">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
 </head>
 <body style='font-family: Inter, "Noto Sans", sans-serif;'>
 
 <div class="container mx-auto px-4 py-12">
     <div class="text-center">
-        <a href="{{ url_for('login') }}">
-            <img src="{{ url_for('static', filename='logo_agenda.png') }}" alt="Logo Agenda Escolar" class="mx-auto h-20 w-auto mb-4">
+        <a href="{{ url_for('landing_page') }}">
+            <img src="{{ url_for('static', filename='logo_agenda.png') }}" alt="Logo Agenda Escolar" class="mx-auto h-48 w-auto mb-4">
         </a>
-        <h1 class="text-4xl font-bold text-slate-800">Cadastre sua Escola</h1>
-        <p class="mt-2 text-lg text-slate-600">Comece a organizar seus recursos em minutos.</p>
+        <h1 class="text-4xl font-bold text-slate-800">Finalize seu Cadastro</h1>
+        <p class="mt-2 text-lg text-slate-600">Falta pouco para começar a usar.</p>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -31,33 +32,42 @@
         {% endif %}
     {% endwith %}
 
-    <form method="POST" action="{{ url_for('register') }}" class="max-w-4xl mx-auto mt-10 space-y-8">
+    <form method="POST" action="{{ url_for('register') }}" class="max-w-6xl mx-auto mt-10 space-y-8">
         <div>
-            <h2 class="text-2xl font-bold text-slate-800 mb-6 text-center">1. Escolha seu Plano</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <h2 class="text-2xl font-bold text-slate-800 mb-6 text-center">1. Plano Selecionado</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {% for plano in planos %}
                 <label class="block cursor-pointer plan-label">
-                    <input type="radio" name="plan_id" value="{{ plano.id }}" class="sr-only plan-radio" {% if plano.nome == 'Anual' %}checked{% endif %}>
+                    <input type="radio" name="plan_id" value="{{ plano.id }}" class="sr-only plan-radio"
+                           {% if plano_selecionado_id == plano.id %}
+                               checked
+                           {% elif not plano_selecionado_id and plano.nome == 'Teste Gratuito' %}
+                               checked
+                           {% endif %}>
                     
-                    <div class="p-8 rounded-xl border-2 h-full plan-card relative transition-all duration-300 flex flex-col">
+                    <div class="p-6 rounded-lg border-2 border-slate-300 bg-white plan-card h-full flex flex-col relative">
                         {% if plano.nome == 'Anual' %}
-                        <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider">Mais Popular</div>
+                        <div class="absolute -top-3 right-4 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase">Mais Popular</div>
                         {% endif %}
-
                         <div class="flex-grow">
-                            <h3 class="text-2xl font-bold text-slate-900">{{ plano.nome }}</h3>
-                            <p class="mt-2 text-4xl font-bold text-slate-800">R$ {{ "%.2f"|format(plano.preco / 100) }}</p>
-                            <p class="text-slate-500 text-lg">/ {{ 'mês' if plano.duracao_meses == 1 else 'ano' }}</p>
-                            
+                            <h3 class="text-xl font-bold text-slate-900">{{ plano.nome }}</h3>
+                             {% if plano.preco == 0 %}
+                                <p class="mt-2 text-3xl font-bold text-slate-800">Grátis</p>
+                                <p class="text-slate-500">por 30 dias</p>
+                            {% else %}
+                                <p class="mt-2 text-3xl font-bold text-slate-800">R$ {{ "%.2f"|format(plano.preco / 100) }}</p>
+                                <p class="text-slate-500">/ {{ 'mês' if plano.duracao_meses == 1 else 'ano' }}</p>
+                            {% endif %}
+
                             {% if plano.economia and plano.economia > 0 %}
-                            <p class="mt-4 font-semibold text-green-600 bg-green-100 p-2 rounded-md text-sm">
-                                Você economiza R$ {{ "%.2f"|format(plano.economia / 100) }}!
+                            <p class="mt-4 font-semibold text-green-600 bg-green-100 p-2 rounded-md text-sm flex items-center gap-2">
+                                <span class="material-symbols-outlined text-base">savings</span>
+                                Economize R$ {{ "%.2f"|format(plano.economia / 100) }}!
                             </p>
                             {% endif %}
                         </div>
-                        
-                        <div class="text-center mt-8 border-2 border-slate-800 rounded-lg py-3 font-bold text-slate-800 select-button">
-                            Selecionar Plano
+                        <div class="text-center mt-6 border-2 border-slate-800 rounded-lg py-2 font-bold text-slate-800 select-button">
+                            Selecionado
                         </div>
                     </div>
                 </label>
@@ -66,7 +76,7 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-            <div>
+             <div>
                 <h2 class="text-2xl font-bold text-slate-800 mb-4">2. Dados da Escola</h2>
                 <div>
                     <label for="school_name" class="block text-sm font-medium text-slate-700">Nome da Escola</label>
@@ -92,22 +102,13 @@
 
         <div class="text-center pt-4">
             <button type="submit" class="w-full md:w-auto bg-blue-600 text-white font-bold py-4 px-12 rounded-lg shadow-lg hover:bg-blue-700 transition-colors text-lg">
-                Finalizar Cadastro e Acessar
+                Criar Conta
             </button>
         </div>
     </form>
-    <div class="text-center mt-6">
-        <a href="{{ url_for('login') }}" class="text-sm font-medium text-blue-600 hover:text-blue-500">
-            Já tem uma conta? Faça login
-        </a>
-    </div>
 </div>
 
 <style>
-    .plan-card {
-        border-color: #cbd5e1; /* slate-300 */
-        background-color: white;
-    }
     .plan-card.plan-selected {
         border-color: #3b82f6; /* blue-500 */
         box-shadow: 0 0 0 2px #3b82f6;
@@ -122,7 +123,6 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const planLabels = document.querySelectorAll('.plan-label');
-    const planRadios = document.querySelectorAll('.plan-radio');
     
     function updateSelectionStyles() {
         planLabels.forEach(label => {
@@ -138,15 +138,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     planLabels.forEach(label => {
         label.addEventListener('click', function() {
-            // Encontra o radio button dentro do label clicado e o marca
-            const radio = this.querySelector('.plan-radio');
-            radio.checked = true;
-            // Atualiza os estilos de todos os cards
+            this.querySelector('.plan-radio').checked = true;
             updateSelectionStyles();
         });
     });
 
-    // Chama a função uma vez no início para aplicar o estilo ao plano pré-selecionado
     updateSelectionStyles();
 });
 </script>
