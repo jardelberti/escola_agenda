@@ -69,8 +69,8 @@ oauth.register(
 @app.before_request
 def make_session_permanent():
     session.permanent = True
-    # Define a duração da sessão, por exemplo, 30 minutos de inatividade
-    app.permanent_session_lifetime = timedelta(minutes=30)
+    # Define a duração da sessão, por exemplo, 15 minutos de inatividade
+    app.permanent_session_lifetime = timedelta(minutes=15)
 
 
 # Configura o Serializer com a secret key
@@ -247,10 +247,8 @@ def register():
 
     if request.method == 'POST':
         # --- Coleta de dados do formulário ---
-        nome_admin = request.form.get('name') or (
-            session.get('oauth_profile') or {}).get('nome')
-        email_admin = request.form.get('email') or (
-            session.get('oauth_profile') or {}).get('email')
+        nome_admin = request.form.get('name')
+        email_admin = request.form.get('email')
         senha_admin = request.form.get('password')
         confirm_senha = request.form.get(
             'confirm_password')  # Pega a confirmação
@@ -262,12 +260,9 @@ def register():
             flash('Todos os campos são obrigatórios.', 'danger')
             return redirect(url_for('register'))
 
-        # --- VALIDAÇÃO DE SENHA (A CORREÇÃO PRINCIPAL) ---
+        # --- VALIDAÇÃO DE SENHA ---
         if senha_admin != confirm_senha:
             flash('As senhas não coincidem. Por favor, tente novamente.', 'danger')
-            # Se veio do Google, remove os dados para não bloquear o formulário
-            if 'oauth_profile' in session:
-                session.pop('oauth_profile')
             return redirect(url_for('register'))
 
         if Usuario.query.filter_by(email=email_admin).first():
@@ -280,7 +275,6 @@ def register():
             return redirect(url_for('register'))
 
         try:
-            # (O resto da lógica de criação de utilizador, escola, etc., continua a mesma)
             nova_escola = Escola(nome=nome_escola)
             novo_admin = Usuario(
                 nome=nome_admin, email=email_admin, email_confirmado=False)
@@ -304,10 +298,6 @@ def register():
 
             db.session.commit()
 
-            # Limpa o perfil da sessão após o uso
-            if 'oauth_profile' in session:
-                session.pop('oauth_profile')
-
             return redirect(url_for('check_your_email'))
 
         except Exception as e:
@@ -316,8 +306,7 @@ def register():
                 f'Ocorreu um erro inesperado durante o cadastro: {e}', 'danger')
             return redirect(url_for('register'))
 
-    # --- Lógica GET ---
-    oauth_profile = session.get('oauth_profile')
+    # Lógica GET
     planos = Plano.query.order_by(Plano.preco).all()
     plano_selecionado_id = request.args.get('plan_id', type=int)
 
@@ -330,7 +319,7 @@ def register():
             else:
                 plano.economia = 0
 
-    return render_template('register.html', planos=planos, plano_selecionado_id=plano_selecionado_id, oauth_profile=oauth_profile)
+    return render_template('register.html', planos=planos, plano_selecionado_id=plano_selecionado_id)
 
 
 @app.route('/check-email')
@@ -379,6 +368,9 @@ def login():
 @app.route('/logout')
 @login_required
 def logout():
+    # Limpa qualquer dado de perfil social da sessão
+    if 'oauth_profile' in session:
+        session.pop('oauth_profile')
     logout_user()
     flash('Você foi desconectado com sucesso.', 'info')
     return redirect(url_for('login'))
@@ -1931,10 +1923,6 @@ def google_callback():
         token = oauth.google.authorize_access_token()
         user_info = token.get('userinfo')
         email = user_info['email']
-        nome = user_info['name']
-        # Pega a URL da foto do perfil do Google
-        foto_url = user_info.get('picture')
-
     except Exception as e:
         flash(
             f"Ocorreu um erro ao tentar fazer login com o Google: {e}", "danger")
@@ -1942,33 +1930,24 @@ def google_callback():
 
     user = Usuario.query.filter_by(email=email).first()
 
-    if not user:
-        user = Usuario(
-            email=email,
-            nome=nome,
-            email_confirmado=True,
-            foto_perfil=foto_url  # Salva a URL da foto do Google
-        )
-        db.session.add(user)
-        db.session.commit()
-    # Se o usuário já existe e não tem foto, ou se a foto atual é do Google, atualiza.
-    elif not user.foto_perfil or (user.foto_perfil and 'googleusercontent.com' in user.foto_perfil):
-        user.foto_perfil = foto_url
-        db.session.commit()
+    if user:
+        # Se o utilizador existe, faz o login
+        login_user(user)
+        # Atualiza a foto de perfil se não for uma foto personalizada
+        if not user.foto_perfil or 'googleusercontent.com' in user.foto_perfil:
+            user.foto_perfil = user_info.get('picture')
+            db.session.commit()
 
-    # Faz o login do usuário
-    login_user(user)
+        primeira_associacao = user.escolas.first()
+        if primeira_associacao:
+            session['escola_id'] = primeira_associacao.escola_id
 
-    # Lógica para definir a escola na sessão e redirecionar
-    primeira_associacao = user.escolas.first()
-    if primeira_associacao:
-        session['escola_id'] = primeira_associacao.escola_id
+        flash(f'Bem-vindo(a) de volta, {user.nome}!', 'success')
         return redirect(url_for('home'))
     else:
-        # Se o usuário é novo e não tem escola, redireciona para a página de cadastro
-        # para que ele possa criar sua primeira escola.
-        flash("Bem-vindo(a)! Como este é seu primeiro acesso, por favor, complete o cadastro da sua escola.", "info")
-        return redirect(url_for('register'))
+        # Se o utilizador não existe, mostra um erro claro
+        flash('Login com Google falhou. O e-mail não está cadastrado no sistema. Se você é administrador, crie uma conta. Se é professor, peça um convite ao seu administrador.', 'danger')
+        return redirect(url_for('login'))
 
 
 @app.route('/login/google')
@@ -2029,42 +2008,35 @@ def login_microsoft():
 def microsoft_callback():
     try:
         token = oauth.microsoft.authorize_access_token()
-        # O endpoint '/me' do Microsoft Graph API retorna os dados do utilizador
         resp = oauth.microsoft.get('me')
         resp.raise_for_status()
         user_info = resp.json()
-
-        # O email pode estar em 'mail' ou 'userPrincipalName'
         email = user_info.get('mail') or user_info.get('userPrincipalName')
         nome = user_info.get('displayName')
 
         if not email:
             flash("Não foi possível obter o seu e-mail da Microsoft.", "danger")
             return redirect(url_for('login'))
-
     except Exception as e:
         flash(
             f"Ocorreu um erro ao tentar fazer login com a Microsoft: {e}", "danger")
         return redirect(url_for('login'))
 
-    # Lógica de "Encontrar ou Criar" o utilizador (idêntica à do Google)
     user = Usuario.query.filter_by(email=email).first()
 
-    if not user:
-        user = Usuario(email=email, nome=nome, email_confirmado=True)
-        db.session.add(user)
-        db.session.commit()
+    if user:
+        # Se o utilizador existe, faz o login
+        login_user(user)
+        primeira_associacao = user.escolas.first()
+        if primeira_associacao:
+            session['escola_id'] = primeira_associacao.escola_id
 
-    login_user(user)
-
-    primeira_associacao = user.escolas.first()
-    if primeira_associacao:
-        session['escola_id'] = primeira_associacao.escola_id
+        flash(f'Bem-vindo(a) de volta, {user.nome}!', 'success')
         return redirect(url_for('home'))
     else:
-        session['oauth_profile'] = {'nome': user.nome, 'email': user.email}
-        flash("Bem-vindo(a)! Como este é o seu primeiro acesso, por favor, complete o cadastro da sua escola.", "info")
-        return redirect(url_for('register'))
+        # Se o utilizador não existe, mostra um erro claro
+        flash('Login com Microsoft falhou. O e-mail não está cadastrado no sistema. Se você é administrador, crie uma conta. Se é professor, peça um convite ao seu administrador.', 'danger')
+        return redirect(url_for('login'))
 
 
 if __name__ == '__main__':
