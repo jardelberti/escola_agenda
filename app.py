@@ -197,19 +197,20 @@ def landing_page():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    # Se o usuário já estiver logado, redireciona para a home
     if current_user.is_authenticated:
         return redirect(url_for('home'))
 
     if request.method == 'POST':
-        # --- Coleta de dados do formulário ---
-        nome_admin = request.form.get('name')
-        email_admin = request.form.get('email')
+        # Pega os dados, priorizando o que veio da sessão do Google
+        oauth_profile = session.get('oauth_profile', {})
+        nome_admin = request.form.get('name') or oauth_profile.get('nome')
+        email_admin = request.form.get('email') or oauth_profile.get('email')
+
         senha_admin = request.form.get('password')
         nome_escola = request.form.get('school_name')
         plano_id = request.form.get('plan_id')
 
-        # --- Validação ---
+        # Validação
         if not all([nome_admin, email_admin, senha_admin, nome_escola, plano_id]):
             flash('Todos os campos são obrigatórios.', 'danger')
             return redirect(url_for('register'))
@@ -223,49 +224,37 @@ def register():
             flash('Plano selecionado é inválido.', 'danger')
             return redirect(url_for('register'))
 
-        # --- Criação das Entidades no Banco de Dados ---
         try:
-            # 1. Cria a nova escola
+            # Cria a nova escola e o novo usuário (com email_confirmado=False por padrão)
             nova_escola = Escola(nome=nome_escola)
-
-            # 2. Cria o novo usuário (com email_confirmado=False por padrão)
-            novo_admin = Usuario(nome=nome_admin, email=email_admin)
+            novo_admin = Usuario(
+                nome=nome_admin, email=email_admin, email_confirmado=False)
             novo_admin.set_password(senha_admin)
 
             db.session.add(nova_escola)
             db.session.add(novo_admin)
+            db.session.flush()  # Para obter os IDs
 
-            # Commit para que nova_escola e novo_admin recebam seus IDs
-            db.session.flush()
-
-            # 3. Associa o usuário à escola como admin
+            # Associa o usuário à escola como admin
             associacao = UsuarioEscola(
-                usuario_id=novo_admin.id,
-                escola_id=nova_escola.id,
-                papel='admin'
-            )
+                usuario_id=novo_admin.id, escola_id=nova_escola.id, papel='admin')
             db.session.add(associacao)
 
-            # 4. Cria a assinatura para a escola
+            # Cria a assinatura para a escola
             data_inicio = date.today()
-            # Simplificação: assume 30 dias por mês. Para precisão, usar relativedelta.
             data_fim = data_inicio + relativedelta(months=plano.duracao_meses)
-            nova_assinatura = Assinatura(
-                escola_id=nova_escola.id,
-                plano_id=plano.id,
-                data_inicio=data_inicio,
-                data_fim=data_fim,
-                status='ativa'  # Futuramente pode ser 'aguardando_pagamento'
-            )
+            nova_assinatura = Assinatura(escola_id=nova_escola.id, plano_id=plano.id,
+                                         data_inicio=data_inicio, data_fim=data_fim, status='ativa')
             db.session.add(nova_assinatura)
 
-            # 5. Envia o e-mail de confirmação
             send_confirmation_email(novo_admin)
 
-            # Efetiva todas as criações
             db.session.commit()
 
-            # 6. Redireciona para a página de aviso
+            # Limpa o perfil da sessão após o uso
+            if 'oauth_profile' in session:
+                session.pop('oauth_profile')
+
             return redirect(url_for('check_your_email'))
 
         except Exception as e:
@@ -274,13 +263,11 @@ def register():
                 f'Ocorreu um erro inesperado durante o cadastro: {e}', 'danger')
             return redirect(url_for('register'))
 
-    # Para a requisição GET, busca os planos e calcula a economia
-    # Para a requisição GET, busca os planos e o plano selecionado
+    # Lógica para a requisição GET
+    oauth_profile = session.get('oauth_profile')
     planos = Plano.query.order_by(Plano.preco).all()
-    # Pega o ID do plano da URL, se ele existir
     plano_selecionado_id = request.args.get('plan_id', type=int)
 
-    # Lógica do cálculo de economia...
     plano_mensal_base = next((p for p in planos if p.nome == 'Mensal'), None)
     if plano_mensal_base:
         custo_anual_base = plano_mensal_base.preco * 12
@@ -290,7 +277,7 @@ def register():
             else:
                 plano.economia = 0
 
-    return render_template('register.html', planos=planos, plano_selecionado_id=plano_selecionado_id)
+    return render_template('register.html', planos=planos, plano_selecionado_id=plano_selecionado_id, oauth_profile=oauth_profile)
 
 
 @app.route('/check-email')
@@ -1851,44 +1838,36 @@ def login_google():
 @app.route('/login/google/callback')
 def google_callback():
     try:
-        # Pega as informações do usuário do Google
         token = oauth.google.authorize_access_token()
         user_info = token.get('userinfo')
         email = user_info['email']
-        nome = user_info['name']
     except Exception as e:
         flash(
             f"Ocorreu um erro ao tentar fazer login com o Google: {e}", "danger")
         return redirect(url_for('login'))
 
-    # Lógica de "Encontrar ou Criar" o usuário
+    # Tenta encontrar um usuário existente com este e-mail
     user = Usuario.query.filter_by(email=email).first()
 
-    # Se o usuário não existe, criamos um novo (sem senha)
-    if not user:
-        user = Usuario(
-            email=email,
-            nome=nome,
-            email_confirmado=True  # O Google já confirma o e-mail
-        )
-        db.session.add(user)
-        db.session.commit()
-        # Neste ponto, o usuário existe mas não está associado a nenhuma escola.
-        # Poderíamos redirecioná-lo para a página de cadastro para ele criar sua escola.
-        # Por enquanto, vamos apenas logá-lo.
-
-    # Faz o login do usuário
-    login_user(user)
-
-    # Lógica para definir a escola na sessão
-    primeira_associacao = user.escolas.first()
-    if primeira_associacao:
-        session['escola_id'] = primeira_associacao.escola_id
+    # Se o usuário JÁ EXISTE, faz o login normalmente
+    if user:
+        login_user(user)
+        primeira_associacao = user.escolas.first()
+        if primeira_associacao:
+            session['escola_id'] = primeira_associacao.escola_id
+        else:
+            session['escola_id'] = None  # Caso raro de usuário sem escola
+        flash(f'Bem-vindo(a) de volta, {user.nome}!', 'success')
         return redirect(url_for('home'))
+
+    # Se o usuário é NOVO, salva os dados na sessão e o envia para completar o cadastro
     else:
-        # Se o usuário é novo e não tem escola, redireciona para a página de cadastro
-        # para que ele possa criar sua primeira escola.
-        flash("Bem-vindo(a)! Como este é seu primeiro acesso, por favor, complete o cadastro da sua escola.", "info")
+        # Guarda os dados do Google para preencher o formulário de cadastro
+        session['oauth_profile'] = {
+            'nome': user_info.get('name'),
+            'email': email
+        }
+        flash('Vimos que este é seu primeiro acesso. Por favor, complete o cadastro da sua escola para continuar.', 'info')
         return redirect(url_for('register'))
 
 

@@ -8,7 +8,7 @@
     <div class="w-full max-w-sm mx-auto">
 
         <div class="flex justify-center mb-6">
-            <img src="{{ url_for('static', filename='logo_agenda.png') }}" alt="Logo Agenda Escolar" class="h-30 w-auto">
+            <img src="{{ url_for('static', filename='logo_agenda.png') }}" alt="Logo Agenda Escolar" class="h-48 w-auto">
         </div>
 
         <h1 class="text-2xl font-bold text-center text-slate-800 mb-2">Acesse sua Conta</h1>
@@ -31,71 +31,76 @@
             {% endif %}
         {% endwith %}
 
+        <!-- Formulário de E-mail e Senha -->
         <form method="POST" action="{{ url_for('login') }}" class="space-y-4">
             <div>
                 <label for="email" class="sr-only">E-mail</label>
                 <div class="relative">
                     <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"> mail </span>
-                    <input 
-                        type="email"
-                        id="email"
-                        name="email"
-                        class="form-input w-full rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 border border-slate-300 bg-white h-14 pl-12 pr-4 text-base placeholder:text-slate-500" 
-                        placeholder="E-mail" 
-                        required 
-                        autofocus
-                    />
+                    <input type="email" name="email" id="email" class="form-input w-full rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 border border-slate-300 bg-white h-14 pl-12 pr-4 text-base placeholder:text-slate-500" placeholder="E-mail" required autofocus />
                 </div>
             </div>
             <div>
                 <label for="password" class="sr-only">Senha</label>
                 <div class="relative">
                     <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"> lock </span>
-                    <input 
-                        type="password"
-                        id="password"
-                        name="password"
-                        class="form-input w-full rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 border border-slate-300 bg-white h-14 pl-12 pr-4 text-base placeholder:text-slate-500" 
-                        placeholder="Senha" 
-                        required 
-                    />
+                    <input type="password" name="password" id="password" class="form-input w-full rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 border border-slate-300 bg-white h-14 pl-12 pr-4 text-base placeholder:text-slate-500" placeholder="Senha" required />
                 </div>
             </div>
-
+            <div class="text-right">
+                <a href="{{ url_for('forgot_password') }}" class="text-sm font-medium text-blue-600 hover:text-blue-500">Esqueceu sua senha?</a>
+            </div>
             <div class="pt-2">
-                <button type="submit" class="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-14 px-5 bg-blue-600 text-slate-50 text-base font-bold leading-normal tracking-wide shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 transition-colors duration-300">
+                <button type="submit" class="flex w-full cursor-pointer items-center justify-center rounded-lg h-14 px-5 bg-blue-600 text-slate-50 text-base font-bold">
                     <span class="truncate">Entrar</span>
                 </button>
             </div>
-            <div class="text-center mt-4">
-                <a href="{{ url_for('forgot_password') }}" class="text-sm font-medium text-blue-600 hover:text-blue-500">
-                    Esqueceu sua senha?
-                </a>
-            </div>
         </form>
 
+        <!-- NOVO BLOCO DE INFORMAÇÕES -->
+        <div class="mt-6 p-4 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-600 space-y-3">
+            <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-blue-600 mt-0.5">school</span>
+                <div>
+                    <strong class="font-semibold text-slate-800">Administradores de Escola:</strong>
+                    <p>Use o login social ou o link "Crie uma conta" abaixo.</p>
+                </div>
+            </div>
+            <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-slate-500 mt-0.5">person</span>
+                <div>
+                    <strong class="font-semibold text-slate-800">Professores:</strong>
+                    <p>Seu acesso é criado pelo administrador da sua escola. Peça a ele que lhe envie um convite por e-mail.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Divisor "OU" -->
         <div class="flex items-center my-6">
             <div class="flex-grow border-t border-slate-300"></div>
             <span class="flex-shrink mx-4 text-slate-500 text-sm">OU</span>
             <div class="flex-grow border-t border-slate-300"></div>
         </div>
 
+        <!-- Botões de Login Social -->
         <div class="space-y-3">
-            <a href="{{ url_for('login_google') }}" class="flex w-full items-center justify-center overflow-hidden rounded-lg h-14 px-5 bg-white text-slate-800 border border-slate-300 shadow-sm hover:bg-slate-100 transition-colors">
+            <a href="{{ url_for('login_google') }}" class="flex w-full items-center justify-center rounded-lg h-14 px-5 bg-white text-slate-800 border border-slate-300 shadow-sm hover:bg-slate-100">
                 <svg class="h-5 w-5 mr-3" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,35.138,44,30.024,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
                 <span>Entrar com Google</span>
             </a>
-            <a href="#" class="flex w-full items-center justify-center overflow-hidden rounded-lg h-14 px-5 bg-white text-slate-800 border border-slate-300 shadow-sm hover:bg-slate-100 transition-colors">
+            <a href="#" class="flex w-full items-center justify-center rounded-lg h-14 px-5 bg-white text-slate-800 border border-slate-300 shadow-sm hover:bg-slate-100">
                 <svg class="h-5 w-5 mr-3" viewBox="0 0 21 21"><path fill="#f25022" d="M1 1h9v9H1z"></path><path fill="#00a4ef" d="M1 11h9v9H1z"></path><path fill="#7fba00" d="M11 1h9v9h-9z"></path><path fill="#ffb900" d="M11 11h9v9h-9z"></path></svg>
                 <span>Entrar com Microsoft</span>
             </a>
         </div>
-        <div class="w-full max-w-sm mx-auto mt-8 text-center bg-slate-100 p-4 rounded-lg border border-slate-200">
-        <p class="text-slate-700">Novo por aqui?</p>
-        <a href="{{ url_for('register') }}" class="font-bold text-blue-600 hover:text-blue-700">
-            Crie uma conta e cadastre sua escola
-        </a>
-    </div>
+
+        <div class="text-center mt-8 p-4 rounded-lg">
+            <p class="text-slate-700">Novo por aqui?</p>
+            <a href="{{ url_for('register') }}" class="font-bold text-blue-600 hover:text-blue-700">
+                Crie uma conta e cadastre sua escola
+            </a>
+        </div>
+
     </div>
 </div>
 </body>
