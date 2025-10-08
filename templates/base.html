@@ -39,7 +39,9 @@
                     <span class="font-bold text-slate-800 hidden sm:block">Agenda Escolar</span>
                 </div>
                 <div class="text-sm text-slate-600">
-                    Olá, <strong class="font-semibold text-slate-800">{{ current_user.nome }}</strong>
+                    <a href="{{ url_for('profile') }}" class="text-sm text-slate-600 hover:text-blue-600">
+                        Olá, <strong class="font-semibold text-slate-800">{{ current_user.nome }}</strong>
+                    </a>
                 </div>
             </div>
         </div>

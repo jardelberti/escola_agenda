@@ -33,6 +33,7 @@ class Usuario(UserMixin, db.Model):
     email = db.Column(db.String(150), unique=True, nullable=False)
     password_hash = db.Column(db.String(255))
     is_superadmin = db.Column(db.Boolean, default=False)
+    nome_curto = db.Column(db.String(50))  # Opcional
     email_confirmado = db.Column(db.Boolean, nullable=False, default=False)
 
     escolas = db.relationship(

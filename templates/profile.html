@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Meu Perfil{% endblock %}
+
+{% block content %}
+<body class="bg-slate-50">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-slate-800 mb-8">Meu Perfil</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="max-w-xl mx-auto space-y-2 mb-6">
+                {% for category, message in messages %}
+                    {% set color = 'blue' if category == 'success' else 'red' if category == 'danger' else 'yellow' %}
+                    <div class="bg-{{ color }}-100 border-l-4 border-{{ color }}-500 text-{{ color }}-700 p-4 rounded-lg" role="alert">
+                        <p>{{ message }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="max-w-xl mx-auto grid grid-cols-1 gap-8">
+            <div class="bg-white p-6 rounded-xl border border-slate-200">
+                <h3 class="text-xl font-bold text-slate-800 mb-4">Editar Perfil</h3>
+                <form method="POST" action="{{ url_for('profile') }}" class="space-y-4">
+                    <input type="hidden" name="update_profile" value="1">
+                    <div>
+                        <label for="nome" class="block text-sm font-medium text-slate-600 mb-1">Nome Completo</label>
+                        <input type="text" name="nome" class="w-full rounded-lg border-slate-300" value="{{ current_user.nome }}" required>
+                    </div>
+                    <div>
+                        <label for="nome_curto" class="block text-sm font-medium text-slate-600 mb-1">Nome Curto / Apelido</label>
+                        <input type="text" name="nome_curto" class="w-full rounded-lg border-slate-300" value="{{ current_user.nome_curto or '' }}" placeholder="Ex: Prof. Jardel">
+                        <p class="text-xs text-slate-400 mt-1">Este nome será exibido nas agendas para economizar espaço.</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">E-mail</label>
+                        <input type="email" class="w-full rounded-lg border-slate-300 bg-slate-100" value="{{ current_user.email }}" disabled>
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700">Salvar Perfil</button>
+                </form>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl border border-slate-200">
+                <h3 class="text-xl font-bold text-slate-800 mb-4">Alterar Senha</h3>
+                <form method="POST" action="{{ url_for('profile') }}" class="space-y-4">
+                    <input type="hidden" name="change_password" value="1">
+                    <div>
+                        <label for="current_password" class="block text-sm font-medium text-slate-600 mb-1">Senha Atual</label>
+                        <input type="password" name="current_password" class="w-full rounded-lg border-slate-300" required>
+                    </div>
+                    <div>
+                        <label for="new_password" class="block text-sm font-medium text-slate-600 mb-1">Nova Senha</label>
+                        <input type="password" name="new_password" class="w-full rounded-lg border-slate-300" required>
+                    </div>
+                    <div>
+                        <label for="confirm_password" class="block text-sm font-medium text-slate-600 mb-1">Confirmar Nova Senha</label>
+                        <input type="password" name="confirm_password" class="w-full rounded-lg border-slate-300" required>
+                    </div>
+                    <button type="submit" class="w-full bg-slate-700 text-white font-semibold py-3 rounded-lg hover:bg-slate-800">Alterar Senha</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+{% endblock %}

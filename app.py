@@ -20,6 +20,7 @@ from flask_migrate import Migrate
 from celery import Celery
 from logging import getLogger
 import calendar
+from authlib.integrations.flask_client import OAuth
 
 migrate = Migrate()
 mail = Mail()
@@ -30,7 +31,16 @@ stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
 # --- INICIALIZAÇÃO E CONFIGURAÇÃO DA APLICAÇÃO ---
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'uma-chave-secreta-muito-dificil-de-adivinhar'
-
+oauth = OAuth(app)
+oauth.register(
+    name='google',
+    client_id=os.environ.get("GOOGLE_CLIENT_ID"),
+    client_secret=os.environ.get("GOOGLE_CLIENT_SECRET"),
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={
+        'scope': 'openid email profile'
+    }
+)
 # Configura o Serializer com a secret key
 serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
@@ -512,7 +522,7 @@ def book_slot():
         slot_name=slot_name,
         shift=shift,
         usuario_id=book_for_teacher.id,
-        teacher_name=book_for_teacher.nome
+        teacher_name=book_for_teacher.nome_curto or book_for_teacher.nome
     )
     db.session.add(new_booking)
     db.session.commit()
@@ -1020,21 +1030,33 @@ def reports():
 @login_required
 def my_bookings():
     """Exibe os agendamentos futuros do usuário logado."""
+    escola_id = session.get('escola_id')
     today = date.today()
 
-    # Dicionário para traduzir os dias da semana
+    # --- INÍCIO DA DEPURAÇÃO ---
+    print("\n--- DEBUG: Rota /my-bookings ---")
+    print(f"Data de hoje (today) no servidor: {today}")
+    # --- FIM DA DEPURAÇÃO ---
+
     weekdays_pt = {
         0: "Segunda-feira", 1: "Terça-feira", 2: "Quarta-feira",
         3: "Quinta-feira", 4: "Sexta-feira", 5: "Sábado", 6: "Domingo"
     }
 
-    # Busca os agendamentos futuros do professor, juntando com os dados do recurso
     bookings_query = db.session.query(Booking, Resource)\
         .join(Resource, Booking.resource_id == Resource.id)\
         .filter(Booking.usuario_id == current_user.id)\
-        .filter(Booking.escola_id == session.get('escola_id'))\
+        .filter(Booking.escola_id == escola_id)\
+        .filter(Booking.date >= today)\
         .order_by(Booking.date, Booking.shift)\
         .all()
+
+    # --- INÍCIO DA DEPURAÇÃO ---
+    print(f"Agendamentos encontrados após o filtro: {len(bookings_query)}")
+    for booking, resource in bookings_query:
+        print(f" - Agendamento ID {booking.id} para a data {booking.date}")
+    print("--- FIM DO DEBUG ---\n")
+    # --- FIM DA DEPURAÇÃO ---
 
     return render_template('my_bookings.html', bookings=bookings_query, weekdays_pt=weekdays_pt)
 
@@ -1359,7 +1381,8 @@ def send_confirmation_email(user):
     try:
         token = serializer.dumps(user.email, salt='email-confirm-salt')
         confirm_url = url_for('confirm_email', token=token, _external=True)
-        logo_url = 'URL_PUBLICO_DA_SUA_LOGO'  # Substitua se estiver testando
+        logo_url = url_for(
+            'static', filename='logo_agenda.png', _external=True)
 
         html_body = render_template('email/confirmation_email.html',
                                     user=user,
@@ -1774,6 +1797,97 @@ def delete_plan(plan_id):
         flash(f'Ocorreu um erro ao excluir o plano: {e}', 'danger')
 
     return redirect(url_for('manage_plans'))
+
+
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    if request.method == 'POST':
+        # Lógica para Mudar a Senha
+        if 'change_password' in request.form:
+            current_password = request.form.get('current_password')
+            new_password = request.form.get('new_password')
+            confirm_password = request.form.get('confirm_password')
+
+            if not current_user.check_password(current_password):
+                flash('Sua senha atual está incorreta.', 'danger')
+            elif new_password != confirm_password:
+                flash('A nova senha e a confirmação не coincidem.', 'danger')
+            else:
+                current_user.set_password(new_password)
+                db.session.commit()
+                flash('Sua senha foi alterada com sucesso!', 'success')
+            return redirect(url_for('profile'))
+
+        # Lógica para Atualizar o Perfil
+        elif 'update_profile' in request.form:
+            current_user.nome = request.form.get('nome')
+            current_user.nome_curto = request.form.get('nome_curto')
+            db.session.commit()
+
+            # Sincroniza o novo nome com os agendamentos existentes
+            novo_nome_exibicao = current_user.nome_curto or current_user.nome
+            Booking.query.filter_by(usuario_id=current_user.id).update(
+                {'teacher_name': novo_nome_exibicao})
+            db.session.commit()
+
+            flash('Seu perfil foi atualizado com sucesso!', 'success')
+            return redirect(url_for('profile'))
+
+    # --- CORREÇÃO AQUI ---
+    # Adiciona o retorno para a requisição GET (quando a página é carregada)
+    return render_template('profile.html')
+
+
+@app.route('/login/google')
+def login_google():
+    # Redireciona o usuário para a página de autorização do Google
+    redirect_uri = url_for('google_callback', _external=True)
+    return oauth.google.authorize_redirect(redirect_uri)
+
+
+@app.route('/login/google/callback')
+def google_callback():
+    try:
+        # Pega as informações do usuário do Google
+        token = oauth.google.authorize_access_token()
+        user_info = token.get('userinfo')
+        email = user_info['email']
+        nome = user_info['name']
+    except Exception as e:
+        flash(
+            f"Ocorreu um erro ao tentar fazer login com o Google: {e}", "danger")
+        return redirect(url_for('login'))
+
+    # Lógica de "Encontrar ou Criar" o usuário
+    user = Usuario.query.filter_by(email=email).first()
+
+    # Se o usuário não existe, criamos um novo (sem senha)
+    if not user:
+        user = Usuario(
+            email=email,
+            nome=nome,
+            email_confirmado=True  # O Google já confirma o e-mail
+        )
+        db.session.add(user)
+        db.session.commit()
+        # Neste ponto, o usuário existe mas não está associado a nenhuma escola.
+        # Poderíamos redirecioná-lo para a página de cadastro para ele criar sua escola.
+        # Por enquanto, vamos apenas logá-lo.
+
+    # Faz o login do usuário
+    login_user(user)
+
+    # Lógica para definir a escola na sessão
+    primeira_associacao = user.escolas.first()
+    if primeira_associacao:
+        session['escola_id'] = primeira_associacao.escola_id
+        return redirect(url_for('home'))
+    else:
+        # Se o usuário é novo e não tem escola, redireciona para a página de cadastro
+        # para que ele possa criar sua primeira escola.
+        flash("Bem-vindo(a)! Como este é seu primeiro acesso, por favor, complete o cadastro da sua escola.", "info")
+        return redirect(url_for('register'))
 
 
 if __name__ == '__main__':
