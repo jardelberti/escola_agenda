@@ -1,17 +1,13 @@
-# Adicione 'session' aqui
-import stripe
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, session
 import os
 import json
 import subprocess
 import shutil
 from urllib.parse import urlparse
 from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
 from datetime import datetime, timedelta, date
-from dateutil.relativedelta import relativedelta
+import calendar
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, session
-from flask_mail import Mail, Message
-from itsdangerous import URLSafeTimedSerializer
 from functools import wraps
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy import func, distinct
@@ -19,9 +15,12 @@ from models import db, Usuario, Escola, UsuarioEscola, Resource, ScheduleTemplat
 from flask_migrate import Migrate
 from celery import Celery
 from logging import getLogger
-import calendar
+from itsdangerous import URLSafeTimedSerializer
+from flask_mail import Mail, Message
+from dateutil.relativedelta import relativedelta
+import stripe
+from PIL import Image
 from authlib.integrations.flask_client import OAuth
-from werkzeug.middleware.proxy_fix import ProxyFix
 
 migrate = Migrate()
 mail = Mail()
@@ -31,8 +30,18 @@ stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
 
 # --- INICIALIZAÇÃO E CONFIGURAÇÃO DA APLICAÇÃO ---
 app = Flask(__name__)
+if app.config['DEBUG']:
+    app.config['SERVER_NAME'] = 'localhost:5000'
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
+os.makedirs(DATA_DIR, exist_ok=True)
+UPLOAD_FOLDER = os.path.join(DATA_DIR, 'profile_pics')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['SECRET_KEY'] = 'uma-chave-secreta-muito-dificil-de-adivinhar'
+
 oauth = OAuth(app)
 oauth.register(
     name='google',
@@ -43,12 +52,32 @@ oauth.register(
         'scope': 'openid email profile'
     }
 )
+
+oauth.register(
+    name='microsoft',
+    client_id=os.environ.get("MICROSOFT_CLIENT_ID"),
+    client_secret=os.environ.get("MICROSOFT_CLIENT_SECRET"),
+    access_token_url='https://login.microsoftonline.com/common/oauth2/v2.0/token',
+    access_token_params=None,
+    authorize_url='https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+    authorize_params=None,
+    api_base_url='https://graph.microsoft.com/v1.0/',
+    client_kwargs={'scope': 'User.Read'}
+)
+
+
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
+    # Define a duração da sessão, por exemplo, 30 minutos de inatividade
+    app.permanent_session_lifetime = timedelta(minutes=30)
+
+
 # Configura o Serializer com a secret key
 serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
 # --- CONFIGURAÇÃO DO BANCO DE DADOS ---
-DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
-os.makedirs(DATA_DIR, exist_ok=True)
+
 database_uri = os.environ.get(
     'DATABASE_URL', 'sqlite:///' + os.path.join(DATA_DIR, 'agenda.db'))
 if database_uri.startswith("postgres://"):
@@ -101,6 +130,21 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.login_message = "Você precisa fazer login para acessar esta página."
 login_manager.login_message_category = "warning"
+
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower(
+           ) in app.config['ALLOWED_EXTENSIONS']
+
+
+@app.context_processor
+def inject_escola_info():
+    """ Injeta informações da escola atual em todos os templates. """
+    if current_user.is_authenticated and 'escola_id' in session and session['escola_id']:
+        escola = Escola.query.get(session['escola_id'])
+        return dict(escola_atual=escola)
+    return dict(escola_atual=None)
 
 
 @celery.task
@@ -173,14 +217,15 @@ def superadmin_required(f):
 
 @app.route('/')
 def landing_page():
+    # Se o usuário já estiver logado, vai para a home normal
     if current_user.is_authenticated:
         return redirect(url_for('home'))
 
+    # Busca os planos para exibir na seção de preços da landing page
     planos = Plano.query.order_by(Plano.preco).all()
 
-    # --- LÓGICA ATUALIZADA ---
+    # Lógica para calcular o desconto e encontrar o ID do plano gratuito
     plano_mensal_base = next((p for p in planos if p.nome == 'Mensal'), None)
-    # Encontra o ID do plano gratuito para usar nos botões
     plano_gratuito_id = next(
         (p.id for p in planos if p.nome == 'Teste Gratuito'), None)
 
@@ -201,18 +246,28 @@ def register():
         return redirect(url_for('home'))
 
     if request.method == 'POST':
-        # Pega os dados, priorizando o que veio da sessão do Google
-        oauth_profile = session.get('oauth_profile', {})
-        nome_admin = request.form.get('name') or oauth_profile.get('nome')
-        email_admin = request.form.get('email') or oauth_profile.get('email')
-
+        # --- Coleta de dados do formulário ---
+        nome_admin = request.form.get('name') or (
+            session.get('oauth_profile') or {}).get('nome')
+        email_admin = request.form.get('email') or (
+            session.get('oauth_profile') or {}).get('email')
         senha_admin = request.form.get('password')
+        confirm_senha = request.form.get(
+            'confirm_password')  # Pega a confirmação
         nome_escola = request.form.get('school_name')
         plano_id = request.form.get('plan_id')
 
-        # Validação
-        if not all([nome_admin, email_admin, senha_admin, nome_escola, plano_id]):
+        # --- Validação ---
+        if not all([nome_admin, email_admin, senha_admin, confirm_senha, nome_escola, plano_id]):
             flash('Todos os campos são obrigatórios.', 'danger')
+            return redirect(url_for('register'))
+
+        # --- VALIDAÇÃO DE SENHA (A CORREÇÃO PRINCIPAL) ---
+        if senha_admin != confirm_senha:
+            flash('As senhas não coincidem. Por favor, tente novamente.', 'danger')
+            # Se veio do Google, remove os dados para não bloquear o formulário
+            if 'oauth_profile' in session:
+                session.pop('oauth_profile')
             return redirect(url_for('register'))
 
         if Usuario.query.filter_by(email=email_admin).first():
@@ -225,7 +280,7 @@ def register():
             return redirect(url_for('register'))
 
         try:
-            # Cria a nova escola e o novo usuário (com email_confirmado=False por padrão)
+            # (O resto da lógica de criação de utilizador, escola, etc., continua a mesma)
             nova_escola = Escola(nome=nome_escola)
             novo_admin = Usuario(
                 nome=nome_admin, email=email_admin, email_confirmado=False)
@@ -233,14 +288,12 @@ def register():
 
             db.session.add(nova_escola)
             db.session.add(novo_admin)
-            db.session.flush()  # Para obter os IDs
+            db.session.flush()
 
-            # Associa o usuário à escola como admin
             associacao = UsuarioEscola(
                 usuario_id=novo_admin.id, escola_id=nova_escola.id, papel='admin')
             db.session.add(associacao)
 
-            # Cria a assinatura para a escola
             data_inicio = date.today()
             data_fim = data_inicio + relativedelta(months=plano.duracao_meses)
             nova_assinatura = Assinatura(escola_id=nova_escola.id, plano_id=plano.id,
@@ -263,7 +316,7 @@ def register():
                 f'Ocorreu um erro inesperado durante o cadastro: {e}', 'danger')
             return redirect(url_for('register'))
 
-    # Lógica para a requisição GET
+    # --- Lógica GET ---
     oauth_profile = session.get('oauth_profile')
     planos = Plano.query.order_by(Plano.preco).all()
     plano_selecionado_id = request.args.get('plan_id', type=int)
@@ -333,21 +386,24 @@ def logout():
 # --- ROTAS PRINCIPAIS ---
 
 
-# Em app.py
-
 @app.route('/home')
 @login_required
 def home():
-    # Pega o ID da escola da sessão do usuário
+    # --- NOVA LÓGICA DE REDIRECIONAMENTO ---
+    # Redireciona para o dashboard apropriado com base no papel do usuário
+    if current_user.is_superadmin:
+        return redirect(url_for('superadmin_dashboard'))
+    if current_user.is_admin:
+        return redirect(url_for('admin_dashboard'))
+
+    # Lógica original para professores (usuários não-admin)
     escola_id = session.get('escola_id')
     if not escola_id:
-        flash("Você não está associado a nenhuma escola. Por favor, faça login novamente.", "warning")
+        flash("Você não está associado a nenhuma escola. Entre em contato com o administrador.", "warning")
         return redirect(url_for('logout'))
 
-    # A linha mais importante: filtra os recursos pelo escola_id da sessão
     resources = Resource.query.filter_by(escola_id=escola_id).order_by(
         Resource.sort_order, Resource.name).all()
-
     return render_template('index.html', resources=resources)
 
 
@@ -1792,40 +1848,127 @@ def delete_plan(plan_id):
 @login_required
 def profile():
     if request.method == 'POST':
-        # Lógica para Mudar a Senha
+
+        # --- Lógica para Mudar a Senha ---
         if 'change_password' in request.form:
+
             current_password = request.form.get('current_password')
             new_password = request.form.get('new_password')
             confirm_password = request.form.get('confirm_password')
 
             if not current_user.check_password(current_password):
-                flash('Sua senha atual está incorreta.', 'danger')
+                flash('A sua senha atual está incorreta.', 'danger')
+
             elif new_password != confirm_password:
-                flash('A nova senha e a confirmação не coincidem.', 'danger')
+                flash('A nova senha e a confirmação não coincidem.', 'danger')
+
             else:
                 current_user.set_password(new_password)
                 db.session.commit()
-                flash('Sua senha foi alterada com sucesso!', 'success')
+                flash('A sua senha foi alterada com sucesso!', 'success')
+
             return redirect(url_for('profile'))
 
-        # Lógica para Atualizar o Perfil
+        # --- Lógica para Atualizar o Perfil ---
         elif 'update_profile' in request.form:
+
             current_user.nome = request.form.get('nome')
             current_user.nome_curto = request.form.get('nome_curto')
             db.session.commit()
 
-            # Sincroniza o novo nome com os agendamentos existentes
             novo_nome_exibicao = current_user.nome_curto or current_user.nome
             Booking.query.filter_by(usuario_id=current_user.id).update(
                 {'teacher_name': novo_nome_exibicao})
             db.session.commit()
 
-            flash('Seu perfil foi atualizado com sucesso!', 'success')
+            flash('O seu perfil foi atualizado com sucesso!', 'success')
+
             return redirect(url_for('profile'))
 
-    # --- CORREÇÃO AQUI ---
-    # Adiciona o retorno para a requisição GET (quando a página é carregada)
+        # --- Lógica para Upload de Foto ---
+        elif 'upload_picture' in request.form:
+
+            if 'profile_pic' in request.files:
+                file = request.files['profile_pic']
+                if file.filename != '':
+                    try:
+                        # ... (lógica de salvar e redimensionar a imagem) ...
+                        flash('Foto de perfil atualizada com sucesso!', 'success')
+
+                    except Exception as e:
+                        flash(
+                            f'Ocorreu um erro ao enviar a foto: {e}', 'danger')
+
+            return redirect(url_for('profile'))
+
+        # --- Lógica para Remover Foto ---
+        elif 'remove_picture' in request.form:
+
+            if current_user.foto_perfil and 'googleusercontent.com' not in current_user.foto_perfil:
+                try:
+                    os.remove(os.path.join(
+                        app.config['UPLOAD_FOLDER'], current_user.foto_perfil))
+                except OSError as e:
+                    print(f"Erro ao remover arquivo de foto antigo: {e}")
+            current_user.foto_perfil = None
+            db.session.commit()
+            flash('Foto de perfil removida.', 'success')
+
+            return redirect(url_for('profile'))
+
     return render_template('profile.html')
+
+
+@app.route('/uploads/<path:filename>')
+def uploaded_file(filename):
+    """Serve os arquivos que foram enviados."""
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+
+@app.route('/login/google/callback')
+def google_callback():
+    try:
+        token = oauth.google.authorize_access_token()
+        user_info = token.get('userinfo')
+        email = user_info['email']
+        nome = user_info['name']
+        # Pega a URL da foto do perfil do Google
+        foto_url = user_info.get('picture')
+
+    except Exception as e:
+        flash(
+            f"Ocorreu um erro ao tentar fazer login com o Google: {e}", "danger")
+        return redirect(url_for('login'))
+
+    user = Usuario.query.filter_by(email=email).first()
+
+    if not user:
+        user = Usuario(
+            email=email,
+            nome=nome,
+            email_confirmado=True,
+            foto_perfil=foto_url  # Salva a URL da foto do Google
+        )
+        db.session.add(user)
+        db.session.commit()
+    # Se o usuário já existe e não tem foto, ou se a foto atual é do Google, atualiza.
+    elif not user.foto_perfil or (user.foto_perfil and 'googleusercontent.com' in user.foto_perfil):
+        user.foto_perfil = foto_url
+        db.session.commit()
+
+    # Faz o login do usuário
+    login_user(user)
+
+    # Lógica para definir a escola na sessão e redirecionar
+    primeira_associacao = user.escolas.first()
+    if primeira_associacao:
+        session['escola_id'] = primeira_associacao.escola_id
+        return redirect(url_for('home'))
+    else:
+        # Se o usuário é novo e não tem escola, redireciona para a página de cadastro
+        # para que ele possa criar sua primeira escola.
+        flash("Bem-vindo(a)! Como este é seu primeiro acesso, por favor, complete o cadastro da sua escola.", "info")
+        return redirect(url_for('register'))
 
 
 @app.route('/login/google')
@@ -1835,39 +1978,92 @@ def login_google():
     return oauth.google.authorize_redirect(redirect_uri)
 
 
-@app.route('/login/google/callback')
-def google_callback():
+@app.route('/admin/settings', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_settings():
+    escola_id = session.get('escola_id')
+    escola = Escola.query.get_or_404(escola_id)
+
+    if request.method == 'POST':
+        # Atualiza o nome da escola
+        escola.nome = request.form.get('nome_escola')
+
+        # Lógica para o upload da logo
+        if 'logo_escola' in request.files:
+            file = request.files['logo_escola']
+            if file.filename != '':
+                try:
+                    # Gera um nome de arquivo seguro e único
+                    filename = secure_filename(
+                        f"escola_{escola_id}_{file.filename}")
+                    filepath = os.path.join(
+                        app.config['UPLOAD_FOLDER'], filename)
+
+                    # Redimensiona a imagem para um tamanho máximo (ex: 200x200)
+                    output_size = (200, 200)
+                    img = Image.open(file)
+                    img.thumbnail(output_size)
+                    img.save(filepath)
+
+                    # Salva o nome do arquivo no banco de dados
+                    escola.logo_url = filename
+                    flash('Logo da escola atualizada com sucesso!', 'success')
+                except Exception as e:
+                    flash(f'Ocorreu um erro ao enviar a logo: {e}', 'danger')
+
+        db.session.commit()
+        flash('Configurações da escola salvas com sucesso!', 'success')
+        return redirect(url_for('admin_settings'))
+
+    return render_template('admin_settings.html', escola=escola)
+
+
+@app.route('/login/microsoft')
+def login_microsoft():
+    redirect_uri = url_for('microsoft_callback', _external=True)
+    return oauth.microsoft.authorize_redirect(redirect_uri)
+
+
+@app.route('/login/microsoft/callback')
+def microsoft_callback():
     try:
-        token = oauth.google.authorize_access_token()
-        user_info = token.get('userinfo')
-        email = user_info['email']
+        token = oauth.microsoft.authorize_access_token()
+        # O endpoint '/me' do Microsoft Graph API retorna os dados do utilizador
+        resp = oauth.microsoft.get('me')
+        resp.raise_for_status()
+        user_info = resp.json()
+
+        # O email pode estar em 'mail' ou 'userPrincipalName'
+        email = user_info.get('mail') or user_info.get('userPrincipalName')
+        nome = user_info.get('displayName')
+
+        if not email:
+            flash("Não foi possível obter o seu e-mail da Microsoft.", "danger")
+            return redirect(url_for('login'))
+
     except Exception as e:
         flash(
-            f"Ocorreu um erro ao tentar fazer login com o Google: {e}", "danger")
+            f"Ocorreu um erro ao tentar fazer login com a Microsoft: {e}", "danger")
         return redirect(url_for('login'))
 
-    # Tenta encontrar um usuário existente com este e-mail
+    # Lógica de "Encontrar ou Criar" o utilizador (idêntica à do Google)
     user = Usuario.query.filter_by(email=email).first()
 
-    # Se o usuário JÁ EXISTE, faz o login normalmente
-    if user:
-        login_user(user)
-        primeira_associacao = user.escolas.first()
-        if primeira_associacao:
-            session['escola_id'] = primeira_associacao.escola_id
-        else:
-            session['escola_id'] = None  # Caso raro de usuário sem escola
-        flash(f'Bem-vindo(a) de volta, {user.nome}!', 'success')
-        return redirect(url_for('home'))
+    if not user:
+        user = Usuario(email=email, nome=nome, email_confirmado=True)
+        db.session.add(user)
+        db.session.commit()
 
-    # Se o usuário é NOVO, salva os dados na sessão e o envia para completar o cadastro
+    login_user(user)
+
+    primeira_associacao = user.escolas.first()
+    if primeira_associacao:
+        session['escola_id'] = primeira_associacao.escola_id
+        return redirect(url_for('home'))
     else:
-        # Guarda os dados do Google para preencher o formulário de cadastro
-        session['oauth_profile'] = {
-            'nome': user_info.get('name'),
-            'email': email
-        }
-        flash('Vimos que este é seu primeiro acesso. Por favor, complete o cadastro da sua escola para continuar.', 'info')
+        session['oauth_profile'] = {'nome': user.nome, 'email': user.email}
+        flash("Bem-vindo(a)! Como este é o seu primeiro acesso, por favor, complete o cadastro da sua escola.", "info")
         return redirect(url_for('register'))
 
 

@@ -12,32 +12,23 @@ db = SQLAlchemy()
 class Escola(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(150), nullable=False, unique=True)
-    # Status pode ser 'ativo', 'inativo', 'aguardando_pagamento'
     status = db.Column(db.String(50), nullable=False, default='ativo')
-    # Futuramente, para gerenciar assinaturas
-    # plano_id = db.Column(db.Integer, db.ForeignKey('plano.id'))
-    logo_url = db.Column(db.String(255))  # Para a logo de cada escola
-
-    # Relacionamentos
-    recursos = db.relationship(
-        'Resource', backref='escola', lazy=True, cascade='all, delete-orphan')
-    assinaturas = db.relationship(
-        'Assinatura', backref='escola', lazy=True, cascade='all, delete-orphan')
-
-# 2. Tabela 'Teacher' renomeada para 'Usuario' e modernizada
-
+    logo_url = db.Column(db.String(255))
+    recursos = db.relationship('Resource', backref='escola', lazy=True, cascade='all, delete-orphan')
+    assinaturas = db.relationship('Assinatura', backref='escola', lazy=True, cascade='all, delete-orphan')
 
 class Usuario(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(150), nullable=False)
+    nome_curto = db.Column(db.String(50))
     email = db.Column(db.String(150), unique=True, nullable=False)
     password_hash = db.Column(db.String(255))
+    # Adiciona o campo para a foto de perfil
+    foto_perfil = db.Column(db.String(255)) # Armazenará o nome do arquivo
     is_superadmin = db.Column(db.Boolean, default=False)
-    nome_curto = db.Column(db.String(50))  # Opcional
     email_confirmado = db.Column(db.Boolean, nullable=False, default=False)
 
-    escolas = db.relationship(
-        'UsuarioEscola', backref='usuario', lazy='dynamic', cascade='all, delete-orphan')
+    escolas = db.relationship('UsuarioEscola', backref='usuario', lazy='dynamic', cascade='all, delete-orphan')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -45,14 +36,11 @@ class Usuario(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-    # --- ADICIONE ESTE CÓDIGO ---
     @property
     def is_admin(self):
-        """Verifica se este usuário tem o papel de 'admin' em QUALQUER escola associada."""
         if self.is_superadmin:
             return True
         return any(assoc.papel == 'admin' for assoc in self.escolas)
-    # --- FIM DO CÓDIGO ADICIONADO ---
 
 # 3. Nova tabela de associação (muitos-para-muitos)
 #    Liga Usuarios a Escolas e define o papel de cada um

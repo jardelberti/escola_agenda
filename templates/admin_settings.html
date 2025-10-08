@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Configurações da Escola{% endblock %}
+
+{% block content %}
+<body class="bg-slate-50">
+    <div class="container mx-auto px-4 py-8">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
+            <h1 class="text-3xl font-bold text-slate-800">Configurações da Escola</h1>
+            <a href="{{ url_for('admin_dashboard') }}" class="mt-4 sm:mt-0 bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-lg hover:bg-slate-300">Voltar ao Dashboard</a>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="max-w-2xl mx-auto space-y-2 mb-6">
+                {% for category, message in messages %}
+                    {% set color = 'blue' if category == 'success' else 'red' if category == 'danger' else 'yellow' %}
+                    <div class="bg-{{ color }}-100 border-l-4 border-{{ color }}-500 text-{{ color }}-700 p-4 rounded-lg" role="alert">
+                        <p>{{ message }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="max-w-2xl mx-auto bg-white p-6 rounded-xl border border-slate-200">
+            <form method="POST" action="{{ url_for('admin_settings') }}" enctype="multipart/form-data" class="space-y-6">
+                
+                <div>
+                    <label for="nome_escola" class="block text-sm font-medium text-slate-700">Nome da Escola</label>
+                    <input type="text" name="nome_escola" id="nome_escola" value="{{ escola.nome }}" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm" required>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Logo da Escola</label>
+                    <div class="mt-2 flex items-center gap-4">
+                        {% if escola.logo_url %}
+                            <img src="{{ url_for('uploaded_file', filename=escola.logo_url) }}" alt="Logo da Escola" class="h-16 w-16 rounded-lg object-cover">
+                        {% else %}
+                            <div class="h-16 w-16 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400">
+                                <span class="material-symbols-outlined text-4xl">school</span>
+                            </div>
+                        {% endif %}
+                        <input type="file" name="logo_escola" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1">Envie um arquivo de imagem (JPG, PNG). A imagem será redimensionada.</p>
+                </div>
+
+                <div class="pt-4 border-t">
+                    <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700">Salvar Configurações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+{% endblock %}

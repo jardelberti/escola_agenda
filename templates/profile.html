@@ -9,7 +9,7 @@
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-            <div class="max-w-xl mx-auto space-y-2 mb-6">
+            <div class="max-w-2xl mx-auto space-y-2 mb-6">
                 {% for category, message in messages %}
                     {% set color = 'blue' if category == 'success' else 'red' if category == 'danger' else 'yellow' %}
                     <div class="bg-{{ color }}-100 border-l-4 border-{{ color }}-500 text-{{ color }}-700 p-4 rounded-lg" role="alert">
@@ -20,7 +20,42 @@
             {% endif %}
         {% endwith %}
 
-        <div class="max-w-xl mx-auto grid grid-cols-1 gap-8">
+        <div class="max-w-2xl mx-auto grid grid-cols-1 gap-8">
+            <!-- Card de Foto do Perfil -->
+            <div class="bg-white p-6 rounded-xl border border-slate-200">
+                <h3 class="text-xl font-bold text-slate-800 mb-4">Foto de Perfil</h3>
+                <div class="flex items-center gap-6">
+                    {% if current_user.foto_perfil %}
+                        {% if 'googleusercontent.com' in current_user.foto_perfil %}
+                            <img src="{{ current_user.foto_perfil }}" alt="Foto de Perfil" class="h-24 w-24 rounded-full object-cover">
+                        {% else %}
+                            <img src="{{ url_for('uploaded_file', filename=current_user.foto_perfil) }}" alt="Foto de Perfil" class="h-24 w-24 rounded-full object-cover">
+                        {% endif %}
+                    {% else %}
+                        <div class="h-24 w-24 rounded-full bg-slate-200 flex items-center justify-center text-slate-500">
+                            <span class="material-symbols-outlined" style="font-size: 48px;">person</span>
+                        </div>
+                    {% endif %}
+                    <div class="flex-grow">
+                        <form method="POST" action="{{ url_for('profile') }}" enctype="multipart/form-data">
+                            <input type="hidden" name="upload_picture" value="1">
+                            <label for="profile_pic" class="cursor-pointer bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 text-sm inline-block">
+                                Alterar Foto
+                            </label>
+                            <input type="file" name="profile_pic" id="profile_pic" class="hidden" onchange="this.form.submit()">
+                        </form>
+                        {% if current_user.foto_perfil %}
+                        <form method="POST" action="{{ url_for('profile') }}" class="inline-block ml-2">
+                            <input type="hidden" name="remove_picture" value="1">
+                            <button type="submit" class="text-red-600 hover:text-red-800 font-semibold text-sm">Remover</button>
+                        </form>
+                        {% endif %}
+                        <p class="text-xs text-slate-400 mt-2">Tamanho recomendado: 200x200px. <br>Formatos: JPG, PNG, GIF.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card de Edição do Perfil -->
             <div class="bg-white p-6 rounded-xl border border-slate-200">
                 <h3 class="text-xl font-bold text-slate-800 mb-4">Editar Perfil</h3>
                 <form method="POST" action="{{ url_for('profile') }}" class="space-y-4">
@@ -42,6 +77,7 @@
                 </form>
             </div>
 
+            <!-- Card de Alteração de Senha -->
             <div class="bg-white p-6 rounded-xl border border-slate-200">
                 <h3 class="text-xl font-bold text-slate-800 mb-4">Alterar Senha</h3>
                 <form method="POST" action="{{ url_for('profile') }}" class="space-y-4">
@@ -65,3 +101,4 @@
     </div>
 </body>
 {% endblock %}
+
