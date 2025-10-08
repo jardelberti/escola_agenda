@@ -14,8 +14,11 @@ class Escola(db.Model):
     nome = db.Column(db.String(150), nullable=False, unique=True)
     status = db.Column(db.String(50), nullable=False, default='ativo')
     logo_url = db.Column(db.String(255))
-    recursos = db.relationship('Resource', backref='escola', lazy=True, cascade='all, delete-orphan')
-    assinaturas = db.relationship('Assinatura', backref='escola', lazy=True, cascade='all, delete-orphan')
+    recursos = db.relationship(
+        'Resource', backref='escola', lazy=True, cascade='all, delete-orphan')
+    assinaturas = db.relationship(
+        'Assinatura', backref='escola', lazy=True, cascade='all, delete-orphan')
+
 
 class Usuario(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -23,17 +26,21 @@ class Usuario(UserMixin, db.Model):
     nome_curto = db.Column(db.String(50))
     email = db.Column(db.String(150), unique=True, nullable=False)
     password_hash = db.Column(db.String(255))
-    # Adiciona o campo para a foto de perfil
-    foto_perfil = db.Column(db.String(255)) # Armazenará o nome do arquivo
     is_superadmin = db.Column(db.Boolean, default=False)
     email_confirmado = db.Column(db.Boolean, nullable=False, default=False)
+    foto_perfil = db.Column(db.String(255))
 
-    escolas = db.relationship('UsuarioEscola', backref='usuario', lazy='dynamic', cascade='all, delete-orphan')
+    escolas = db.relationship(
+        'UsuarioEscola', backref='usuario', lazy='dynamic', cascade='all, delete-orphan')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
+        # --- CORREÇÃO IMPORTANTE AQUI ---
+        # Se não houver hash de senha (ex: conta social), retorna sempre False.
+        if not self.password_hash:
+            return False
         return check_password_hash(self.password_hash, password)
 
     @property
