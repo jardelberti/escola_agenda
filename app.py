@@ -21,6 +21,7 @@ from celery import Celery
 from logging import getLogger
 import calendar
 from authlib.integrations.flask_client import OAuth
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 migrate = Migrate()
 mail = Mail()
@@ -30,6 +31,7 @@ stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
 
 # --- INICIALIZAÇÃO E CONFIGURAÇÃO DA APLICAÇÃO ---
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.config['SECRET_KEY'] = 'uma-chave-secreta-muito-dificil-de-adivinhar'
 oauth = OAuth(app)
 oauth.register(
