@@ -8,47 +8,49 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?display=swap&family=Inter%3Awght%40400%3B500%3B700%3B900">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <!-- 1. Adicionar o CSS da biblioteca de animação -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
 </head>
 <body style='font-family: Inter, "Noto Sans", sans-serif;' class="bg-slate-50 text-slate-700">
 
     <!-- CABEÇALHO -->
-    <header class="bg-white/80 backdrop-blur-sm sticky top-0 z-50 border-b border-slate-200">
+    <header data-aos="fade-down" class="bg-white/80 backdrop-blur-sm sticky top-0 z-50 border-b border-slate-200">
         <nav class="container mx-auto px-6 lg:px-8 flex justify-between items-center h-20">
             <a href="{{ url_for('landing_page') }}" class="flex items-center gap-3">
-                <img src="{{ url_for('static', filename='logo_agenda.png') }}" alt="Logo Agenda Escolar" class="h-14 w-auto">
+                <img src="{{ url_for('static', filename='logo_agenda.png') }}" alt="Logo Agenda Escolar" class="h-10 w-auto">
                 <span class="font-bold text-xl text-slate-800 hidden sm:block">Agenda Escolar</span>
             </a>
             <div class="hidden md:flex items-center gap-6">
-                <a href="#funcionalidades" class="font-semibold text-slate-600 hover:text-blue-600">Funcionalidades</a>
-                <a href="#planos" class="font-semibold text-slate-600 hover:text-blue-600">Planos</a>
+                <a href="#funcionalidades" class="font-semibold text-slate-600 hover:text-blue-600 transition-colors">Funcionalidades</a>
+                <a href="#planos" class="font-semibold text-slate-600 hover:text-blue-600 transition-colors">Planos</a>
             </div>
             <div>
-                <a href="{{ url_for('login') }}" class="font-semibold text-slate-600 hover:text-blue-600 mr-4">Entrar</a>
-                <a href="{{ url_for('register', plan_id=plano_gratuito_id) }}" class="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700">Comece Grátis</a>
+                <a href="{{ url_for('login') }}" class="font-semibold text-slate-600 hover:text-blue-600 mr-4 transition-colors">Entrar</a>
+                <a href="{{ url_for('register', plan_id=plano_gratuito_id) }}" class="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700 transition-all duration-300 transform hover:scale-105">Comece Grátis</a>
             </div>
         </nav>
     </header>
 
     <!-- SEÇÃO PRINCIPAL (HERO) -->
     <main class="text-center py-24 px-4 bg-white">
-        <h1 class="text-5xl md:text-6xl font-extrabold text-slate-900 leading-tight">Organize o Tempo, <br> Potencialize o Aprendizado.</h1>
-        <p class="mt-6 max-w-2xl mx-auto text-lg text-slate-600">Sua escola no controle total dos recursos. Gerencie salas, equipamentos e espaços com facilidade e otimize a rotina de todos.</p>
-        <a href="{{ url_for('register', plan_id=plano_gratuito_id) }}" class="mt-8 inline-block bg-blue-600 text-white font-bold py-4 px-8 rounded-lg shadow-lg hover:bg-blue-700 text-lg transition-transform hover:scale-105">
+        <h1 data-aos="fade-up" class="text-5xl md:text-6xl font-extrabold text-slate-900 leading-tight">Organize o Tempo, <br> Potencialize o Aprendizado.</h1>
+        <p data-aos="fade-up" data-aos-delay="100" class="mt-6 max-w-2xl mx-auto text-lg text-slate-600">Sua escola no controle total dos recursos. Gerencie salas, equipamentos e espaços com facilidade e otimize a rotina de todos.</p>
+        <a data-aos="fade-up" data-aos-delay="200" href="{{ url_for('register', plan_id=plano_gratuito_id) }}" class="mt-8 inline-block bg-blue-600 text-white font-bold py-4 px-8 rounded-lg shadow-lg hover:bg-blue-700 text-lg transition-transform hover:scale-105">
             Experimente Grátis por 30 Dias
         </a>
     </main>
 
     <!-- SEÇÃO PROBLEMA -> SOLUÇÃO -->
-    <section class="py-20 px-4">
+    <section class="py-20 px-4 overflow-hidden">
         <div class="container mx-auto text-center">
-            <h2 class="text-4xl font-bold text-slate-800">Diga adeus à desorganização.</h2>
-            <p class="mt-4 max-w-3xl mx-auto text-lg text-slate-600">Planilhas confusas, conflitos de horário e recursos perdidos? Sabemos como isso impacta o dia a dia da escola.</p>
+            <h2 data-aos="fade-up" class="text-4xl font-bold text-slate-800">Diga adeus à desorganização.</h2>
+            <p data-aos="fade-up" data-aos-delay="100" class="mt-4 max-w-3xl mx-auto text-lg text-slate-600">Planilhas confusas, conflitos de horário e recursos perdidos? Sabemos como isso impacta o dia a dia da escola.</p>
             <div class="grid md:grid-cols-2 gap-8 items-center mt-12">
-                <div class="text-center">
+                <div data-aos="fade-right" class="text-center transition-transform duration-300 hover:scale-105">
                     <img src="{{ url_for('static', filename='diretor_tabelas.jpg') }}" alt="Diretor estressado com tabelas" class="rounded-xl shadow-lg mx-auto">
                     <p class="mt-4 font-semibold text-red-600">O Jeito Antigo: Caos e Estresse</p>
                 </div>
-                <div class="text-center">
+                <div data-aos="fade-left" class="text-center transition-transform duration-300 hover:scale-105">
                     <img src="{{ url_for('static', filename='diretor_sistema.jpg') }}" alt="Diretor feliz usando o sistema" class="rounded-xl shadow-lg mx-auto">
                     <p class="mt-4 font-semibold text-green-600">O Novo Jeito: Controle e Tranquilidade</p>
                 </div>
@@ -57,72 +59,86 @@
     </section>
 
     <!-- SEÇÃO FUNCIONALIDADES -->
-    <section id="funcionalidades" class="py-20 bg-white px-4">
+    <section id="funcionalidades" class="py-20 bg-white px-4 overflow-hidden">
         <div class="container mx-auto text-center">
-            <h2 class="text-4xl font-bold text-slate-800">Recursos Completos para uma Gestão Sem Complicações</h2>
-            <p class="mt-4 max-w-3xl mx-auto text-lg text-slate-600">Tudo o que você precisa para ter uma visão clara e controle total sobre o uso dos recursos da sua escola.</p>
+            <h2 data-aos="fade-up" class="text-4xl font-bold text-slate-800">Recursos Completos para uma Gestão Sem Complicações</h2>
+            <p data-aos="fade-up" data-aos-delay="100" class="mt-4 max-w-3xl mx-auto text-lg text-slate-600">Tudo o que você precisa para ter uma visão clara e controle total sobre o uso dos recursos da sua escola.</p>
             <div class="grid md:grid-cols-3 gap-8 text-left mt-12">
-                <div class="bg-slate-50 p-6 rounded-lg border border-slate-200">
+                <div data-aos="fade-up" data-aos-delay="100" class="bg-slate-50 p-6 rounded-lg border border-slate-200 transition-transform duration-300 hover:-translate-y-2">
                     <span class="material-symbols-outlined text-blue-600 text-4xl">calendar_month</span>
                     <h3 class="font-bold text-xl mt-4">Calendário Intuitivo</h3>
                     <p class="mt-2 text-slate-600">Visualize a disponibilidade de todos os recursos em tempo real, por dia e por turno, evitando conflitos.</p>
                 </div>
-                <div class="bg-slate-50 p-6 rounded-lg border border-slate-200">
+                <div data-aos="fade-up" data-aos-delay="200" class="bg-slate-50 p-6 rounded-lg border border-slate-200 transition-transform duration-300 hover:-translate-y-2">
                     <span class="material-symbols-outlined text-blue-600 text-4xl">touch_app</span>
                     <h3 class="font-bold text-xl mt-4">Agendamento Rápido</h3>
                     <p class="mt-2 text-slate-600">Professores podem reservar salas e equipamentos em segundos, diretamente pelo celular ou computador.</p>
                 </div>
-                <div class="bg-slate-50 p-6 rounded-lg border border-slate-200">
+                <div data-aos="fade-up" data-aos-delay="300" class="bg-slate-50 p-6 rounded-lg border border-slate-200 transition-transform duration-300 hover:-translate-y-2">
                     <span class="material-symbols-outlined text-blue-600 text-4xl">monitoring</span>
                     <h3 class="font-bold text-xl mt-4">Relatórios Detalhados</h3>
                     <p class="mt-2 text-slate-600">Entenda como seus recursos são utilizados, identifique gargalos e otimize o planejamento escolar.</p>
                 </div>
             </div>
-            <div class="mt-12">
-                <img src="{{ url_for('static', filename='notebook.jpg') }}" alt="Sistema rodando em um notebook" class="rounded-xl shadow-2xl mx-auto">
+        </div>
+    </section>
+    
+    <!-- SEÇÃO MULTI-PLATAFORMA -->
+    <section class="py-20 px-4 overflow-hidden">
+        <div class="container mx-auto text-center">
+            <h2 data-aos="fade-up" class="text-4xl font-bold text-slate-800">Acesse de Onde Estiver</h2>
+            <p data-aos="fade-up" data-aos-delay="100" class="mt-4 max-w-3xl mx-auto text-lg text-slate-600">O nosso sistema é totalmente responsivo e funciona perfeitamente no seu computador, tablet ou celular.</p>
+            <div class="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+                <div data-aos="fade-up" class="transition-transform duration-300 hover:scale-105"><img src="{{ url_for('static', filename='notebook.jpg') }}" alt="Sistema rodando em um notebook" class="rounded-xl shadow-2xl mx-auto"></div>
+                <div data-aos="fade-up" data-aos-delay="100" class="transition-transform duration-300 hover:scale-105"><img src="{{ url_for('static', filename='tablet.jpg') }}" alt="Sistema rodando em um tablet" class="rounded-xl shadow-2xl mx-auto"></div>
+                <div data-aos="fade-up" data-aos-delay="200" class="transition-transform duration-300 hover:scale-105"><img src="{{ url_for('static', filename='celular.jpg') }}" alt="Sistema rodando em um celular" class="rounded-xl shadow-2xl mx-auto"></div>
             </div>
         </div>
     </section>
 
     <!-- SEÇÃO PROVA SOCIAL / DEPOIMENTO -->
-    <section class="py-20 px-4">
+    <section class="py-20 bg-white px-4 overflow-hidden">
         <div class="container mx-auto max-w-4xl grid md:grid-cols-2 gap-12 items-center">
-            <img src="{{ url_for('static', filename='professor_sistema.jpg') }}" alt="Professor sorrindo e mostrando o sistema no celular" class="rounded-xl shadow-lg">
-            <div>
+            <div data-aos="fade-right" class="transition-transform duration-300 hover:scale-105">
+                <img src="{{ url_for('static', filename='professor_sistema.jpg') }}" alt="Professor sorrindo e mostrando o sistema no celular" class="rounded-xl shadow-lg">
+            </div>
+            <div data-aos="fade-left">
                 <p class="text-2xl font-semibold text-slate-800 italic">"O Agenda Escolar transformou a nossa rotina. O que antes levava horas em planilhas, agora resolvemos em minutos. Nossos professores estão muito mais produtivos e satisfeitos!"</p>
-                <p class="mt-4 font-bold text-slate-900">- Carlos, Diretor Pedagógico</p>
+                <p class="mt-4 font-bold text-slate-900">- Ana, Diretora Pedagógica</p>
                 <p class="text-slate-500">Colégio Inovar</p>
             </div>
         </div>
     </section>
 
-    <!-- SEÇÃO DE PLANOS (ID para âncora) -->
-    <section id="planos" class="py-20 bg-white">
+    <!-- SEÇÃO DE PLANOS -->
+    <section id="planos" class="py-20 bg-slate-100 overflow-hidden">
         <div class="container mx-auto px-4">
             <h2 class="text-4xl font-bold text-slate-800 mb-12 text-center">Escolha o Plano Ideal para a Sua Escola</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
                 {% for plano in planos %}
-                <div class="rounded-xl border h-full flex flex-col
-                            {% if plano.nome == 'Teste Gratuito' %} border-blue-500 ring-4 ring-blue-200 {% else %} border-slate-200 {% endif %}">
-                    <div class="p-8">
-                        {% if plano.nome == 'Anual' %}<div class="text-right mb-2"><span class="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase">Mais Popular</span></div>{% endif %}
-                        <h3 class="text-2xl font-bold text-slate-900">{{ plano.nome }}</h3>
-                        {% if plano.preco == 0 %}<p class="mt-2 text-4xl font-bold text-slate-800">Grátis</p><p class="text-slate-500 text-lg">por 30 dias</p>
-                        {% else %}<p class="mt-2 text-4xl font-bold text-slate-800">R$ {{ "%.2f"|format(plano.preco / 100) }}</p><p class="text-slate-500 text-lg">/ {{ 'mês' if plano.duracao_meses == 1 else 'ano' }}</p>{% endif %}
-                        {% if plano.economia and plano.economia > 0 %}<p class="mt-4 font-semibold text-green-600 bg-green-100 p-2 rounded-md text-sm">Economize R$ {{ "%.2f"|format(plano.economia / 100) }}!</p>{% endif %}
-                    </div>
-                    <div class="flex-grow p-8 bg-slate-50 rounded-b-xl flex flex-col">
-                        <div class="flex-grow">
-                            <ul class="space-y-2 text-slate-600">
-                               <li>- Agendamentos ilimitados</li><li>- Usuários ilimitados</li><li>- Gestão de Recursos</li>
-                                {% if plano.preco > 0 %}<li>- Suporte Prioritário</li>{% endif %}
-                            </ul>
+                <a href="{{ url_for('register', plan_id=plano.id) }}" class="block rounded-xl transition-all duration-300 hover:-translate-y-2 hover:shadow-xl">
+                    <div class="border h-full flex flex-col
+                                {% if plano.nome == 'Teste Gratuito' %} border-blue-500 ring-4 ring-blue-200 bg-white {% else %} border-slate-200 bg-white {% endif %} rounded-xl">
+                        <div class="p-8">
+                            {% if plano.nome == 'Anual' %}<div class="text-right mb-2"><span class="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase">Mais Popular</span></div>{% endif %}
+                            <h3 class="text-2xl font-bold text-slate-900">{{ plano.nome }}</h3>
+                            {% if plano.preco == 0 %}<p class="mt-2 text-4xl font-bold text-slate-800">Grátis</p><p class="text-slate-500 text-lg">por 30 dias</p>
+                            {% else %}<p class="mt-2 text-4xl font-bold text-slate-800">R$ {{ "%.2f"|format(plano.preco / 100) }}</p><p class="text-slate-500 text-lg">/ {{ 'mês' if plano.duracao_meses == 1 else 'ano' }}</p>{% endif %}
+                            {% if plano.economia and plano.economia > 0 %}<p class="mt-4 font-semibold text-green-600 bg-green-100 p-2 rounded-md text-sm">Economize R$ {{ "%.2f"|format(plano.economia / 100) }}!</p>{% endif %}
                         </div>
-                        <a href="{{ url_for('register', plan_id=plano.id) }}" class="mt-8 block w-full text-center rounded-lg py-3 font-bold {% if plano.nome == 'Teste Gratuito' %} bg-blue-600 text-white hover:bg-blue-700 {% else %} bg-slate-800 text-white hover:bg-slate-900 {% endif %}">
-                           Selecionar Plano
-                        </a>
+                        <div class="flex-grow p-8 bg-slate-50 rounded-b-xl flex flex-col">
+                            <div class="flex-grow">
+                                <ul class="space-y-2 text-slate-600">
+                                   <li>- Agendamentos ilimitados</li><li>- Usuários ilimitados</li><li>- Gestão de Recursos</li>
+                                    {% if plano.preco > 0 %}<li>- Suporte Prioritário</li>{% endif %}
+                                </ul>
+                            </div>
+                            <div class="mt-8 block w-full text-center rounded-lg py-3 font-bold {% if plano.nome == 'Teste Gratuito' %} bg-blue-600 text-white {% else %} bg-slate-800 text-white {% endif %}">
+                               Selecionar Plano
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </a>
                 {% endfor %}
             </div>
         </div>
@@ -144,5 +160,14 @@
         </div>
     </footer>
 
+    <!-- 2. Adicionar o JS da biblioteca de animação e inicializá-la -->
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+      AOS.init({
+        duration: 800, // Duração da animação em milissegundos
+        once: true,    // A animação acontece apenas uma vez
+      });
+    </script>
 </body>
 </html>
+

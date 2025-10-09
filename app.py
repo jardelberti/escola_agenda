@@ -217,17 +217,16 @@ def superadmin_required(f):
 
 @app.route('/')
 def landing_page():
-    # Se o usuário já estiver logado, vai para a home normal
+    # Se o utilizador já estiver logado, vai para a home normal
     if current_user.is_authenticated:
         return redirect(url_for('home'))
 
     # Busca os planos para exibir na seção de preços da landing page
     planos = Plano.query.order_by(Plano.preco).all()
-
+    
     # Lógica para calcular o desconto e encontrar o ID do plano gratuito
     plano_mensal_base = next((p for p in planos if p.nome == 'Mensal'), None)
-    plano_gratuito_id = next(
-        (p.id for p in planos if p.nome == 'Teste Gratuito'), None)
+    plano_gratuito_id = next((p.id for p in planos if p.nome == 'Teste Gratuito'), None)
 
     if plano_mensal_base:
         custo_anual_base = plano_mensal_base.preco * 12
@@ -236,7 +235,7 @@ def landing_page():
                 plano.economia = custo_anual_base - plano.preco
             else:
                 plano.economia = 0
-
+                
     return render_template('landing_page.html', planos=planos, plano_gratuito_id=plano_gratuito_id)
 
 

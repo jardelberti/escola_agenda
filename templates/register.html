@@ -14,10 +14,21 @@
 <div class="container mx-auto px-4 py-12">
     <div class="text-center">
         <a href="{{ url_for('landing_page') }}">
-            <img src="{{ url_for('static', filename='logo_agenda.png') }}" alt="Logo Agenda Escolar" class="mx-auto h-20 w-auto mb-4">
+            <img src="{{ url_for('static', filename='logo_agenda.png') }}" alt="Logo Agenda Escolar" class="mx-auto h-48 w-auto mb-4">
         </a>
-        <h1 class="text-4xl font-bold text-slate-800">Finalize seu Cadastro</h1>
-        <p class="mt-2 text-lg text-slate-600">Falta pouco para começar a usar.</p>
+        <h1 class="text-4xl font-bold text-slate-800">Crie a Conta da sua Escola</h1>
+        <p class="mt-2 text-lg text-slate-600">Falta pouco para começar a organizar os seus recursos.</p>
+    </div>
+
+    <!-- NOVO AVISO PARA ADMINISTRADORES -->
+    <div class="max-w-2xl mx-auto mt-8 p-4 bg-blue-50 border-l-4 border-blue-400 text-blue-800 rounded-r-lg">
+        <div class="flex">
+            <div class="py-1"><span class="material-symbols-outlined">info</span></div>
+            <div class="ml-3">
+                <p class="text-sm font-medium">Este formulário é para a criação de uma nova conta de **escola**.</p>
+                <p class="text-sm mt-1">Se você é um **professor**, por favor, peça ao administrador da sua escola para lhe enviar um convite de acesso.</p>
+            </div>
+        </div>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
