@@ -73,6 +73,17 @@
                         <label class="block text-sm font-medium text-slate-600 mb-1">E-mail</label>
                         <input type="email" class="w-full rounded-lg border-slate-300 bg-slate-100" value="{{ current_user.email }}" disabled>
                     </div>
+                    {% if not current_user.is_superadmin %}
+                    <div>
+                        <label for="disciplinas" class="block text-sm font-medium text-slate-600 mb-1">Minhas Disciplinas</label>
+                        <select id="profile-disciplinas-select" name="disciplinas" multiple>
+                            {% for disciplina in disciplinas %}
+                                <option value="{{ disciplina.id }}" {% if disciplina in current_user.disciplinas %}selected{% endif %}>{{ disciplina.nome }}</option>
+                            {% endfor %}
+                        </select>
+                         <p class="text-xs text-slate-400 mt-1">Selecione suas disciplinas ou digite para criar novas.</p>
+                    </div>
+                    {% endif %}
                     <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700">Salvar Perfil</button>
                 </form>
             </div>
@@ -102,3 +113,19 @@
 </body>
 {% endblock %}
 
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializa o Tom-Select apenas se o elemento existir
+    const profileSelect = document.getElementById("profile-disciplinas-select");
+    if (profileSelect) {
+        new TomSelect(profileSelect, {
+            create: true,
+            plugins: ['remove_button'],
+            placeholder: 'Selecione ou digite para criar...'
+        });
+    }
+});
+</script>
+{% endblock %}

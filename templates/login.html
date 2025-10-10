@@ -48,10 +48,13 @@
                     <input type="password" id="password" name="password" class="form-input w-full rounded-lg text-slate-800 border border-slate-300 h-14 pl-12" placeholder="Senha" required />
                 </div>
             </div>
-
+            
             <!-- LINKS DE CRIAR CONTA E ESQUECEU A SENHA -->
-            <div class="flex justify-between items-center text-sm">
-                <a href="{{ url_for('register') }}" class="font-medium text-blue-600 hover:text-blue-500">Criar conta</a>
+            <div class="flex items-center justify-between text-sm">
+                <label for="remember" class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="remember" name="remember" class="rounded border-slate-400 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                    <span class="text-slate-600">Lembrar de mim</span>
+                </label>
                 <a href="{{ url_for('forgot_password') }}" class="font-medium text-blue-600 hover:text-blue-500">Esqueceu sua senha?</a>
             </div>
 

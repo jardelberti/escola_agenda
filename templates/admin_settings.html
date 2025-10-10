@@ -26,9 +26,59 @@
         <div class="max-w-2xl mx-auto bg-white p-6 rounded-xl border border-slate-200">
             <form method="POST" action="{{ url_for('admin_settings') }}" enctype="multipart/form-data" class="space-y-6">
                 
-                <div>
-                    <label for="nome_escola" class="block text-sm font-medium text-slate-700">Nome da Escola</label>
-                    <input type="text" name="nome_escola" id="nome_escola" value="{{ escola.nome }}" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm" required>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="nome_escola" class="block text-sm font-medium text-slate-700">Nome da Escola</label>
+                        <input type="text" name="nome_escola" id="nome_escola" value="{{ escola.nome }}" class="mt-1 block w-full rounded-md border-slate-300" required>
+                    </div>
+                     <div>
+                        <label for="nome_diretor" class="block text-sm font-medium text-slate-700">Nome do(a) Diretor(a)</label>
+                        <input type="text" name="nome_diretor" id="nome_diretor" value="{{ escola.nome_diretor or '' }}" class="mt-1 block w-full rounded-md border-slate-300">
+                    </div>
+                     <div>
+                        <label for="email_contato" class="block text-sm font-medium text-slate-700">E-mail de Contato</label>
+                        <input type="email" name="email_contato" id="email_contato" value="{{ escola.email_contato or '' }}" class="mt-1 block w-full rounded-md border-slate-300">
+                    </div>
+                    <div></div> <!-- Espaço para alinhar -->
+                    <div>
+                        <label for="telefone_celular" class="block text-sm font-medium text-slate-700">Celular (WhatsApp)</label>
+                        <input type="text" name="telefone_celular" id="telefone_celular" value="{{ escola.telefone_celular or '' }}" class="mt-1 block w-full rounded-md border-slate-300" placeholder="(00) 00000-0000">
+                    </div>
+                     <div>
+                        <label for="telefone_fixo" class="block text-sm font-medium text-slate-700">Telefone Fixo</label>
+                        <input type="text" name="telefone_fixo" id="telefone_fixo" value="{{ escola.telefone_fixo or '' }}" class="mt-1 block w-full rounded-md border-slate-300" placeholder="(00) 0000-0000">
+                    </div>
+                </div>
+
+                <!-- SEÇÃO DE ENDEREÇO -->
+                <div class="border-t pt-6">
+                    <h3 class="text-lg font-medium text-slate-800 mb-4">Endereço da Escola</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-6 gap-6">
+                        <div class="md:col-span-2">
+                            <label for="cep" class="block text-sm font-medium text-slate-700">CEP</label>
+                            <input type="text" name="cep" id="cep" value="{{ escola.cep or '' }}" class="mt-1 block w-full rounded-md border-slate-300">
+                        </div>
+                        <div class="md:col-span-4">
+                            <label for="endereco" class="block text-sm font-medium text-slate-700">Endereço (Rua, Av.)</label>
+                            <input type="text" name="endereco" id="endereco" value="{{ escola.endereco or '' }}" class="mt-1 block w-full rounded-md border-slate-300 bg-slate-50" readonly>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label for="numero" class="block text-sm font-medium text-slate-700">Número</label>
+                            <input type="text" name="numero" id="numero" value="{{ escola.numero or '' }}" class="mt-1 block w-full rounded-md border-slate-300">
+                        </div>
+                        <div class="md:col-span-4">
+                            <label for="bairro" class="block text-sm font-medium text-slate-700">Bairro</label>
+                            <input type="text" name="bairro" id="bairro" value="{{ escola.bairro or '' }}" class="mt-1 block w-full rounded-md border-slate-300 bg-slate-50" readonly>
+                        </div>
+                        <div class="md:col-span-4">
+                            <label for="cidade" class="block text-sm font-medium text-slate-700">Cidade</label>
+                            <input type="text" name="cidade" id="cidade" value="{{ escola.cidade or '' }}" class="mt-1 block w-full rounded-md border-slate-300 bg-slate-50" readonly>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label for="estado" class="block text-sm font-medium text-slate-700">Estado</label>
+                            <input type="text" name="estado" id="estado" value="{{ escola.estado or '' }}" class="mt-1 block w-full rounded-md border-slate-300 bg-slate-50" readonly>
+                        </div>
+                    </div>
                 </div>
 
                 <div>
@@ -53,4 +103,63 @@
         </div>
     </div>
 </body>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="https://unpkg.com/imask"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+    const celularInput = document.getElementById('telefone_celular');
+    if (celularInput) {
+        IMask(celularInput, { mask: '(00) 00000-0000' });
+    }
+
+    const fixoInput = document.getElementById('telefone_fixo');
+    if (fixoInput) {
+        IMask(fixoInput, { mask: '(00) 0000-0000' });
+    }
+    
+    // --- SCRIPT COMPLETO PARA AUTOCOMPLETAR ENDEREÇO VIA CEP ---
+        const cepInput = document.getElementById('cep');
+        if (cepInput) {
+            const cepMask = IMask(cepInput, { mask: '00000-000' });
+
+            cepInput.addEventListener('blur', async function() {
+                const cep = cepMask.unmaskedValue;
+                if (cep.length === 8) {
+                    // Bloqueia os campos e mostra um feedback de "carregando"
+                    document.getElementById('endereco').value = 'Buscando...';
+                    document.getElementById('bairro').value = 'Buscando...';
+                    document.getElementById('cidade').value = 'Buscando...';
+                    document.getElementById('estado').value = 'Buscando...';
+                    
+                    try {
+                        const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+                        if (!response.ok) throw new Error('CEP não encontrado');
+                        const data = await response.json();
+
+                        if (data.erro) {
+                            alert('CEP não encontrado. Por favor, verifique o número.');
+                            document.getElementById('endereco').value = '';
+                            document.getElementById('bairro').value = '';
+                            document.getElementById('cidade').value = '';
+                            document.getElementById('estado').value = '';
+                        } else {
+                            document.getElementById('endereco').value = data.logradouro || '';
+                            document.getElementById('bairro').value = data.bairro || '';
+                            document.getElementById('cidade').value = data.localidade || '';
+                            document.getElementById('estado').value = data.uf || '';
+                            document.getElementById('numero').focus(); // Move o foco para o campo de número
+                        }
+                    } catch (error) {
+                        console.error('Erro ao buscar CEP:', error);
+                        alert('Não foi possível buscar o CEP. Tente novamente.');
+                    }
+                }
+            });
+        }
+});
+</script>
 {% endblock %}

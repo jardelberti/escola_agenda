@@ -102,7 +102,11 @@
         </div>
         {% endif %}
     </div>
+</body>
+{% endblock %}
 
+{% block scripts %}
+    {{ super() }}
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <script>
@@ -152,5 +156,5 @@
             }
         });
     </script>
-</body>
+
 {% endblock %}

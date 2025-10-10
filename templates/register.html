@@ -14,7 +14,7 @@
 <div class="container mx-auto px-4 py-12">
     <div class="text-center">
         <a href="{{ url_for('landing_page') }}">
-            <img src="{{ url_for('static', filename='logo_agenda.png') }}" alt="Logo Agenda Escolar" class="mx-auto h-48 w-auto mb-4">
+            <img src="{{ url_for('static', filename='logo_agenda.png') }}" alt="Logo Agenda Escolar" class="mx-auto h-20 w-auto mb-4">
         </a>
         <h1 class="text-4xl font-bold text-slate-800">Crie a Conta da sua Escola</h1>
         <p class="mt-2 text-lg text-slate-600">Falta pouco para começar a organizar os seus recursos.</p>
@@ -87,30 +87,63 @@
             </div>
         </div>
 
-        <!-- DADOS DA ESCOLA E DO ADMIN -->
-        <div>
-            <h2 class="text-2xl font-bold text-slate-800 mb-6 text-center">2. Seus Dados</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 max-w-4xl mx-auto">
-                <div>
-                    <label for="name" class="block text-sm font-medium text-slate-700">Seu Nome Completo</label>
-                    <input type="text" name="name" id="name" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm" required>
+        <!-- DADOS DA ESCOLA E DO ADMIN REESTRUTURADOS -->
+        <div class="space-y-8">
+            <!-- SEÇÃO DE DADOS DA ESCOLA -->
+            <div class="bg-white p-6 rounded-xl border border-slate-200">
+                <h2 class="text-2xl font-bold text-slate-800 mb-6">2. Dados da Escola</h2>
+                <div class="grid grid-cols-1 md:grid-cols-6 gap-6">
+                    <div class="md:col-span-6">
+                        <label for="school_name" class="block text-sm font-medium text-slate-700">Nome da Escola</label>
+                        <input type="text" name="school_name" id="school_name" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm" required>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="cep" class="block text-sm font-medium text-slate-700">CEP</label>
+                        <input type="text" name="cep" id="cep" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm" placeholder="00000-000">
+                    </div>
+                    <div class="md:col-span-4">
+                        <label for="endereco" class="block text-sm font-medium text-slate-700">Endereço (Rua, Av.)</label>
+                        <input type="text" name="endereco" id="endereco" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm bg-slate-50" readonly>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="numero" class="block text-sm font-medium text-slate-700">Número</label>
+                        <input type="text" name="numero" id="numero" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm">
+                    </div>
+                    <div class="md:col-span-4">
+                        <label for="bairro" class="block text-sm font-medium text-slate-700">Bairro</label>
+                        <input type="text" name="bairro" id="bairro" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm bg-slate-50" readonly>
+                    </div>
+                    <div class="md:col-span-4">
+                        <label for="cidade" class="block text-sm font-medium text-slate-700">Cidade</label>
+                        <input type="text" name="cidade" id="cidade" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm bg-slate-50" readonly>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="estado" class="block text-sm font-medium text-slate-700">Estado</label>
+                        <input type="text" name="estado" id="estado" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm bg-slate-50" readonly>
+                    </div>
                 </div>
-                <div>
-                    <label for="school_name" class="block text-sm font-medium text-slate-700">Nome da Escola</label>
-                    <input type="text" name="school_name" id="school_name" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm" required>
-                </div>
-                 <div>
-                    <label for="email" class="block text-sm font-medium text-slate-700">Seu E-mail</label>
-                    <input type="email" name="email" id="email" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm" required>
-                </div>
-                <div></div> <!-- Espaço em branco para alinhar -->
-                <div>
-                    <label for="password" class="block text-sm font-medium text-slate-700">Crie uma Senha</label>
-                    <input type="password" name="password" id="password" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm" required>
-                </div>
-                <div>
-                    <label for="confirm_password" class="block text-sm font-medium text-slate-700">Confirme sua Senha</label>
-                    <input type="password" name="confirm_password" id="confirm_password" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm" required>
+            </div>
+
+            <!-- SEÇÃO DE DADOS DO USUÁRIO -->
+            <div class="bg-white p-6 rounded-xl border border-slate-200">
+                <h2 class="text-2xl font-bold text-slate-800 mb-6">3. Seus Dados de Administrador</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-slate-700">Seu Nome Completo</label>
+                        <input type="text" name="name" id="name" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm" required>
+                    </div>
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-slate-700">Seu E-mail</label>
+                        <input type="email" name="email" id="email" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm" required>
+                    </div>
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-slate-700">Crie uma Senha</label>
+                        <input type="password" name="password" id="password" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm" required>
+                    </div>
+                    <div>
+                        <label for="confirm_password" class="block text-sm font-medium text-slate-700">Confirme sua Senha</label>
+                        <input type="password" name="confirm_password" id="confirm_password" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm" required>
+                    </div>
                 </div>
             </div>
         </div>
@@ -136,6 +169,7 @@
     }
 </style>
 
+<script src="https://unpkg.com/imask"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const planLabels = document.querySelectorAll('.plan-label');
@@ -160,6 +194,46 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     updateSelectionStyles();
+
+const cepInput = document.getElementById('cep');
+    if (cepInput) {
+        const cepMask = IMask(cepInput, { mask: '00000-000' });
+
+        cepInput.addEventListener('blur', async function() {
+            const cep = cepMask.unmaskedValue;
+            if (cep.length === 8) {
+                // Bloqueia os campos e mostra um feedback de "carregando"
+                document.getElementById('endereco').value = 'Buscando...';
+                document.getElementById('bairro').value = 'Buscando...';
+                document.getElementById('cidade').value = 'Buscando...';
+                document.getElementById('estado').value = 'Buscando...';
+                
+                try {
+                    const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+                    if (!response.ok) throw new Error('CEP não encontrado');
+                    const data = await response.json();
+
+                    if (data.erro) {
+                        alert('CEP não encontrado. Por favor, verifique o número.');
+                        document.getElementById('endereco').value = '';
+                        document.getElementById('bairro').value = '';
+                        document.getElementById('cidade').value = '';
+                        document.getElementById('estado').value = '';
+                    } else {
+                        document.getElementById('endereco').value = data.logradouro || '';
+                        document.getElementById('bairro').value = data.bairro || '';
+                        document.getElementById('cidade').value = data.localidade || '';
+                        document.getElementById('estado').value = data.uf || '';
+                        document.getElementById('numero').focus(); // Move o foco para o campo de número
+                    }
+                } catch (error) {
+                    console.error('Erro ao buscar CEP:', error);
+                    alert('Não foi possível buscar o CEP. Tente novamente.');
+                }
+            }
+        });
+    }
+
 });
 </script>
 

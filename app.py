@@ -2,16 +2,18 @@ import os
 import json
 import subprocess
 import shutil
+import io
+import csv
 from urllib.parse import urlparse
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 from datetime import datetime, timedelta, date
 import calendar
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, session
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, session, Response
 from functools import wraps
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy import func, distinct
-from models import db, Usuario, Escola, UsuarioEscola, Resource, ScheduleTemplate, Booking, Plano, Assinatura
+from models import db, Usuario, Escola, UsuarioEscola, Resource, ScheduleTemplate, Booking, Plano, Assinatura, Disciplina
 from flask_migrate import Migrate
 from celery import Celery
 from logging import getLogger
@@ -223,10 +225,11 @@ def landing_page():
 
     # Busca os planos para exibir na seção de preços da landing page
     planos = Plano.query.order_by(Plano.preco).all()
-    
+
     # Lógica para calcular o desconto e encontrar o ID do plano gratuito
     plano_mensal_base = next((p for p in planos if p.nome == 'Mensal'), None)
-    plano_gratuito_id = next((p.id for p in planos if p.nome == 'Teste Gratuito'), None)
+    plano_gratuito_id = next(
+        (p.id for p in planos if p.nome == 'Teste Gratuito'), None)
 
     if plano_mensal_base:
         custo_anual_base = plano_mensal_base.preco * 12
@@ -235,7 +238,7 @@ def landing_page():
                 plano.economia = custo_anual_base - plano.preco
             else:
                 plano.economia = 0
-                
+
     return render_template('landing_page.html', planos=planos, plano_gratuito_id=plano_gratuito_id)
 
 
@@ -253,6 +256,12 @@ def register():
             'confirm_password')  # Pega a confirmação
         nome_escola = request.form.get('school_name')
         plano_id = request.form.get('plan_id')
+        cep = request.form.get('cep')
+        endereco = request.form.get('endereco')
+        numero = request.form.get('numero')
+        bairro = request.form.get('bairro')
+        cidade = request.form.get('cidade')
+        estado = request.form.get('estado')
 
         # --- Validação ---
         if not all([nome_admin, email_admin, senha_admin, confirm_senha, nome_escola, plano_id]):
@@ -274,7 +283,15 @@ def register():
             return redirect(url_for('register'))
 
         try:
-            nova_escola = Escola(nome=nome_escola)
+            nova_escola = Escola(
+                nome=nome_escola,
+                cep=cep,
+                endereco=endereco,
+                numero=numero,
+                bairro=bairro,
+                cidade=cidade,
+                estado=estado
+            )
             novo_admin = Usuario(
                 nome=nome_admin, email=email_admin, email_confirmado=False)
             novo_admin.set_password(senha_admin)
@@ -339,21 +356,22 @@ def login():
 
         if user and user.check_password(password):
 
-            # VERIFICA SE O E-MAIL FOI CONFIRMADO
-            if not user.email_confirmado and not user.is_superadmin:  # Superadmin não precisa confirmar
+            if not user.email_confirmado and not user.is_superadmin:
                 flash(
                     'Sua conta ainda não foi confirmada. Por favor, verifique seu e-mail.', 'warning')
                 return redirect(url_for('login'))
 
-            login_user(user)
+            # ***** INÍCIO DA ALTERAÇÃO *****
+            # Pega o valor do checkbox 'remember'. Será 'on' se marcado, ou None se não.
+            remember_me = True if request.form.get('remember') else False
+            # Passa o valor para a função login_user
+            login_user(user, remember=remember_me)
+            # ***** FIM DA ALTERAÇÃO *****
 
-            # Encontra a primeira associação de escola do usuário
             primeira_associacao = user.escolas.first()
             if primeira_associacao:
-                # Guarda o ID da escola na sessão do usuário
                 session['escola_id'] = primeira_associacao.escola_id
             else:
-                # Se o usuário não estiver em nenhuma escola
                 session['escola_id'] = None
 
             flash(f'Bem-vindo(a), {user.nome}!', 'success')
@@ -380,14 +398,29 @@ def logout():
 @app.route('/home')
 @login_required
 def home():
-    # --- NOVA LÓGICA DE REDIRECIONAMENTO ---
-    # Redireciona para o dashboard apropriado com base no papel do usuário
+    """
+    Redireciona o usuário para sua página inicial ("home") apropriada
+    com base em seu papel. Esta rota é o destino principal após o login.
+    """
     if current_user.is_superadmin:
         return redirect(url_for('superadmin_dashboard'))
     if current_user.is_admin:
         return redirect(url_for('admin_dashboard'))
 
-    # Lógica original para professores (usuários não-admin)
+    # Se não for nenhum dos acima, é um professor. A "home" dele são as agendas.
+    return redirect(url_for('listar_agendas'))
+
+
+@app.route('/agendas')
+@login_required
+def listar_agendas():
+    """
+    Exibe a lista de recursos disponíveis (agendas) para a escola do usuário.
+    Esta página é acessível por administradores e professores.
+    """
+    if current_user.is_superadmin:
+        return redirect(url_for('superadmin_dashboard'))
+
     escola_id = session.get('escola_id')
     if not escola_id:
         flash("Você não está associado a nenhuma escola. Entre em contato com o administrador.", "warning")
@@ -401,26 +434,41 @@ def home():
 @app.route('/resource/<int:resource_id>')
 @login_required
 def select_shift(resource_id):
-    """Esta rota agora carrega a nova página de agenda dinâmica."""
+    """
+    Carrega a página da agenda. A data mínima do calendário é calculada
+    com base no papel do usuário (admin pode sempre, professor segue a regra).
+    """
     escola_id = session.get('escola_id')
-    # Garante que o recurso pertence à escola do usuário
     resource = Resource.query.filter_by(
         id=resource_id, escola_id=escola_id).first_or_404()
-
-    # --- CORREÇÃO AQUI ---
-    # Busca apenas os usuários associados à escola atual
     usuarios = Usuario.query.join(UsuarioEscola).filter(
         UsuarioEscola.escola_id == escola_id).order_by(Usuario.nome).all()
 
-    # --- LÓGICA ATUALIZADA PARA A DATA INICIAL ---
-    # Pega a data de hoje como base
-    initial_date = date.today()
-    weekday = initial_date.weekday()  # Segunda-feira é 0, Sábado é 5, Domingo é 6
+    today = date.today()
+    primeira_data_permitida = today  # Padrão para admin
 
-    # Se for Sábado (5), avança 2 dias para a próxima Segunda-feira
+    # Aplica a regra de antecedência apenas se o usuário NÃO for admin
+    if not current_user.is_admin:
+        min_days_antecedencia = resource.min_agendamento_dias
+        primeira_data_permitida = today + timedelta(days=min_days_antecedencia)
+
+    date_str_url = request.args.get('date')
+    data_selecionada = None
+    if date_str_url:
+        try:
+            data_selecionada = datetime.strptime(
+                date_str_url, '%Y-%m-%d').date()
+        except ValueError:
+            data_selecionada = None
+
+    if data_selecionada and data_selecionada >= primeira_data_permitida:
+        initial_date = data_selecionada
+    else:
+        initial_date = primeira_data_permitida
+
+    weekday = initial_date.weekday()
     if weekday == 5:
         initial_date += timedelta(days=2)
-    # Se for Domingo (6), avança 1 dia para a próxima Segunda-feira
     elif weekday == 6:
         initial_date += timedelta(days=1)
 
@@ -487,6 +535,7 @@ def get_agenda_data(resource_id, date_str):
 @app.route('/agenda/close', methods=['POST'])
 @login_required
 def close_slot():
+    """Fecha um horário. Ação exclusiva de admin, sem restrição de data."""
     if not current_user.is_admin:
         return jsonify({'error': 'Acesso negado'}), 403
 
@@ -496,7 +545,6 @@ def close_slot():
     shift = request.form.get('shift')
     slot_name = request.form.get('slot_name')
 
-    # Validação
     Resource.query.filter_by(
         id=resource_id, escola_id=escola_id).first_or_404()
 
@@ -512,7 +560,7 @@ def close_slot():
                 date=booking_date,
                 slot_name=slot_name,
                 shift=shift,
-                usuario_id=current_user.id,  # <-- CORREÇÃO AQUI
+                usuario_id=current_user.id,
                 teacher_name="Fechado",
                 status='closed'
             )
@@ -529,17 +577,26 @@ def close_slot():
 @app.route('/agenda/book', methods=['POST'])
 @login_required
 def book_slot():
+    """Agenda um horário. Aplica validação de data apenas para não-admins."""
     escola_id = session.get('escola_id')
     resource_id = request.form.get('resource_id')
     date_str = request.form.get('date')
     slot_name = request.form.get('slot_name')
     shift = request.form.get('shift')
 
-    # Validação para garantir que o recurso pertence à escola
-    Resource.query.filter_by(
-        id=resource_id, escola_id=escola_id).first_or_404()
+    resource = Resource.query.filter_by(
+        id=int(resource_id), escola_id=escola_id).first_or_404()
+    booking_date = datetime.strptime(date_str, '%Y-%m-%d').date()
 
-    if Booking.query.filter_by(resource_id=resource_id, date=datetime.strptime(date_str, '%Y-%m-%d').date(), slot_name=slot_name, shift=shift, escola_id=escola_id).first():
+    # Aplica a validação apenas se o usuário logado NÃO for um administrador
+    if not current_user.is_admin:
+        primeira_data_permitida = date.today() + timedelta(days=resource.min_agendamento_dias)
+        if booking_date < primeira_data_permitida:
+            flash(
+                f'Este recurso só pode ser agendado com no mínimo {resource.min_agendamento_dias} dia(s) de antecedência.', 'danger')
+            return redirect(url_for('select_shift', resource_id=resource_id))
+
+    if Booking.query.filter_by(resource_id=resource_id, date=booking_date, slot_name=slot_name, shift=shift, escola_id=escola_id).first():
         flash('Este horário foi agendado por outra pessoa.', 'warning')
         return redirect(url_for('select_shift', resource_id=resource_id, date=date_str, shift=shift))
 
@@ -547,14 +604,12 @@ def book_slot():
     if current_user.is_admin:
         selected_teacher_id = request.form.get('teacher_id')
         if selected_teacher_id:
-            # --- CORREÇÃO AQUI ---
-            # Trocamos Teacher por Usuario
             book_for_teacher = Usuario.query.get(int(selected_teacher_id))
 
     new_booking = Booking(
         escola_id=escola_id,
         resource_id=int(resource_id),
-        date=datetime.strptime(date_str, '%Y-%m-%d').date(),
+        date=booking_date,
         slot_name=slot_name,
         shift=shift,
         usuario_id=book_for_teacher.id,
@@ -646,20 +701,18 @@ def admin_dashboard():
 @admin_required
 def add_resource():
     name = request.form.get('name')
-    # 1. Pega o ID da escola da sessão do usuário
     escola_id = session.get('escola_id')
-
     if not escola_id:
         flash('Erro: Não foi possível identificar a sua escola. Por favor, faça login novamente.', 'danger')
         return redirect(url_for('admin_dashboard'))
-
     if name:
-        # 2. Adiciona o escola_id ao criar o novo recurso
         new_resource = Resource(
             name=name,
             description=request.form.get('description'),
             icon=request.form.get('icon') or 'bi-box',
-            escola_id=escola_id
+            escola_id=escola_id,
+            min_agendamento_dias=int(
+                request.form.get('min_agendamento_dias', 0))
         )
         db.session.add(new_resource)
         db.session.commit()
@@ -673,7 +726,6 @@ def add_resource():
 @admin_required
 def edit_resource(resource_id):
     escola_id = session.get('escola_id')
-    # Garante que o admin só possa editar um recurso da sua própria escola
     resource = Resource.query.filter_by(
         id=resource_id, escola_id=escola_id).first_or_404()
     name = request.form.get('name')
@@ -681,6 +733,8 @@ def edit_resource(resource_id):
         resource.name = name
         resource.description = request.form.get('description')
         resource.icon = request.form.get('icon') or 'bi-box'
+        resource.min_agendamento_dias = int(
+            request.form.get('min_agendamento_dias', 0))
         db.session.commit()
         flash('Recurso atualizado com sucesso!', 'success')
     else:
@@ -706,42 +760,31 @@ def delete_resource(resource_id):
 @app.route('/admin/resource/copy/<int:original_id>', methods=['POST'])
 @admin_required
 def copy_resource(original_id):
-    # Pega o ID da escola da sessão do usuário
     escola_id = session.get('escola_id')
     if not escola_id:
         flash('Erro: Não foi possível identificar a sua escola.', 'danger')
         return redirect(url_for('admin_dashboard'))
-
-    # Garante que o recurso original pertence à escola do usuário
     original_resource = Resource.query.filter_by(
         id=original_id, escola_id=escola_id).first_or_404()
-
     new_name = request.form.get('new_name')
     new_icon = request.form.get('new_icon') or 'bi-box'
-
     if not new_name:
         flash('O novo nome do recurso é obrigatório.', 'danger')
         return redirect(url_for('admin_dashboard'))
-
     new_resource = Resource(
         name=new_name,
         description=original_resource.description,
         icon=new_icon,
         sort_order=original_resource.sort_order + 1,
-        escola_id=escola_id  # Adiciona o ID da escola à nova cópia
+        escola_id=escola_id,
+        min_agendamento_dias=original_resource.min_agendamento_dias
     )
     db.session.add(new_resource)
-    db.session.commit()  # Commit para que o new_resource tenha um ID
-
-    # Copia os templates de horário do recurso original para o novo
+    db.session.commit()
     for template in original_resource.schedule_templates:
         new_template = ScheduleTemplate(
-            resource_id=new_resource.id,
-            shift=template.shift,
-            slots=template.slots
-        )
+            resource_id=new_resource.id, shift=template.shift, slots=template.slots)
         db.session.add(new_template)
-
     db.session.commit()
     flash(
         f'Recurso "{original_resource.name}" copiado com sucesso para "{new_name}"!', 'success')
@@ -806,101 +849,129 @@ def manage_schedules(resource_id):
 
 
 @app.route('/admin/teachers', methods=['GET', 'POST'])
+@login_required
 @admin_required
 def manage_teachers():
-    # --- CORREÇÃO AQUI ---
-    # Busca o ID da escola diretamente da sessão do usuário logado.
     escola_id = session.get('escola_id')
-    if not escola_id:
-        flash('Não foi possível identificar la escuela. Por favor, faça login novamente.', 'danger')
-        return redirect(url_for('login'))
-
     escola_atual = Escola.query.get_or_404(escola_id)
 
     if request.method == 'POST':
-        # --- Coleta dos dados do formulário ---
+        # ... (a sua lógica de POST para adicionar/convidar um utilizador continua a mesma) ...
         nome = request.form.get('name')
+        nome_curto = request.form.get('nome_curto')
         email = request.form.get('email')
         papel = 'admin' if 'is_admin' in request.form else 'professor'
         matricula = request.form.get('registration')
 
-        # --- Validações ---
         if not all([nome, email]):
             flash('Nome e e-mail são obrigatórios.', 'danger')
             return redirect(url_for('manage_teachers'))
 
+        disciplinas_selecionadas = request.form.getlist('disciplinas')
+        disciplinas_do_usuario = []
+        for item in disciplinas_selecionadas:
+            if item.isdigit():
+                disciplina = Disciplina.query.get(int(item))
+                if disciplina and disciplina.escola_id == escola_id:
+                    disciplinas_do_usuario.append(disciplina)
+            elif item:
+                nova_disciplina = Disciplina.query.filter_by(
+                    nome=item, escola_id=escola_id).first()
+                if not nova_disciplina:
+                    nova_disciplina = Disciplina(
+                        nome=item, escola_id=escola_id)
+                    db.session.add(nova_disciplina)
+                disciplinas_do_usuario.append(nova_disciplina)
+
         usuario_existente = Usuario.query.filter_by(email=email).first()
+
         if not usuario_existente:
-            # Se o usuário não existe, cria um novo
-            novo_usuario = Usuario(nome=nome, email=email)
+            novo_usuario = Usuario(
+                nome=nome, nome_curto=nome_curto, email=email)
             db.session.add(novo_usuario)
-            db.session.flush()  # Para obter o ID do novo usuário
+            db.session.flush()
+            novo_usuario.disciplinas = disciplinas_do_usuario
             usuario_para_associar = novo_usuario
         else:
-            # Se o usuário já existe, usa o existente
             usuario_para_associar = usuario_existente
+            usuario_para_associar.nome = nome
+            usuario_para_associar.nome_curto = nome_curto
+            usuario_para_associar.disciplinas = disciplinas_do_usuario
 
         associacao_existente = UsuarioEscola.query.filter_by(
-            usuario_id=usuario_para_associar.id,
-            escola_id=escola_id
-        ).first()
+            usuario_id=usuario_para_associar.id, escola_id=escola_id).first()
 
         if not associacao_existente:
             nova_associacao = UsuarioEscola(
-                usuario_id=usuario_para_associar.id,
-                escola_id=escola_id,
-                papel=papel,
-                matricula=matricula
-            )
+                usuario_id=usuario_para_associar.id, escola_id=escola_id, papel=papel, matricula=matricula)
             db.session.add(nova_associacao)
 
-            # Envia e-mail de convite apenas se o usuário for novo (sem senha)
             if not usuario_para_associar.password_hash:
                 send_invitation_email(usuario_para_associar, escola_atual)
 
             db.session.commit()
             flash(
-                f'Usuário "{usuario_para_associar.nome}" associado a esta escola com sucesso!', 'success')
+                f'Utilizador "{usuario_para_associar.nome}" associado e/ou convidado com sucesso!', 'success')
         else:
-            flash('Este usuário já está associado a esta escola.', 'warning')
+            associacao_existente.papel = papel
+            associacao_existente.matricula = matricula
+            db.session.commit()
+            flash('Dados do utilizador atualizados com sucesso nesta escola.', 'info')
 
         return redirect(url_for('manage_teachers'))
 
-    # Busca apenas os membros (associações) da escola do admin logado
-    membros = UsuarioEscola.query.filter_by(escola_id=escola_id).all()
-    return render_template('admin_teachers.html', membros=membros)
+    # --- LÓGICA GET CORRIGIDA ---
+    # Junta as tabelas e ordena pelo nome do utilizador
+    membros = db.session.query(UsuarioEscola).join(Usuario).filter(
+        UsuarioEscola.escola_id == escola_id).order_by(Usuario.nome).all()
+
+    disciplinas_da_escola = Disciplina.query.filter_by(
+        escola_id=escola_id).order_by(Disciplina.nome).all()
+    return render_template('admin_teachers.html', membros=membros, disciplinas=disciplinas_da_escola)
 
 
 @app.route('/admin/user/edit/<int:user_id>', methods=['POST'])
+@login_required
 @admin_required
 def edit_user(user_id):
-    # Por enquanto, estamos assumindo que a edição ocorre no contexto da primeira escola
-    escola_atual = Escola.query.first()
-
+    escola_id = session.get('escola_id')
     usuario = Usuario.query.get_or_404(user_id)
-    associacao = UsuarioEscola.query.filter_by(
-        usuario_id=user_id, escola_id=escola_atual.id).first_or_404()
 
     new_email = request.form.get('email')
-
-    # Verifica se o novo e-mail já está em uso por OUTRO usuário
     existing_user = Usuario.query.filter(
         Usuario.id != user_id, Usuario.email == new_email).first()
     if existing_user:
         flash(
-            f'O e-mail "{new_email}" já está em uso por outro usuário.', 'danger')
+            f'O e-mail "{new_email}" já está em uso por outro utilizador.', 'danger')
         return redirect(url_for('manage_teachers'))
 
-    # Atualiza os dados do usuário
     usuario.nome = request.form.get('name')
+    usuario.nome_curto = request.form.get('nome_curto')
     usuario.email = new_email
 
-    # Atualiza os dados da associação
+    associacao = UsuarioEscola.query.filter_by(
+        usuario_id=user_id, escola_id=escola_id).first_or_404()
     associacao.papel = 'admin' if 'is_admin' in request.form else 'professor'
     associacao.matricula = request.form.get('registration')
 
+    disciplinas_selecionadas = request.form.getlist('disciplinas')
+    disciplinas_do_usuario = []
+    for item in disciplinas_selecionadas:
+        if item.isdigit():
+            disciplina = Disciplina.query.get(int(item))
+            if disciplina and disciplina.escola_id == escola_id:
+                disciplinas_do_usuario.append(disciplina)
+        elif item:
+            nova_disciplina = Disciplina.query.filter_by(
+                nome=item, escola_id=escola_id).first()
+            if not nova_disciplina:
+                nova_disciplina = Disciplina(nome=item, escola_id=escola_id)
+                db.session.add(nova_disciplina)
+            disciplinas_do_usuario.append(nova_disciplina)
+    usuario.disciplinas = disciplinas_do_usuario
+
     db.session.commit()
-    flash('Usuário atualizado com sucesso!', 'success')
+    flash('Utilizador atualizado com sucesso!', 'success')
     return redirect(url_for('manage_teachers'))
 
 
@@ -1397,10 +1468,14 @@ def seed_plans_command():
 
 
 @app.route('/admin/upgrade-plan')
+@login_required
 @admin_required
 def upgrade_plan():
-    # Lógica para buscar os planos e calcular a economia (reaproveitada da rota register)
-    planos = Plano.query.order_by(Plano.preco).all()
+    # --- CORREÇÃO AQUI ---
+    # Busca apenas os planos que têm um preço maior que zero (planos pagos)
+    planos = Plano.query.filter(Plano.preco > 0).order_by(Plano.preco).all()
+
+    # Lógica para calcular a economia (reaproveitada da rota register)
     plano_mensal_base = Plano.query.filter_by(nome='Mensal').first()
     if plano_mensal_base:
         custo_anual_base = plano_mensal_base.preco * 12
@@ -1409,6 +1484,7 @@ def upgrade_plan():
                 plano.economia = custo_anual_base - plano.preco
             else:
                 plano.economia = 0
+
     return render_template('upgrade_plan.html', planos=planos)
 
 
@@ -1839,32 +1915,31 @@ def delete_plan(plan_id):
 @login_required
 def profile():
     if request.method == 'POST':
+        # ... (lógica de upload, mudança de senha) ...
 
-        # --- Lógica para Mudar a Senha ---
-        if 'change_password' in request.form:
-
-            current_password = request.form.get('current_password')
-            new_password = request.form.get('new_password')
-            confirm_password = request.form.get('confirm_password')
-
-            if not current_user.check_password(current_password):
-                flash('A sua senha atual está incorreta.', 'danger')
-
-            elif new_password != confirm_password:
-                flash('A nova senha e a confirmação não coincidem.', 'danger')
-
-            else:
-                current_user.set_password(new_password)
-                db.session.commit()
-                flash('A sua senha foi alterada com sucesso!', 'success')
-
-            return redirect(url_for('profile'))
-
-        # --- Lógica para Atualizar o Perfil ---
-        elif 'update_profile' in request.form:
-
+        if 'update_profile' in request.form:
             current_user.nome = request.form.get('nome')
             current_user.nome_curto = request.form.get('nome_curto')
+
+            escola_id = session.get('escola_id')
+            if escola_id and not current_user.is_superadmin:
+                disciplinas_selecionadas = request.form.getlist('disciplinas')
+                disciplinas_do_usuario = []
+                for item in disciplinas_selecionadas:
+                    if item.isdigit():
+                        disciplina = Disciplina.query.get(int(item))
+                        if disciplina and disciplina.escola_id == escola_id:
+                            disciplinas_do_usuario.append(disciplina)
+                    else:
+                        nova_disciplina = Disciplina.query.filter_by(
+                            nome=item, escola_id=escola_id).first()
+                        if not nova_disciplina:
+                            nova_disciplina = Disciplina(
+                                nome=item, escola_id=escola_id)
+                            db.session.add(nova_disciplina)
+                        disciplinas_do_usuario.append(nova_disciplina)
+                current_user.disciplinas = disciplinas_do_usuario
+
             db.session.commit()
 
             novo_nome_exibicao = current_user.nome_curto or current_user.nome
@@ -1873,41 +1948,15 @@ def profile():
             db.session.commit()
 
             flash('O seu perfil foi atualizado com sucesso!', 'success')
-
             return redirect(url_for('profile'))
 
-        # --- Lógica para Upload de Foto ---
-        elif 'upload_picture' in request.form:
+    escola_id = session.get('escola_id')
+    disciplinas_da_escola = []
+    if escola_id:
+        disciplinas_da_escola = Disciplina.query.filter_by(
+            escola_id=escola_id).order_by(Disciplina.nome).all()
 
-            if 'profile_pic' in request.files:
-                file = request.files['profile_pic']
-                if file.filename != '':
-                    try:
-                        # ... (lógica de salvar e redimensionar a imagem) ...
-                        flash('Foto de perfil atualizada com sucesso!', 'success')
-
-                    except Exception as e:
-                        flash(
-                            f'Ocorreu um erro ao enviar a foto: {e}', 'danger')
-
-            return redirect(url_for('profile'))
-
-        # --- Lógica para Remover Foto ---
-        elif 'remove_picture' in request.form:
-
-            if current_user.foto_perfil and 'googleusercontent.com' not in current_user.foto_perfil:
-                try:
-                    os.remove(os.path.join(
-                        app.config['UPLOAD_FOLDER'], current_user.foto_perfil))
-                except OSError as e:
-                    print(f"Erro ao remover arquivo de foto antigo: {e}")
-            current_user.foto_perfil = None
-            db.session.commit()
-            flash('Foto de perfil removida.', 'success')
-
-            return redirect(url_for('profile'))
-
-    return render_template('profile.html')
+    return render_template('profile.html', disciplinas=disciplinas_da_escola)
 
 
 @app.route('/uploads/<path:filename>')
@@ -1964,29 +2013,36 @@ def admin_settings():
     escola = Escola.query.get_or_404(escola_id)
 
     if request.method == 'POST':
-        # Atualiza o nome da escola
+        # Atualiza os dados da escola
         escola.nome = request.form.get('nome_escola')
+        escola.nome_diretor = request.form.get('nome_diretor')
+        escola.email_contato = request.form.get('email_contato')
+        escola.telefone_fixo = request.form.get('telefone_fixo')
+        escola.telefone_celular = request.form.get('telefone_celular')
+        # --- ATUALIZAÇÃO DOS CAMPOS DE ENDEREÇO ---
+        escola.cep = request.form.get('cep')
+        escola.endereco = request.form.get('endereco')
+        escola.numero = request.form.get('numero')
+        escola.bairro = request.form.get('bairro')
+        escola.cidade = request.form.get('cidade')
+        escola.estado = request.form.get('estado')
 
         # Lógica para o upload da logo
         if 'logo_escola' in request.files:
             file = request.files['logo_escola']
             if file.filename != '':
                 try:
-                    # Gera um nome de arquivo seguro e único
                     filename = secure_filename(
                         f"escola_{escola_id}_{file.filename}")
                     filepath = os.path.join(
                         app.config['UPLOAD_FOLDER'], filename)
 
-                    # Redimensiona a imagem para um tamanho máximo (ex: 200x200)
                     output_size = (200, 200)
                     img = Image.open(file)
                     img.thumbnail(output_size)
                     img.save(filepath)
 
-                    # Salva o nome do arquivo no banco de dados
                     escola.logo_url = filename
-                    flash('Logo da escola atualizada com sucesso!', 'success')
                 except Exception as e:
                     flash(f'Ocorreu um erro ao enviar a logo: {e}', 'danger')
 
@@ -2036,6 +2092,81 @@ def microsoft_callback():
         # Se o utilizador não existe, mostra um erro claro
         flash('Login com Microsoft falhou. O e-mail não está cadastrado no sistema. Se você é administrador, crie uma conta. Se é professor, peça um convite ao seu administrador.', 'danger')
         return redirect(url_for('login'))
+
+
+@app.route('/admin/export', methods=['GET'])
+@login_required
+@admin_required
+def admin_export_page():
+    """Exibe a página de exportação de dados para o admin da escola."""
+    escola_id = session.get('escola_id')
+    # Busca os recursos da escola para popular o filtro
+    resources = Resource.query.filter_by(
+        escola_id=escola_id).order_by(Resource.name).all()
+    return render_template('admin_export.html', resources=resources)
+
+
+@app.route('/admin/export/bookings', methods=['POST'])
+@login_required
+@admin_required
+def export_bookings_csv():
+    """Gera e retorna um arquivo CSV com os agendamentos filtrados."""
+    escola_id = session.get('escola_id')
+
+    try:
+        resource_id_str = request.form.get('resource_id')
+        start_date_str = request.form.get('start_date')
+        end_date_str = request.form.get('end_date')
+
+        start_date = datetime.strptime(start_date_str, '%d/%m/%Y').date()
+        end_date = datetime.strptime(end_date_str, '%d/%m/%Y').date()
+
+        # A consulta base busca todos os agendamentos no período
+        query = db.session.query(Booking, Usuario, Resource).join(Usuario).join(Resource).filter(
+            Booking.escola_id == escola_id,
+            Booking.date.between(start_date, end_date)
+        )
+
+        # Se um recurso específico foi selecionado, adiciona o filtro
+        if resource_id_str and resource_id_str.isdigit():
+            resource_id = int(resource_id_str)
+            query = query.filter(Booking.resource_id == resource_id)
+
+        report_data = query.order_by(
+            Booking.date, Booking.shift, Booking.slot_name).all()
+
+        # Geração do CSV em memória
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        writer.writerow(['Data', 'Recurso', 'Turno', 'Horário',
+                        'Professor', 'Nome Curto', 'Status'])
+
+        for booking, usuario, resource in report_data:
+            writer.writerow([
+                booking.date.strftime('%d/%m/%Y'),
+                resource.name,
+                booking.shift.capitalize(),
+                booking.slot_name,
+                booking.teacher_name,
+                usuario.nome_curto or '',
+                booking.status.capitalize()
+            ])
+
+        output.seek(0)
+
+        filename = f"relatorio_agendamentos_{start_date_str.replace('/', '-')}_{end_date_str.replace('/', '-')}.csv"
+
+        return Response(
+            output,
+            mimetype="text/csv",
+            headers={"Content-Disposition": f"attachment;filename={filename}"}
+        )
+
+    except (ValueError, TypeError):
+        flash(
+            'Filtros inválidos para exportação. Verifique o recurso e as datas.', 'danger')
+        return redirect(url_for('admin_export_page'))
 
 
 if __name__ == '__main__':

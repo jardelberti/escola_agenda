@@ -4,20 +4,37 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 db = SQLAlchemy()
 
-# --- NOVOS MODELOS E MODELOS ATUALIZADOS ---
 
-# 1. Nova tabela para gerenciar as escolas (tenants)
+usuario_disciplina = db.Table('usuario_disciplina',
+                              db.Column('usuario_id', db.Integer, db.ForeignKey(
+                                  'usuario.id'), primary_key=True),
+                              db.Column('disciplina_id', db.Integer, db.ForeignKey(
+                                  'disciplina.id'), primary_key=True)
+                              )
 
 
 class Escola(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(150), nullable=False, unique=True)
+    nome_diretor = db.Column(db.String(150))
+    email_contato = db.Column(db.String(150))
+    telefone_fixo = db.Column(db.String(20))
+    telefone_celular = db.Column(db.String(20))
+    cep = db.Column(db.String(10))
+    endereco = db.Column(db.String(255))
+    numero = db.Column(db.String(20))
+    bairro = db.Column(db.String(100))
+    cidade = db.Column(db.String(100))
+    estado = db.Column(db.String(50))
+    pais = db.Column(db.String(100), default='Brasil')
     status = db.Column(db.String(50), nullable=False, default='ativo')
     logo_url = db.Column(db.String(255))
     recursos = db.relationship(
         'Resource', backref='escola', lazy=True, cascade='all, delete-orphan')
     assinaturas = db.relationship(
         'Assinatura', backref='escola', lazy=True, cascade='all, delete-orphan')
+    disciplinas = db.relationship(
+        'Disciplina', backref='escola', lazy=True, cascade='all, delete-orphan')
 
 
 class Usuario(UserMixin, db.Model):
@@ -32,6 +49,8 @@ class Usuario(UserMixin, db.Model):
 
     escolas = db.relationship(
         'UsuarioEscola', backref='usuario', lazy='dynamic', cascade='all, delete-orphan')
+    disciplinas = db.relationship('Disciplina', secondary=usuario_disciplina, lazy='subquery',
+                                  backref=db.backref('usuarios', lazy=True))
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -51,6 +70,13 @@ class Usuario(UserMixin, db.Model):
 
 # 3. Nova tabela de associação (muitos-para-muitos)
 #    Liga Usuarios a Escolas e define o papel de cada um
+
+
+class Disciplina(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), nullable=False)
+    escola_id = db.Column(db.Integer, db.ForeignKey(
+        'escola.id'), nullable=False)
 
 
 class UsuarioEscola(db.Model):
@@ -73,14 +99,18 @@ class UsuarioEscola(db.Model):
 
 class Resource(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    # Adiciona a chave estrangeira para ligar o recurso a uma escola
     escola_id = db.Column(db.Integer, db.ForeignKey(
         'escola.id'), nullable=False)
-
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.String(200))
     icon = db.Column(db.String(50))
     sort_order = db.Column(db.Integer, nullable=False, default=0)
+
+    # Define o número mínimo de dias de antecedência para agendar.
+    # O server_default='0' instrui o banco de dados a preencher
+    # as linhas existentes com o valor 0 durante a migração.
+    min_agendamento_dias = db.Column(
+        db.Integer, nullable=False, default=0, server_default='0')
 
     schedule_templates = db.relationship(
         'ScheduleTemplate', backref='resource', lazy=True, cascade='all, delete-orphan')

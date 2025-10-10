@@ -6,7 +6,7 @@
 <div class="mx-auto max-w-2xl px-4 py-4 pb-24">
     
     <div class="relative flex items-center justify-center mb-6">
-        <a href="{{ url_for('home') }}" class="absolute left-0 flex items-center gap-2 text-slate-600 hover:text-slate-900 pr-4">
+        <a href="{{ url_for('listar_agendas') }}" class="absolute left-0 flex items-center gap-2 text-slate-600 hover:text-slate-900 pr-4">
             <span class="material-symbols-outlined">arrow_back</span>
         </a>
         <h1 class="text-2xl sm:text-3xl font-bold text-slate-800 flex items-center gap-2">
@@ -90,7 +90,6 @@
     
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // --- 1. VARIÁVEIS DE ESTADO E REFERÊNCIAS ---
         const calendarContainer = document.getElementById('calendar-container');
         const slotsContainer = document.getElementById('slots-list-container');
         const loadingSpinner = document.getElementById('loading-spinner');
@@ -99,34 +98,24 @@
         
         const urlParams = new URLSearchParams(window.location.search);
         let selectedDate = urlParams.get('date') || '{{ current_date.strftime("%Y-%m-%d") }}';
-        
         let selectedShift = urlParams.get('shift') || 'matutino';
 
-        // --- NOVO: Função para mostrar a data selecionada ---
         function updateDateDisplay(dateStr) {
             const displayElement = document.getElementById('selected-date-display');
             if (!displayElement) return;
-
-            // Adicionar 'T00:00:00' previne problemas de fuso horário que podem mudar o dia
             const dateObj = new Date(dateStr + 'T00:00:00');
-            
             const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
             const formattedDate = dateObj.toLocaleDateString('pt-BR', options);
-            
-            // Coloca a primeira letra em maiúsculo
             displayElement.textContent = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
         }
 
-        // --- 2. FUNÇÃO PRINCIPAL PARA BUSCAR E RENDERIZAR DADOS ---
         async function fetchAndRenderSlots() {
             loadingSpinner.style.display = 'block';
             slotsContainer.innerHTML = '';
             slotsContainer.appendChild(loadingSpinner);
-
             try {
                 const newUrl = window.location.pathname + `?date=${selectedDate}`;
                 window.history.pushState({ path: newUrl }, '', newUrl);
-
                 const response = await fetch(`/api/agenda/{{ resource.id }}/${selectedDate}`);
                 if (!response.ok) throw new Error('Erro ao buscar dados.');
                 const data = await response.json();
@@ -137,20 +126,16 @@
             }
         }
 
-        // --- 3. FUNÇÃO PARA RENDERIZAR A LISTA DE HORÁRIOS ---
         function renderSlots(slots) {
             loadingSpinner.style.display = 'none';
             slotsContainer.innerHTML = '';
-
             if (!slots || slots.length === 0) {
                 slotsContainer.innerHTML = `<div class="bg-white p-6 rounded-xl border text-center text-slate-500">A estrutura de horários para este turno ainda não foi definida.</div>`;
                 return;
             }
-
             slots.forEach(slot => {
                 let slotHTML = '';
                 let statusBadge = '';
-
                 if (slot.booked_by === 'Fechado') {
                     statusBadge = `<span class="bg-black text-white text-xs font-semibold px-3 py-1 rounded-full">Fechado</span>`;
                 } else if (slot.booked_by) {
@@ -158,17 +143,14 @@
                 } else if (slot.type !== 'intervalo') {
                     statusBadge = `<span class="bg-green-600 text-white text-xs font-semibold px-3 py-1 rounded-full">Disponível</span>`;
                 }
-
                 if (slot.type === 'intervalo') {
                     slotHTML = `<div class="w-full flex items-center gap-4 bg-slate-100 p-4 rounded-lg border text-left"><div class="flex-grow"><p class="text-slate-500 font-medium text-center">${slot.name}</p></div></div>`;
                 } else {
                     let mainElement = '';
                     let deleteButton = '';
-
                     if ((slot.is_mine || slot.is_admin) && slot.booking_id) {
                         deleteButton = `<a href="/agenda/booking/delete/${slot.booking_id}?shift=${selectedShift}&date=${selectedDate}" class="flex items-center justify-center size-8 rounded-full bg-red-100 text-red-600 hover:bg-red-200 flex-shrink-0" title="Excluir Agendamento">&times;</a>`;
                     }
-
                     if (!slot.booked_by) {
                         mainElement = `<button class="w-full flex items-center gap-4 bg-white p-3 rounded-lg border border-slate-200 text-left hover:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600" data-bs-toggle="modal" data-bs-target="#bookingModal" data-slot-name="${slot.name}"><p class="text-slate-800 font-medium flex-grow">${slot.name}</p>${statusBadge}</button>`;
                     } else {
@@ -180,7 +162,6 @@
             });
         }
         
-        // --- 4. FUNÇÃO PARA ATUALIZAR ESTILO DOS BOTÕES DE TURNO ---
         function updateShiftButtons() {
             if (selectedShift === 'matutino') {
                 btnMatutino.classList.add('bg-blue-600', 'text-white');
@@ -195,11 +176,11 @@
             }
         }
 
-        // --- 5. INICIALIZAÇÃO E EVENT LISTENERS ---
         flatpickr(calendarContainer, {
             inline: true,
             dateFormat: "Y-m-d",
             defaultDate: selectedDate,
+            minDate: "{{ current_date.strftime('%Y-%m-%d') }}",
             locale: {
                 firstDayOfWeek: 0,
                 weekdays: { shorthand: ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"], longhand: ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"] },
@@ -208,7 +189,7 @@
             disable: [ function(date) { return (date.getDay() === 0 || date.getDay() === 6); } ],
             onChange: function(selectedDates, dateStr, instance) {
                 selectedDate = dateStr;
-                updateDateDisplay(selectedDate); // ATUALIZADO: Chama a função ao mudar de data
+                updateDateDisplay(selectedDate);
                 fetchAndRenderSlots();
             }
         });
@@ -243,7 +224,7 @@
         
         updateShiftButtons();
         fetchAndRenderSlots();
-        updateDateDisplay(selectedDate); // ATUALIZADO: Chama a função no carregamento inicial
+        updateDateDisplay(selectedDate);
     });
     </script>
 
@@ -254,3 +235,4 @@
     </style>
 </div>
 {% endblock %}
+
