@@ -1,25 +1,48 @@
 services:
   # --- Serviço da Aplicação (Flask) ---
   app:
-    # A instrução para construir a imagem a partir do Dockerfile local
     build: .
-    # Opcional, mas bom para nomear a imagem que será construída
     image: ${APP_IMAGE}
     container_name: agenda_app
     restart: unless-stopped
-    ports:
-      - "${HOST_PORT}:5000"
+    # A porta não é mais exposta. O Nginx se comunica internamente.
     volumes:
-      - .:/app
       - app_data:/app/data
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - TZ=America/Sao_Paulo
+      - STRIPE_PUBLIC_KEY=${STRIPE_PUBLIC_KEY}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - MAIL_SERVER=${MAIL_SERVER}
+      - MAIL_PORT=${MAIL_PORT}
+      - MAIL_USE_TLS=${MAIL_USE_TLS}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_DEFAULT_SENDER=${MAIL_DEFAULT_SENDER}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
     depends_on:
       db:
         condition: service_healthy
+
+  # --- Serviço do Nginx (Nosso "Porteiro") ---
+  nginx:
+    image: nginx:alpine
+    container_name: agenda_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80" # Expõe a porta 80 (HTTP) para o mundo
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./static:/app/static:ro # Compartilha a pasta static com o Nginx (modo somente leitura)
+      - ./certbot/www:/var/www/certbot
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - app
 
   # --- Serviço do Banco de Dados (PostgreSQL) ---
   db:
@@ -27,7 +50,7 @@ services:
     container_name: agenda_db
     restart: unless-stopped
     ports:
-    - "5432:5432"
+      - "127.0.0.1:5432:5432" # Mais seguro: Acessível apenas de dentro do VPS
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -47,25 +70,29 @@ services:
     container_name: agenda_redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379" # Mais seguro: Acessível apenas de dentro do VPS
     volumes:
       - redis_data:/data
 
   # --- Serviço do Trabalhador (Celery) ---
   worker:
-    # Também precisa ser construído a partir do mesmo código
     build: .
     image: ${APP_IMAGE}
     command: celery -A app.celery worker --loglevel=info
     restart: unless-stopped
     volumes:
-      - .:/app
       - app_data:/app/data
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - TZ=America/Sao_Paulo
+      - MAIL_SERVER=${MAIL_SERVER}
+      - MAIL_PORT=${MAIL_PORT}
+      - MAIL_USE_TLS=${MAIL_USE_TLS}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_DEFAULT_SENDER=${MAIL_DEFAULT_SENDER}
     depends_on:
       - db
       - redis
