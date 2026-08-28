@@ -18,6 +18,7 @@ class Resource(db.Model):
     description = db.Column(db.String(200))
     icon = db.Column(db.String(50))
     sort_order = db.Column(db.Integer, nullable=False, default=0)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
     
     # CORREÇÃO: Adiciona o relacionamento para encontrar os templates de horário
     schedule_templates = db.relationship('ScheduleTemplate', backref='resource', lazy=True, cascade='all, delete-orphan')

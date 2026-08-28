@@ -150,7 +150,7 @@ def logout():
 @app.route('/home')
 @login_required
 def home():
-    resources = Resource.query.order_by(Resource.sort_order, Resource.name).all()
+    resources = Resource.query.filter_by(is_active=True).order_by(Resource.sort_order, Resource.name).all()
     return render_template('index.html', resources=resources)
 
 @app.route('/resource/<int:resource_id>')
@@ -158,6 +158,10 @@ def home():
 def select_shift(resource_id):
     """Esta rota agora carrega a nova página de agenda dinâmica."""
     resource = Resource.query.get_or_404(resource_id)
+    if not resource.is_active and not current_user.is_admin:
+        flash(f'O recurso "{resource.name}" está temporariamente indisponível para novos agendamentos.', 'warning')
+        return redirect(url_for('home'))
+
     teachers = Teacher.query.order_by(Teacher.name).all()
     
     # --- LÓGICA ATUALIZADA PARA A DATA INICIAL ---
@@ -266,6 +270,11 @@ def book_slot():
     slot_name = request.form.get('slot_name')
     shift = request.form.get('shift') # Captura o turno do formulário
 
+    resource = Resource.query.get(int(resource_id)) if resource_id else None
+    if not resource or (not resource.is_active and not current_user.is_admin):
+        flash('Este recurso está temporariamente pausado para novos agendamentos.', 'warning')
+        return redirect(url_for('home'))
+
     if Booking.query.filter_by(resource_id=resource_id, date=datetime.strptime(date_str, '%Y-%m-%d').date(), slot_name=slot_name, shift=shift).first():
         flash('Este horário foi agendado por outra pessoa.', 'warning')
         # Redireciona com 'date' e o 'shift'
@@ -309,13 +318,23 @@ def delete_booking(booking_id):
     # Redireciona com 'date' e o 'shift'
     return redirect(url_for('select_shift', resource_id=resource_id, date=date_str, shift=shift))
 
-# --- ROTAS DE ADMINISTRAÇÃO (sem alterações) ---
+# --- ROTAS DE ADMINISTRAÇÃO ---
 
 @app.route('/admin')
 @admin_required
 def admin_dashboard():
     resources = Resource.query.order_by(Resource.sort_order, Resource.name).all()
     return render_template('admin_dashboard.html', resources=resources)
+
+@app.route('/admin/resource/toggle/<int:resource_id>', methods=['POST', 'GET'])
+@admin_required
+def toggle_resource(resource_id):
+    resource = Resource.query.get_or_404(resource_id)
+    resource.is_active = not resource.is_active
+    db.session.commit()
+    status_str = "reativado" if resource.is_active else "pausado"
+    flash(f'Recurso "{resource.name}" foi {status_str} com sucesso!', 'success')
+    return redirect(url_for('admin_dashboard'))
 
 @app.route('/admin/resources/reorder', methods=['POST'])
 @admin_required
@@ -335,7 +354,13 @@ def reorder_resources():
 def add_resource():
     name = request.form.get('name')
     if name:
-        new_resource = Resource(name=name, description=request.form.get('description'), icon=request.form.get('icon') or 'bi-box')
+        is_active = request.form.get('is_active', 'true').lower() in ['true', '1', 'on']
+        new_resource = Resource(
+            name=name,
+            description=request.form.get('description'),
+            icon=request.form.get('icon') or 'bi-box',
+            is_active=is_active
+        )
         db.session.add(new_resource)
         db.session.commit()
         flash('Recurso adicionado com sucesso!', 'success')
@@ -352,6 +377,8 @@ def edit_resource(resource_id):
         resource.name = name
         resource.description = request.form.get('description')
         resource.icon = request.form.get('icon') or 'bi-box'
+        if 'is_active' in request.form:
+            resource.is_active = request.form.get('is_active') in ['true', '1', 'on', True]
         db.session.commit()
         flash('Recurso atualizado com sucesso!', 'success')
     else:

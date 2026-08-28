@@ -38,7 +38,7 @@
                         <select name="resource_id" id="resource_id" class="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500" required>
                             <option value="">Selecione um recurso...</option>
                             {% for resource in resources %}
-                                <option value="{{ resource.id }}" {% if selected_resource_id == resource.id %}selected{% endif %}>{{ resource.name }}</option>
+                                <option value="{{ resource.id }}" {% if selected_resource_id == resource.id %}selected{% endif %}>{{ resource.name }}{% if not resource.is_active %} (Pausado){% endif %}</option>
                             {% endfor %}
                         </select>
                     </div>
