@@ -10,7 +10,7 @@ Sistema de agendamento de recursos escolares (Sala de Informática, Sala Multim�
 
 * **Domínio de Produção**: [https://agendaricardo.com.br](https://agendaricardo.com.br)
 * **Repositório GitHub**: [https://github.com/jardelberti/escola_agenda](https://github.com/jardelberti/escola_agenda)
-* **Docker Hub**: `jardelberti/agenda.escola`
+* **Registro de Containers**: **Build 100% local via Docker Compose na VPS** (o repositório no Docker Hub foi descontinuado/deletado para manter o GitHub como fonte única da verdade).
 
 ---
 
@@ -40,9 +40,9 @@ Existem **apenas duas branches oficiais** no repositório:
 
 ## 🐳 4. Containers Docker em Produção
 
-A stack de produção roda via Docker Compose:
+A stack de produção roda via Docker Compose compilada localmente a partir do código do GitHub:
 
-| Container | Imagem | Função |
+| Container | Imagem Local | Função |
 |---|---|---|
 | `agenda_app` | `jardelberti/agenda.escola:v1.1` | Aplicação web Flask (Gunicorn, 2 workers na porta 5000) |
 | `escola_agenda-worker-1` | `jardelberti/agenda.escola:v1.1` | Worker Celery para tarefas em background (pg_restore) |
@@ -51,16 +51,19 @@ A stack de produção roda via Docker Compose:
 
 ---
 
-## 📦 5. O que está no Docker Hub vs Servidor vs PC
+## 📦 5. Onde o Código e as Versões Vivem
 
 1. **No seu PC (`c:\Projetos\escola_agenda`)**:
    - Branch ativa: **`main`** (Versão oficial de produção atualizada com recurso de pausar agendamento).
    - Branch alternativa: **`v2-comercial`** (Versão 2.0 multi-tenant preservada).
-2. **No Docker Hub (`jardelberti/agenda.escola`)**:
-   - `v1.0`: Imagem base da versão mono-tenant inicial.
-   - `v2.0.0-alpha` / `latest`: Imagem da versão 2.0 comercial.
-3. **No Servidor de Produção (VPS Oracle)**:
-   - Imagem em execução: `jardelberti/agenda.escola:v1.1` (construída e executando os containers atualizados da branch `main`).
+2. **No GitHub (`https://github.com/jardelberti/escola_agenda`)**:
+   - **`main`**: Versão oficial de produção ativa.
+   - **`v2-comercial`**: Versão comercial em standby.
+3. **No Docker Hub**:
+   - *Desativado / Deletado*. Não há dependência de registry externo.
+4. **No Servidor de Produção (VPS Oracle)**:
+   - Sincronizado com a branch **`main`** do GitHub.
+   - Imagem compilada localmente via `docker compose build`.
 
 ---
 
@@ -70,6 +73,13 @@ A stack de produção roda via Docker Compose:
 ```bash
 # Entrar na pasta do projeto
 cd ~/escola_agenda
+
+# Atualizar com a versão mais recente do GitHub
+git pull origin main
+
+# Reconstruir e reiniciar containers
+docker compose build
+docker compose up -d
 
 # Ver status dos containers
 docker compose ps
