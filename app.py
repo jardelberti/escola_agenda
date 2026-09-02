@@ -9,6 +9,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 from functools import wraps
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from models import db, Teacher, Resource, ScheduleTemplate, Booking
 from flask_migrate import Migrate
 from celery import Celery 
@@ -265,6 +266,9 @@ def close_slot():
             db.session.add(new_booking)
             db.session.commit()
             flash('Horário marcado como fechado com sucesso!', 'success')
+    except IntegrityError:
+        db.session.rollback()
+        flash('Este horário já foi agendado ou fechado.', 'warning')
     except Exception as e:
         db.session.rollback()
         flash(f'Ocorreu um erro ao tentar fechar o horário: {e}', 'danger')
@@ -304,9 +308,16 @@ def book_slot():
         teacher_id=book_for_teacher.id,
         teacher_name=book_for_teacher.name
     )
-    db.session.add(new_booking)
-    db.session.commit()
-    flash('Horário agendado com sucesso!', 'success')
+    try:
+        db.session.add(new_booking)
+        db.session.commit()
+        flash('Horário agendado com sucesso!', 'success')
+    except IntegrityError:
+        db.session.rollback()
+        flash('Este horário acabou de ser agendado por outra pessoa.', 'warning')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ocorreu um erro ao realizar o agendamento: {e}', 'danger')
     # Redireciona com 'date' e o 'shift'
     return redirect(url_for('select_shift', resource_id=resource_id, date=date_str, shift=shift))
 

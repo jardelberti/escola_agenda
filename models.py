@@ -43,3 +43,10 @@ class Booking(db.Model):
     slot_name = db.Column(db.String(100), nullable=False)
     status = db.Column(db.String(50), nullable=False, default='booked') # 'booked' ou 'closed'
 
+    # Garante que não haja agendamentos duplicados para o mesmo recurso, data, turno e horário
+    __table_args__ = (
+        db.UniqueConstraint('resource_id', 'date', 'shift', 'slot_name', name='_resource_date_shift_slot_uc'),
+        db.Index('idx_booking_resource_date', 'resource_id', 'date'),
+        db.Index('idx_booking_teacher_date', 'teacher_id', 'date'),
+    )
+
