@@ -23,8 +23,12 @@ def upgrade():
         batch_op.create_index('idx_booking_resource_date', ['resource_id', 'date'], unique=False)
         batch_op.create_index('idx_booking_teacher_date', ['teacher_id', 'date'], unique=False)
 
-    with op.batch_alter_table('resource', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.true()))
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    columns = [c['name'] for c in inspector.get_columns('resource')]
+    if 'is_active' not in columns:
+        with op.batch_alter_table('resource', schema=None) as batch_op:
+            batch_op.add_column(sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.true()))
 
     # ### end Alembic commands ###
 
