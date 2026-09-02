@@ -129,21 +129,23 @@
 
     <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-body p-4 text-center">
-                    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mb-4">
-                        <span class="material-symbols-outlined text-red-600">warning</span>
+            <form id="deleteTeacherForm" method="POST" action="">
+                <div class="modal-content">
+                    <div class="modal-body p-4 text-center">
+                        <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mb-4">
+                            <span class="material-symbols-outlined text-red-600">warning</span>
+                        </div>
+                        <h3 class="text-lg font-medium text-slate-900" id="confirmDeleteModalLabel">Confirmar Exclusão</h3>
+                        <div class="mt-2 text-sm text-slate-500">
+                            <p id="delete-confirmation-text">Você tem certeza que deseja excluir o usuário? Esta ação não pode ser desfeita.</p>
+                        </div>
                     </div>
-                    <h3 class="text-lg font-medium text-slate-900" id="confirmDeleteModalLabel">Confirmar Exclusão</h3>
-                    <div class="mt-2 text-sm text-slate-500">
-                        <p id="delete-confirmation-text">Você tem certeza que deseja excluir o usuário? Esta ação não pode ser desfeita.</p>
+                    <div class="modal-footer flex justify-center bg-slate-50">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" id="confirm-delete-button" class="btn btn-danger">Sim, Excluir</button>
                     </div>
                 </div>
-                <div class="modal-footer flex justify-center bg-slate-50">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <a id="confirm-delete-button" href="#" class="btn btn-danger">Sim, Excluir</a>
-                </div>
-            </div>
+            </form>
         </div>
     </div>
 
@@ -177,8 +179,8 @@
                 const teacherName = button.getAttribute('data-teacher-name');
                 const confirmationText = confirmDeleteModal.querySelector('#delete-confirmation-text');
                 confirmationText.textContent = `Você tem certeza que deseja excluir o usuário "${teacherName}"? Esta ação não pode ser desfeita.`;
-                const confirmButton = confirmDeleteModal.querySelector('#confirm-delete-button');
-                confirmButton.href = deleteUrl;
+                const deleteForm = confirmDeleteModal.querySelector('#deleteTeacherForm');
+                deleteForm.action = deleteUrl;
             });
         }
     });

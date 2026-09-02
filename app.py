@@ -16,7 +16,7 @@ from logging import getLogger
 
 # --- CONFIGURAÇÃO DA APLICAÇÃO ---
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'uma-chave-secreta-muito-dificil-de-adivinhar'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'uma-chave-secreta-muito-dificil-de-adivinhar')
 
 # --- CONFIGURAÇÃO DO BANCO DE DADOS (FLEXÍVEL PARA AWS E LOCAL) ---
 # Cria o diretório de dados se ele não existir
@@ -144,6 +144,16 @@ def logout():
     logout_user()
     flash('Você foi desconectado com sucesso.', 'info')
     return redirect(url_for('login'))
+
+@app.route('/health')
+def health_check():
+    """Endpoint de verificação de integridade da aplicação e conectividade com o banco."""
+    db_status = "connected"
+    try:
+        db.session.execute(db.text('SELECT 1'))
+    except Exception as e:
+        return jsonify({"status": "unhealthy", "database": f"error: {str(e)}"}), 500
+    return jsonify({"status": "healthy", "database": db_status}), 200
 
 # --- ROTAS PRINCIPAIS ---
 
@@ -300,13 +310,13 @@ def book_slot():
     # Redireciona com 'date' e o 'shift'
     return redirect(url_for('select_shift', resource_id=resource_id, date=date_str, shift=shift))
 
-@app.route('/agenda/booking/delete/<int:booking_id>')
+@app.route('/agenda/booking/delete/<int:booking_id>', methods=['POST'])
 @login_required
 def delete_booking(booking_id):
     booking = Booking.query.get_or_404(booking_id)
     resource_id = booking.resource_id
-    date_str = request.args.get('date') 
-    shift = request.args.get('shift') # Captura o turno da URL
+    date_str = request.form.get('date') or request.args.get('date')
+    shift = request.form.get('shift') or request.args.get('shift')
 
     if current_user.is_admin or booking.teacher_id == current_user.id:
         db.session.delete(booking)
@@ -385,7 +395,7 @@ def edit_resource(resource_id):
         flash('O nome do recurso não pode ficar em branco.', 'danger')
     return redirect(url_for('admin_dashboard'))
 
-@app.route('/admin/resource/delete/<int:resource_id>')
+@app.route('/admin/resource/delete/<int:resource_id>', methods=['POST'])
 @admin_required
 def delete_resource(resource_id):
     Booking.query.filter_by(resource_id=resource_id).delete()
@@ -489,7 +499,7 @@ def edit_teacher(teacher_id):
     flash('Usuário atualizado com sucesso!', 'success')
     return redirect(url_for('manage_teachers'))
 
-@app.route('/admin/teacher/delete/<int:teacher_id>')
+@app.route('/admin/teacher/delete/<int:teacher_id>', methods=['POST'])
 @admin_required
 def delete_teacher(teacher_id):
     if current_user.id == teacher_id:

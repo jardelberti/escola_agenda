@@ -16,6 +16,7 @@ services:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-uma-chave-secreta-muito-dificil-de-adivinhar}
       - TZ=America/Sao_Paulo
     depends_on:
       db:
