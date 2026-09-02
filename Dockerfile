@@ -1,7 +1,7 @@
 FROM python:3.11-slim
 
-# Instala o cliente do PostgreSQL
-RUN apt-get update && apt-get install -y postgresql-client
+# Instala o cliente do PostgreSQL e curl para healthcheck
+RUN apt-get update && apt-get install -y --no-install-recommends postgresql-client curl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 RUN pip install gunicorn

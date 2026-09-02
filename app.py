@@ -30,9 +30,39 @@ if database_uri.startswith("postgres://"):
 app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# --- NOVA CONFIGURAÇÃO DA PASTA DE BACKUP ---
+# --- CONFIGURAÇÃO DA PASTA DE BACKUP E RETENÇÃO ---
 BACKUP_FOLDER = os.path.join(DATA_DIR, 'backups')
 os.makedirs(BACKUP_FOLDER, exist_ok=True) # Garante que a pasta exista
+ALLOWED_BACKUP_EXTENSIONS = {'.sql', '.dump', '.tar', '.db'}
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024 # 50 MB
+
+def clean_old_backups(folder=BACKUP_FOLDER, keep_latest=10, max_days=14):
+    """
+    Remove backups antigos para economizar espaço em disco.
+    Garante que pelo menos os `keep_latest` arquivos mais recentes sejam preservados.
+    Arquivos com mais de `max_days` dias são removidos se excederem a cota mínima.
+    """
+    if not os.path.exists(folder):
+        return []
+    files = []
+    for fname in os.listdir(folder):
+        fpath = os.path.join(folder, fname)
+        if os.path.isfile(fpath) and (fname.startswith('backup_') or fname.endswith(('.sql', '.dump', '.db', '.tar'))):
+            files.append((fpath, os.path.getmtime(fpath)))
+    
+    files.sort(key=lambda x: x[1], reverse=True) # Mais recentes primeiro
+    deleted = []
+    now = datetime.now().timestamp()
+    cutoff_seconds = max_days * 86400
+
+    for idx, (fpath, mtime) in enumerate(files):
+        if idx >= keep_latest and (now - mtime) > cutoff_seconds:
+            try:
+                os.remove(fpath)
+                deleted.append(fpath)
+            except OSError:
+                pass
+    return deleted
 
 app.config['CELERY_BROKER_URL'] = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 app.config['CELERY_RESULT_BACKEND'] = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
@@ -731,6 +761,9 @@ def backup_database():
             flash('Tipo de banco de dados não suportado para backup.', 'danger')
             return redirect(url_for('backup_restore_page'))
             
+        # Executa a limpeza preventiva de backups antigos
+        clean_old_backups(BACKUP_FOLDER)
+
         return send_from_directory(BACKUP_FOLDER, filename, as_attachment=True)
 
     except Exception as e:
@@ -740,7 +773,7 @@ def backup_database():
 @app.route('/admin/restore', methods=['POST'])
 @admin_required
 def restore_database():
-    """Salva o arquivo e agenda a restauração em segundo plano."""
+    """Salva o arquivo e agenda a restauração em segundo plano após validações."""
     if 'backup_file' not in request.files:
         flash('Nenhum arquivo selecionado.', 'danger')
         return redirect(url_for('backup_restore_page'))
@@ -750,19 +783,28 @@ def restore_database():
         flash('Nenhum arquivo selecionado.', 'danger')
         return redirect(url_for('backup_restore_page'))
 
-    if file:
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(BACKUP_FOLDER, filename)
-        file.save(filepath)
-        
-        db_uri_str = app.config['SQLALCHEMY_DATABASE_URI']
+    filename = secure_filename(file.filename)
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in ALLOWED_BACKUP_EXTENSIONS:
+        flash(f'Extensão de arquivo não permitida ({ext}). Tipos aceitos: {", ".join(sorted(ALLOWED_BACKUP_EXTENSIONS))}', 'danger')
+        return redirect(url_for('backup_restore_page'))
 
-        # Chama a tarefa em segundo plano, passando o caminho do arquivo
-        restore_task_bg.delay(filepath, db_uri_str)
-        
-        flash('Restauração iniciada em segundo plano! O processo pode levar alguns minutos para ser concluído.', 'success')
+    filepath = os.path.join(BACKUP_FOLDER, filename)
+    file.save(filepath)
+    
+    db_uri_str = app.config['SQLALCHEMY_DATABASE_URI']
 
+    # Chama a tarefa em segundo plano, passando o caminho do arquivo
+    restore_task_bg.delay(filepath, db_uri_str)
+    
+    flash('Restauração iniciada em segundo plano! O processo pode levar alguns minutos para ser concluído.', 'success')
     return redirect(url_for('backup_restore_page'))
+
+@app.cli.command("clean-backups")
+def clean_backups_command():
+    """Remove backups antigos da pasta de dados respeitando a política de retenção."""
+    deleted = clean_old_backups(BACKUP_FOLDER, keep_latest=10, max_days=14)
+    print(f'{len(deleted)} backup(s) antigo(s) removido(s).')
 
 if __name__ == '__main__':
     app.run()
