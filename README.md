@@ -4,10 +4,13 @@
   <p><strong>Um sistema completo de agendamento de recursos para ambientes escolares, conteinerizado com Docker.</strong></p>
   <p>
     <a href="#">
-      <img alt="Versão" src="https://img.shields.io/badge/version-1.1.0-blue?style=for-the-badge&logo=appveyor">
+      <img alt="Versão" src="https://img.shields.io/badge/version-1.2.0-blue?style=for-the-badge&logo=appveyor">
     </a>
     <a href="#">
       <img alt="Licença" src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge">
+    </a>
+    <a href="#">
+      <img alt="Cloudflare R2" src="https://img.shields.io/badge/Backup-Cloudflare%20R2-F38020?style=for-the-badge&logo=cloudflare">
     </a>
   </p>
 </div>
@@ -39,24 +42,30 @@ O sistema possui uma interface administrativa para gestão completa e uma área 
     * Cadastro, edição e exclusão de recursos (salas, equipamentos).
     * **Pausar/Reativar agendamento de recursos** sem apagar histórico ou configurações.
     * Configuração de grades de horários personalizadas (matutino/vespertino).
-    * Visualização de uma agenda semanal completa com todos os agendamentos.
-    * Geração de relatórios de utilização por recurso e período (com gráficos).
-    * Sistema de Backup e Restauração do banco de dados em segundo plano (Celery + Redis).
-    * Ordenação de recursos na tela inicial ("arrastar e soltar").
+    * **Agenda Semanal Completa:** Grid responsivo com colunas alinhadas e visualização por turno.
+    * **Relatórios e Gráficos:** Métricas de ocupação e **exportação em CSV/Excel** (`utf-8-sig`, separador `;`).
+    * **Backup e Restauração:**
+        * Backup manual e restauração em segundo plano via Celery + Redis.
+        * **Backup Automatizado Offsite:** Envio diário dos dumps compactados (`.sql.gz`) para o **Cloudflare R2** com política de retenção.
+    * Ordenação de recursos na tela inicial via "arrastar e soltar" (drag-and-drop).
 * **Área do Professor:**
     * Login simplificado utilizando apenas a matrícula.
-    * Visualização das agendas diárias por recurso.
+    * Visualização interativa das agendas diárias por recurso.
     * Navegação inteligente entre os dias úteis (pulando finais de semana).
-    * Agendamento rápido de horários livres.
-    * Gestão de "Meus Agendamentos".
+    * **Bloqueio de Agendamento Retroativo:** Professores só agendam datas a partir do dia atual (administradores mantêm permissão para ajustes de histórico).
+    * Agendamento rápido de horários livres e gestão de "Meus Agendamentos".
+* **Segurança e Arquitetura:**
+    * **Proteção CSRF Global:** Validação automática com `Flask-WTF` em todos os formulários e chamadas assíncronas.
+    * **Modularização em Blueprints:** Código desacoplado e escalável dividido em `auth`, `agenda` e `admin`.
 
 ---
 
 ## 🛠️ Tecnologias Utilizadas
 
-* **Backend:** Python 3.11, Flask, Flask-SQLAlchemy, Flask-Login, Flask-Migrate, Celery
+* **Backend:** Python 3.11, Flask, Flask-SQLAlchemy, Flask-Login, Flask-Migrate, Flask-WTF, Celery
 * **Frontend:** HTML5, Tailwind CSS, Bootstrap Icons, SortableJS, Chart.js
 * **Banco de Dados:** SQLite (desenvolvimento local) ou PostgreSQL 17 (produção)
+* **Armazenamento em Nuvem:** Cloudflare R2 (backups offsite via Rclone)
 * **Fila / Cache:** Redis
 * **Containerização:** Docker Compose
 * **Servidor WSGI:** Gunicorn

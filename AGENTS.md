@@ -104,3 +104,26 @@ docker exec -it agenda_db psql -U agenda_user -d agenda_db
   -- Reativar Sala Multimídia:
   UPDATE resource SET is_active = TRUE WHERE id = 2;
   ```
+
+---
+
+## ☁️ 7. Backup Automatizado Offsite (Cloudflare R2)
+
+O sistema possui uma rotina de backup em nuvem gratuita no bucket `agenda-escola-backups` (Cloudflare R2) configurada via `rclone`.
+
+* **Script de Execução**: `scripts/backup_to_r2.sh`
+* **Log de Backup**: `/home/ubuntu/backup_r2.log`
+* **Configuração Rclone**: `/home/ubuntu/.config/rclone/rclone.conf` (`remote: r2`)
+* **Retenção**: 30 dias na nuvem e 7 dias localmente.
+* **Cron Diário**: Executa automaticamente todos os dias às **03:00**:
+  ```bash
+  # Verificar cron ativo
+  crontab -l
+
+  # Executar backup manualmente
+  /home/ubuntu/escola_agenda/scripts/backup_to_r2.sh
+
+  # Listar backups salvos no Cloudflare R2
+  rclone ls r2:agenda-escola-backups
+  ```
+
