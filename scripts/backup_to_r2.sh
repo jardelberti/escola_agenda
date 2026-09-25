@@ -25,7 +25,7 @@ FILESIZE=$(ls -lh "$FILEPATH" | awk '{print $5}')
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] Dump gerado com sucesso: $FILENAME ($FILESIZE)" >> "$LOG_FILE"
 
 # 2. Envia para o Cloudflare R2
-/usr/bin/rclone copyto --no-modtime "$FILEPATH" "${R2_REMOTE}/${FILENAME}"
+/usr/bin/rclone copyto "$FILEPATH" "${R2_REMOTE}/${FILENAME}"
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] Upload para Cloudflare R2 concluído com sucesso!" >> "$LOG_FILE"
 
 # 3. Retenção na nuvem: remove arquivos com mais de 30 dias no R2
