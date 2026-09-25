@@ -59,8 +59,14 @@
 
         {% if report_data is not none %}
         <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div class="p-6 border-b border-slate-200">
+            <div class="p-6 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <h3 class="text-xl font-bold text-slate-800">Resultado do Relatório</h3>
+                {% if report_data %}
+                <a href="{{ url_for('export_report', resource_id=selected_resource_id, start_date=start_date, end_date=end_date) }}" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg shadow-sm transition-colors text-sm">
+                    <span class="material-symbols-outlined text-base">download</span>
+                    Exportar para Excel (CSV)
+                </a>
+                {% endif %}
             </div>
 
             {% if chart_labels and chart_data and chart_labels != '[]' %}

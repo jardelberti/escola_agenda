@@ -1,11 +1,13 @@
 import os
+import io
+import csv
 import json
 import subprocess
 import shutil
 from urllib.parse import urlparse
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta, date
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, Response
 from functools import wraps
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy import func
@@ -319,7 +321,17 @@ def book_slot():
         flash('Este recurso está temporariamente pausado para novos agendamentos.', 'warning')
         return redirect(url_for('home'))
 
-    if Booking.query.filter_by(resource_id=resource_id, date=datetime.strptime(date_str, '%Y-%m-%d').date(), slot_name=slot_name, shift=shift).first():
+    try:
+        booking_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        flash('Data de agendamento inválida.', 'danger')
+        return redirect(url_for('select_shift', resource_id=resource_id, date=date_str, shift=shift))
+
+    if not current_user.is_admin and booking_date < date.today():
+        flash('Não é permitido agendar horários em datas passadas.', 'warning')
+        return redirect(url_for('select_shift', resource_id=resource_id, date=date_str, shift=shift))
+
+    if Booking.query.filter_by(resource_id=resource_id, date=booking_date, slot_name=slot_name, shift=shift).first():
         flash('Este horário foi agendado por outra pessoa.', 'warning')
         # Redireciona com 'date' e o 'shift'
         return redirect(url_for('select_shift', resource_id=resource_id, date=date_str, shift=shift))
@@ -332,7 +344,7 @@ def book_slot():
 
     new_booking = Booking(
         resource_id=int(resource_id),
-        date=datetime.strptime(date_str, '%Y-%m-%d').date(),
+        date=booking_date,
         slot_name=slot_name,
         shift=shift,
         teacher_id=book_for_teacher.id,
@@ -643,6 +655,68 @@ def reports():
     return render_template('admin_reports.html', resources=resources, report_data=report_data,
                            selected_resource_id=selected_resource_id, start_date=start_date_str, end_date=end_date_str,
                            chart_labels=chart_labels, chart_data=chart_data)
+
+@app.route('/admin/reports/export')
+@admin_required
+def export_report():
+    """Exporta os dados do relatório de utilização em formato CSV compatível com Excel."""
+    try:
+        resource_id = int(request.args.get('resource_id'))
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+
+        resource = Resource.query.get_or_404(resource_id)
+        start_date = datetime.strptime(start_date_str, '%d/%m/%Y').date()
+        end_date = datetime.strptime(end_date_str, '%d/%m/%Y').date()
+
+        report_query = db.session.query(
+            Booking.teacher_name, func.count(Booking.id)
+        ).filter(
+            Booking.resource_id == resource_id,
+            Booking.date.between(start_date, end_date),
+            Booking.status == 'booked'
+        ).group_by(Booking.teacher_name).order_by(func.count(Booking.id).desc())
+
+        report_data = report_query.all()
+        total_uses = sum(count for _, count in report_data)
+
+        # Monta o CSV usando io.StringIO e delimitador ; (padrão Brasil/Excel)
+        output = io.StringIO()
+        writer = csv.writer(output, delimiter=';')
+
+        # Cabeçalho informativo
+        writer.writerow(['RELATÓRIO DE UTILIZAÇÃO DE RECURSOS'])
+        writer.writerow(['Recurso', resource.name])
+        writer.writerow(['Período', f'{start_date_str} a {end_date_str}'])
+        writer.writerow(['Gerado em', datetime.now().strftime('%d/%m/%Y %H:%M')])
+        writer.writerow([])
+
+        # Tabela de dados
+        writer.writerow(['Professor', 'Quantidade de Usos'])
+        for teacher, count in report_data:
+            writer.writerow([teacher, count])
+
+        writer.writerow([])
+        writer.writerow(['Total Geral de Usos', total_uses])
+
+        # Prepara a resposta HTTP com encoding utf-8-sig (com BOM)
+        clean_name = secure_filename(resource.name.lower().replace(' ', '_')) or 'recurso'
+        filename = f"relatorio_{clean_name}_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}.csv"
+        csv_bytes = output.getvalue().encode('utf-8-sig')
+
+        return Response(
+            csv_bytes,
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': f'attachment; filename="{filename}"',
+                'Content-Type': 'text/csv; charset=utf-8'
+            }
+        )
+
+    except Exception as e:
+        flash(f'Erro ao exportar relatório: {str(e)}', 'danger')
+        return redirect(url_for('reports'))
+
 # --- ROTA PARA MEUS AGENDAMENTOS ---
 
 @app.route('/my-bookings')
