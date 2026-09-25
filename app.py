@@ -29,7 +29,9 @@ os.makedirs(DATA_DIR, exist_ok=True)
 
 database_uri = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(DATA_DIR, 'agenda.db'))
 if database_uri.startswith("postgres://"):
-    database_uri = database_uri.replace("postgres://", "postgresql://", 1)
+    database_uri = database_uri.replace("postgres://", "postgresql+psycopg2://", 1)
+elif database_uri.startswith("postgresql://"):
+    database_uri = database_uri.replace("postgresql://", "postgresql+psycopg2://", 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
