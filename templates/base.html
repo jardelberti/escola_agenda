@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Agenda da Escola{% endblock %}</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
     
@@ -144,6 +145,24 @@
                 }
             });
         });
+    </script>
+    <script>
+        // Garante a presença do token CSRF em qualquer submissão de formulário POST
+        document.addEventListener('submit', function (e) {
+            const form = e.target;
+            if (form && form.tagName === 'FORM' && (form.method || '').toUpperCase() === 'POST') {
+                if (!form.querySelector('input[name="csrf_token"]')) {
+                    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                    if (token) {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'csrf_token';
+                        input.value = token;
+                        form.prepend(input);
+                    }
+                }
+            }
+        }, true);
     </script>
 </body>
 </html>

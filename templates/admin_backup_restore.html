@@ -46,6 +46,7 @@
                     <p>Restaurar um backup irá <strong>sobrescrever permanentemente</strong> todos os dados existentes no sistema. Esta ação não pode ser desfeita.</p>
                 </div>
                 <form action="{{ url_for('restore_database') }}" method="POST" enctype="multipart/form-data" id="restoreForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-4">
                         <label for="backup_file" class="block text-sm font-medium text-slate-600 mb-1">Arquivo de Backup</label>
                         <input type="file" name="backup_file" id="backup_file" accept=".sql,.dump,.tar,.db" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" required>

@@ -57,6 +57,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form id="bookingForm" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="modal-body">
                         <input type="hidden" name="resource_id" value="{{ resource.id }}">
                         <input type="hidden" id="modal_date_input" name="date">
@@ -166,7 +167,7 @@
                     let deleteButton = '';
 
                     if ((slot.is_mine || slot.is_admin) && slot.booking_id) {
-                        deleteButton = `<form method="POST" action="/agenda/booking/delete/${slot.booking_id}" class="inline m-0 p-0" onsubmit="return confirm('Tem certeza que deseja excluir este agendamento?');"><input type="hidden" name="shift" value="${selectedShift}"><input type="hidden" name="date" value="${selectedDate}"><button type="submit" class="flex items-center justify-center size-8 rounded-full bg-red-100 text-red-600 hover:bg-red-200 flex-shrink-0 border-0" title="Excluir Agendamento">&times;</button></form>`;
+                        deleteButton = `<form method="POST" action="/agenda/booking/delete/${slot.booking_id}" class="inline m-0 p-0" onsubmit="return confirm('Tem certeza que deseja excluir este agendamento?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="shift" value="${selectedShift}"><input type="hidden" name="date" value="${selectedDate}"><button type="submit" class="flex items-center justify-center size-8 rounded-full bg-red-100 text-red-600 hover:bg-red-200 flex-shrink-0 border-0" title="Excluir Agendamento">&times;</button></form>`;
                     }
 
                     if (!slot.booked_by) {

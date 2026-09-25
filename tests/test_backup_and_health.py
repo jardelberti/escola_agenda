@@ -13,6 +13,7 @@ class BackupAndHealthTestCase(unittest.TestCase):
     def setUp(self):
         self.app = app
         self.app.config['TESTING'] = True
+        self.app.config['WTF_CSRF_ENABLED'] = False
         self.client = self.app.test_client()
         self.app_context = self.app.app_context()
         self.app_context.push()

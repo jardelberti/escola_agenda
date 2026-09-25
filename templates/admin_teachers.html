@@ -35,6 +35,7 @@
                 <div class="bg-white p-6 rounded-xl border border-slate-200 sticky top-8">
                     <h3 class="text-xl font-bold text-slate-800 mb-4">Cadastrar Novo Usuário</h3>
                     <form method="POST" action="{{ url_for('manage_teachers') }}" class="space-y-4">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div>
                             <label for="name" class="block text-sm font-medium text-slate-600 mb-1">Nome Completo</label>
                             <input type="text" name="name" class="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500" required>
@@ -102,6 +103,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form id="editTeacherForm" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="modal-body">
                         <div class="mb-3">
                             <label for="edit_name" class="form-label">Nome Completo</label>
@@ -130,6 +132,7 @@
     <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <form id="deleteTeacherForm" method="POST" action="">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-content">
                     <div class="modal-body p-4 text-center">
                         <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mb-4">

@@ -71,6 +71,7 @@
         <!-- ABA MATUTINO -->
         <div id="tab-matutino" class="tab-content">
             <form method="POST" action="{{ url_for('manage_schedules', resource_id=resource.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="shift" value="matutino">
                 <div id="matutino-slots-container" class="space-y-3">
                     {% if matutino_schedule and matutino_schedule.slots %}
@@ -92,6 +93,7 @@
         <!-- ABA VESPERTINO -->
         <div id="tab-vespertino" class="tab-content hidden">
             <form method="POST" action="{{ url_for('manage_schedules', resource_id=resource.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="shift" value="vespertino">
                 <div id="vespertino-slots-container" class="space-y-3">
                     {% if vespertino_schedule and vespertino_schedule.slots %}

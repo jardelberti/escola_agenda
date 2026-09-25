@@ -14,6 +14,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from models import db, Teacher, Resource, ScheduleTemplate, Booking
 from flask_migrate import Migrate
+from flask_wtf.csrf import CSRFProtect
 from celery import Celery 
 from logging import getLogger
 
@@ -88,6 +89,7 @@ celery = make_celery(app)
 # --- INICIALIZAÇÃO DAS EXTENSÕES ---
 db.init_app(app)
 migrate = Migrate(app, db)
+csrf = CSRFProtect(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
