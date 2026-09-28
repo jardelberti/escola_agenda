@@ -24,12 +24,16 @@
                         {% if slot.type == 'aula' %}
                         <tr>
                             {% for day_header in week_headers %}
-                                {% set booking = weekly_bookings.get(day_header.name, {}).get(slot.name) %}
+                                {% set slot_bookings = weekly_bookings.get(day_header.name, {}).get(slot.name, []) %}
                                 <td class="w-1/5 px-2 py-2.5 text-center align-middle">
-                                    {% if booking %}
-                                        <span class="inline-block max-w-[95%] px-2.5 py-1 text-xs font-semibold rounded-full truncate align-middle {% if booking.status == 'closed' %}bg-gray-100 text-gray-800 border border-gray-200{% else %}bg-blue-100 text-blue-800 border border-blue-200{% endif %}" title="{{ slot.name }}: {{ booking.teacher_name }}">
-                                            {{ booking.teacher_name }}
-                                        </span>
+                                    {% if slot_bookings %}
+                                        <div class="flex flex-col gap-1 items-center">
+                                        {% for booking in slot_bookings %}
+                                            <span class="inline-block max-w-[95%] px-2.5 py-1 text-xs font-semibold rounded-full truncate align-middle {% if booking.status == 'closed' %}bg-gray-100 text-gray-800 border border-gray-200{% else %}bg-blue-100 text-blue-800 border border-blue-200{% endif %}" title="{{ slot.name }}: {{ booking.teacher_name }}">
+                                                {{ booking.teacher_name }}
+                                            </span>
+                                        {% endfor %}
+                                        </div>
                                     {% else %}
                                         <span class="text-slate-400 text-xs font-medium" title="{{ slot.name }}: Disponível">Disponível</span>
                                     {% endif %}

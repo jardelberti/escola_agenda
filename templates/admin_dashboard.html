@@ -48,6 +48,11 @@
                             <input type="text" name="icon" class="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500" placeholder="Ex: bi-projector-fill">
                             <p class="text-xs text-slate-400 mt-1">Use classes do <a href="https://icons.getbootstrap.com/" target="_blank" class="text-blue-500 hover:underline">Bootstrap Icons</a>.</p>
                         </div>
+                        <div>
+                            <label for="add_quantity" class="block text-sm font-medium text-slate-600 mb-1">Quantidade de Itens (Capacidade)</label>
+                            <input type="number" id="add_quantity" name="quantity" min="1" value="1" class="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500" required>
+                            <p class="text-xs text-slate-400 mt-1">Ex: 1 para salas, 2 para projetores simultâneos.</p>
+                        </div>
                         <div class="flex items-center">
                             <input type="checkbox" id="add_active" name="is_active" value="true" checked class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4">
                             <label for="add_active" class="ml-2 text-sm text-slate-700 font-medium">Disponível para agendamento (Ativo)</label>
@@ -82,6 +87,9 @@
                                     <h4 class="font-bold text-slate-800 flex items-center gap-2">
                                         <i class="{{ resource.icon or 'bi-box' }}"></i>{{ resource.name }}
                                     </h4>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-700" title="Capacidade: {{ resource.quantity }} simultâneo(s)">
+                                        <i class="bi bi-stack mr-1 text-slate-500"></i>{{ resource.quantity }} unid.
+                                    </span>
                                     {% if resource.is_active %}
                                     <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">
                                         <i class="bi bi-check-circle-fill mr-1 text-emerald-500"></i> Ativo
@@ -107,7 +115,7 @@
                             {% endif %}
                             <a href="{{ url_for('manage_schedules', resource_id=resource.id) }}" class="text-center bg-sky-100 text-sky-700 font-semibold px-3 py-1 rounded-md text-sm hover:bg-sky-200">Horários</a>
                             <button type="button" class="bg-yellow-100 text-yellow-700 font-semibold px-3 py-1 rounded-md text-sm hover:bg-yellow-200" data-bs-toggle="modal" data-bs-target="#editResourceModal" 
-                                    data-resource-id="{{ resource.id }}" data-resource-name="{{ resource.name }}" data-resource-description="{{ resource.description or '' }}" data-resource-icon="{{ resource.icon or '' }}" data-resource-active="{{ 'true' if resource.is_active else 'false' }}">
+                                    data-resource-id="{{ resource.id }}" data-resource-name="{{ resource.name }}" data-resource-description="{{ resource.description or '' }}" data-resource-icon="{{ resource.icon or '' }}" data-resource-active="{{ 'true' if resource.is_active else 'false' }}" data-resource-quantity="{{ resource.quantity }}">
                                 Editar
                             </button>
                             <button type="button" class="bg-indigo-100 text-indigo-700 font-semibold px-3 py-1 rounded-md text-sm hover:bg-indigo-200" data-bs-toggle="modal" data-bs-target="#copyResourceModal"
@@ -158,6 +166,11 @@
                         <div class="mb-3">
                             <label for="edit_icon" class="form-label">Ícone</label>
                             <input type="text" class="form-control" id="edit_icon" name="icon">
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_quantity" class="form-label">Quantidade de Itens (Capacidade)</label>
+                            <input type="number" class="form-control" id="edit_quantity" name="quantity" min="1" required>
+                            <div class="form-text">Ex: 1 para salas, 2 ou mais para múltiplos itens simultâneos.</div>
                         </div>
                         <div class="mb-3 form-check">
                             <input type="checkbox" class="form-check-input" id="edit_active" name="is_active" value="true">
@@ -239,6 +252,7 @@
                 const resourceDescription = button.getAttribute('data-resource-description');
                 const resourceIcon = button.getAttribute('data-resource-icon');
                 const resourceActive = button.getAttribute('data-resource-active') === 'true';
+                const resourceQuantity = button.getAttribute('data-resource-quantity') || '1';
                 const modalForm = editResourceModal.querySelector('#editResourceForm');
                 const modalTitle = editResourceModal.querySelector('.modal-title');
                 modalTitle.textContent = `Editar Recurso: ${resourceName}`;
@@ -246,6 +260,7 @@
                 modalForm.querySelector('#edit_name').value = resourceName;
                 modalForm.querySelector('#edit_description').value = resourceDescription;
                 modalForm.querySelector('#edit_icon').value = resourceIcon;
+                modalForm.querySelector('#edit_quantity').value = resourceQuantity;
                 const editActiveCheckbox = modalForm.querySelector('#edit_active');
                 if (editActiveCheckbox) {
                     editActiveCheckbox.checked = resourceActive;

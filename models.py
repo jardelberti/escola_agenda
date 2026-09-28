@@ -19,6 +19,7 @@ class Resource(db.Model):
     icon = db.Column(db.String(50))
     sort_order = db.Column(db.Integer, nullable=False, default=0)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+    quantity = db.Column(db.Integer, nullable=False, default=1)
     
     # CORREÇÃO: Adiciona o relacionamento para encontrar os templates de horário
     schedule_templates = db.relationship('ScheduleTemplate', backref='resource', lazy=True, cascade='all, delete-orphan')
@@ -43,9 +44,15 @@ class Booking(db.Model):
     slot_name = db.Column(db.String(100), nullable=False)
     status = db.Column(db.String(50), nullable=False, default='booked') # 'booked' ou 'closed'
 
-    # Garante que não haja agendamentos duplicados para o mesmo recurso, data, turno e horário
+    # Garante integridade de agendamentos e impede reserva duplicada pelo mesmo professor no mesmo horário
     __table_args__ = (
-        db.UniqueConstraint('resource_id', 'date', 'shift', 'slot_name', name='_resource_date_shift_slot_uc'),
+        db.Index(
+            'uq_booking_teacher_active',
+            'resource_id', 'teacher_id', 'date', 'shift', 'slot_name',
+            unique=True,
+            postgresql_where=db.text("status = 'booked'"),
+            sqlite_where=db.text("status = 'booked'")
+        ),
         db.Index('idx_booking_resource_date', 'resource_id', 'date'),
         db.Index('idx_booking_teacher_date', 'teacher_id', 'date'),
     )

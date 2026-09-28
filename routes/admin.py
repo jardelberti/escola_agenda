@@ -92,11 +92,18 @@ def add_resource():
     name = request.form.get('name')
     if name:
         is_active = request.form.get('is_active', 'true').lower() in ['true', '1', 'on']
+        quantity = request.form.get('quantity', 1)
+        try:
+            quantity = max(1, int(quantity))
+        except (ValueError, TypeError):
+            quantity = 1
+
         new_resource = Resource(
             name=name,
             description=request.form.get('description'),
             icon=request.form.get('icon') or 'bi-box',
-            is_active=is_active
+            is_active=is_active,
+            quantity=quantity
         )
         db.session.add(new_resource)
         db.session.commit()
@@ -116,6 +123,11 @@ def edit_resource(resource_id):
         resource.icon = request.form.get('icon') or 'bi-box'
         if 'is_active' in request.form:
             resource.is_active = request.form.get('is_active') in ['true', '1', 'on', True]
+        if 'quantity' in request.form:
+            try:
+                resource.quantity = max(1, int(request.form.get('quantity', 1)))
+            except (ValueError, TypeError):
+                pass
         db.session.commit()
         flash('Recurso atualizado com sucesso!', 'success')
     else:
@@ -148,7 +160,8 @@ def copy_resource(original_id):
         name=new_name,
         description=original_resource.description,
         icon=new_icon,
-        sort_order=original_resource.sort_order + 1
+        sort_order=original_resource.sort_order + 1,
+        quantity=original_resource.quantity
     )
     db.session.add(new_resource)
     db.session.commit()
@@ -272,8 +285,11 @@ def weekly_view(date_str=None):
             for booking in resource_bookings:
                 day_name = day_map.get(booking.date.weekday())
                 if day_name:
-                    if day_name not in weekly_bookings_data: weekly_bookings_data[day_name] = {}
-                    weekly_bookings_data[day_name][booking.slot_name] = booking
+                    if day_name not in weekly_bookings_data:
+                        weekly_bookings_data[day_name] = {}
+                    if booking.slot_name not in weekly_bookings_data[day_name]:
+                        weekly_bookings_data[day_name][booking.slot_name] = []
+                    weekly_bookings_data[day_name][booking.slot_name].append(booking)
                     
             weekly_summaries.append({
                 'title': f'{resource.name} - {template.shift.capitalize()}',

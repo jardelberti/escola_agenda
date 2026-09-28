@@ -57,10 +57,16 @@ def get_agenda_data(resource_id, date_str):
     except ValueError:
         return jsonify({'error': 'Formato de data inválido'}), 400
 
+    resource = Resource.query.get_or_404(resource_id)
     templates = ScheduleTemplate.query.filter_by(resource_id=resource_id).all()
     bookings = Booking.query.filter_by(resource_id=resource_id, date=current_date).all()
     
-    booked_slots = { (b.shift, b.slot_name): b for b in bookings }
+    # Agrupa agendamentos por (shift, slot_name)
+    bookings_by_slot = {}
+    for b in bookings:
+        bookings_by_slot.setdefault((b.shift, b.slot_name), []).append(b)
+    
+    capacity = resource.quantity or 1
     
     agenda_data = {}
     for template in templates:
@@ -73,21 +79,39 @@ def get_agenda_data(resource_id, date_str):
             if not isinstance(slot, dict) or 'name' not in slot or 'type' not in slot:
                 continue
 
-            booking = booked_slots.get((template.shift, slot['name']))
+            slot_bookings = bookings_by_slot.get((template.shift, slot['name']), [])
+            booked_count = len(slot_bookings)
+            available_count = max(0, capacity - booked_count)
             
+            bookings_list = []
+            for b in slot_bookings:
+                bookings_list.append({
+                    'id': b.id,
+                    'teacher_name': 'Fechado' if b.status == 'closed' else b.teacher_name,
+                    'status': b.status,
+                    'is_closed': b.status == 'closed',
+                    'is_mine': b.teacher_id == current_user.id,
+                    'is_admin': current_user.is_admin
+                })
+
+            already_booked_by_me = any(b.teacher_id == current_user.id and b.status == 'booked' for b in slot_bookings)
+
+            first_booking = slot_bookings[0] if slot_bookings else None
             booked_by_name = None
-            if booking:
-                if booking.status == 'closed':
-                    booked_by_name = 'Fechado'
-                else:
-                    booked_by_name = booking.teacher_name
+            if first_booking and available_count == 0:
+                booked_by_name = 'Fechado' if first_booking.status == 'closed' else first_booking.teacher_name
 
             slot_info = {
                 'name': slot.get('name', 'Inválido'),
                 'type': slot.get('type', 'aula'),
+                'capacity': capacity,
+                'booked_count': booked_count,
+                'available_count': available_count,
+                'already_booked_by_me': already_booked_by_me,
+                'bookings': bookings_list,
                 'booked_by': booked_by_name,
-                'booking_id': booking.id if booking else None,
-                'is_mine': booking.teacher_id == current_user.id if booking else False,
+                'booking_id': first_booking.id if first_booking else None,
+                'is_mine': first_booking.teacher_id == current_user.id if first_booking else False,
                 'is_admin': current_user.is_admin
             }
             shift_slots.append(slot_info)
@@ -106,11 +130,20 @@ def close_slot():
     shift = request.form.get('shift')
     slot_name = request.form.get('slot_name')
 
+    resource = Resource.query.get(int(resource_id)) if resource_id else None
+    if not resource:
+        flash('Recurso não encontrado.', 'danger')
+        return redirect(url_for('agenda.home'))
+
     try:
         booking_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        capacity = resource.quantity or 1
+        current_count = Booking.query.filter_by(
+            resource_id=int(resource_id), date=booking_date, slot_name=slot_name, shift=shift
+        ).count()
 
-        if Booking.query.filter_by(resource_id=resource_id, date=booking_date, slot_name=slot_name, shift=shift).first():
-            flash('Este horário já foi agendado ou fechado.', 'warning')
+        if current_count >= capacity:
+            flash('Todos os itens já foram agendados ou fechados para este horário.', 'warning')
         else:
             new_booking = Booking(
                 resource_id=int(resource_id),
@@ -123,7 +156,7 @@ def close_slot():
             )
             db.session.add(new_booking)
             db.session.commit()
-            flash('Horário marcado como fechado com sucesso!', 'success')
+            flash('Uma unidade do horário foi marcada como fechada com sucesso!', 'success')
     except IntegrityError:
         db.session.rollback()
         flash('Este horário já foi agendado ou fechado.', 'warning')
@@ -156,8 +189,13 @@ def book_slot():
         flash('Não é permitido agendar horários em datas passadas.', 'warning')
         return redirect(url_for('agenda.select_shift', resource_id=resource_id, date=date_str, shift=shift))
 
-    if Booking.query.filter_by(resource_id=resource_id, date=booking_date, slot_name=slot_name, shift=shift).first():
-        flash('Este horário foi agendado por outra pessoa.', 'warning')
+    capacity = resource.quantity or 1
+    current_bookings = Booking.query.filter_by(
+        resource_id=int(resource_id), date=booking_date, slot_name=slot_name, shift=shift
+    ).all()
+
+    if len(current_bookings) >= capacity:
+        flash('Todos os itens deste recurso já foram agendados para este horário.', 'warning')
         return redirect(url_for('agenda.select_shift', resource_id=resource_id, date=date_str, shift=shift))
 
     book_for_teacher = current_user
@@ -166,13 +204,19 @@ def book_slot():
         if selected_teacher_id:
             book_for_teacher = Teacher.query.get(int(selected_teacher_id))
 
+    # Validação: Cada professor só pode agendar no máximo 1 unidade por horário
+    if any(b.teacher_id == book_for_teacher.id and b.status == 'booked' for b in current_bookings):
+        flash('Este professor já possui um agendamento para este horário.', 'warning')
+        return redirect(url_for('agenda.select_shift', resource_id=resource_id, date=date_str, shift=shift))
+
     new_booking = Booking(
         resource_id=int(resource_id),
         date=booking_date,
         slot_name=slot_name,
         shift=shift,
         teacher_id=book_for_teacher.id,
-        teacher_name=book_for_teacher.name
+        teacher_name=book_for_teacher.name,
+        status='booked'
     )
     try:
         db.session.add(new_booking)
@@ -180,7 +224,7 @@ def book_slot():
         flash('Horário agendado com sucesso!', 'success')
     except IntegrityError:
         db.session.rollback()
-        flash('Este horário acabou de ser agendado por outra pessoa.', 'warning')
+        flash('Este horário acabou de ser agendado por outra pessoa ou você já possui agendamento.', 'warning')
     except Exception as e:
         db.session.rollback()
         flash(f'Ocorreu um erro ao realizar o agendamento: {e}', 'danger')
