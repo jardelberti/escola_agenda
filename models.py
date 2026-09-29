@@ -9,7 +9,9 @@ class Teacher(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(150), nullable=False)
     registration = db.Column(db.String(50), unique=True, nullable=False)
+    whatsapp = db.Column(db.String(30), nullable=True)
     is_admin = db.Column(db.Boolean, default=False)
+
 
 # Tabela de Recursos (Salas/Equipamentos)
 class Resource(db.Model):

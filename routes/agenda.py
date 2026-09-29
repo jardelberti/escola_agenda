@@ -6,6 +6,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from sqlalchemy.exc import IntegrityError
 from models import db, Teacher, Resource, ScheduleTemplate, Booking
+from utils import sanitize_phone, format_phone
 
 agenda_bp = Blueprint('agenda', __name__)
 
@@ -265,7 +266,7 @@ def my_bookings():
         .order_by(Booking.date, Booking.shift)\
         .all()
 
-    return render_template('my_bookings.html', bookings=bookings_query, weekdays_pt=weekdays_pt)
+    return render_template('my_bookings.html', bookings=bookings_query, weekdays_pt=weekdays_pt, format_phone=format_phone)
 
 @agenda_bp.route('/my-bookings/delete/<int:booking_id>', methods=['POST'])
 @login_required
@@ -281,3 +282,17 @@ def delete_my_booking(booking_id):
         flash('Você não tem permissão para remover este agendamento.', 'danger')
     
     return redirect(url_for('agenda.my_bookings'))
+
+@agenda_bp.route('/my-profile/whatsapp', methods=['POST'])
+@login_required
+def update_my_whatsapp():
+    """Permite ao professor cadastrar ou atualizar seu próprio número de WhatsApp para lembretes."""
+    raw_whatsapp = request.form.get('whatsapp')
+    current_user.whatsapp = sanitize_phone(raw_whatsapp)
+    db.session.commit()
+    if current_user.whatsapp:
+        flash(f'WhatsApp atualizado com sucesso ({format_phone(current_user.whatsapp)})! Você receberá os lembretes de aula.', 'success')
+    else:
+        flash('Número de WhatsApp removido com sucesso.', 'info')
+    return redirect(url_for('agenda.my_bookings'))
+

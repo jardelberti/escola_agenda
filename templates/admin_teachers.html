@@ -44,6 +44,11 @@
                             <label for="registration" class="block text-sm font-medium text-slate-600 mb-1">Matrícula</label>
                             <input type="text" name="registration" class="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500" required>
                         </div>
+                        <div>
+                            <label for="whatsapp" class="block text-sm font-medium text-slate-600 mb-1">WhatsApp / Celular (com DDD)</label>
+                            <input type="text" name="whatsapp" id="whatsapp" placeholder="(47) 99999-8888" class="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500">
+                            <span class="text-xs text-slate-400">Usado para receber lembretes de agendamento</span>
+                        </div>
                         <div class="pt-2">
                             <label for="is_admin" class="flex items-center space-x-3 cursor-pointer">
                                 <input type="checkbox" name="is_admin" id="is_admin" class="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
@@ -66,13 +71,24 @@
                         <div>
                             <h4 class="font-bold text-slate-800">{{ teacher.name }}</h4>
                             <p class="text-sm text-slate-500">Matrícula: {{ teacher.registration }}</p>
+                            {% if teacher.whatsapp %}
+                                <p class="text-xs text-emerald-600 font-medium flex items-center mt-1">
+                                    <span class="material-symbols-outlined text-sm mr-1">chat</span>
+                                    {{ format_phone(teacher.whatsapp) }}
+                                </p>
+                            {% else %}
+                                <p class="text-xs text-slate-400 flex items-center mt-1">
+                                    <span class="material-symbols-outlined text-sm mr-1">chat_bubble_outline</span>
+                                    Sem WhatsApp
+                                </p>
+                            {% endif %}
                             {% if teacher.is_admin %}
                                 <span class="inline-block mt-2 bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">Admin</span>
                             {% endif %}
                         </div>
                         <div class="flex items-center space-x-2 flex-shrink-0">
                             <button type="button" class="bg-yellow-100 text-yellow-800 font-semibold px-3 py-1.5 rounded-md text-sm hover:bg-yellow-200" data-bs-toggle="modal" data-bs-target="#editTeacherModal"
-                                    data-teacher-id="{{ teacher.id }}" data-teacher-name="{{ teacher.name }}" data-teacher-registration="{{ teacher.registration }}" data-teacher-is-admin="{{ teacher.is_admin|string|lower }}">
+                                    data-teacher-id="{{ teacher.id }}" data-teacher-name="{{ teacher.name }}" data-teacher-registration="{{ teacher.registration }}" data-teacher-whatsapp="{{ teacher.whatsapp or '' }}" data-teacher-is-admin="{{ teacher.is_admin|string|lower }}">
                                 Editar
                             </button>
                             {% if teacher.id != current_user.id %}
@@ -112,6 +128,11 @@
                         <div class="mb-3">
                             <label for="edit_registration" class="form-label">Matrícula</label>
                             <input type="text" class="form-control" name="registration" id="edit_registration" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_whatsapp" class="form-label">WhatsApp / Celular (com DDD)</label>
+                            <input type="text" class="form-control" name="whatsapp" id="edit_whatsapp" placeholder="(47) 99999-8888">
+                            <div class="form-text">Para envio de notificações e lembretes de agendamento.</div>
                         </div>
                         <div class="form-check mb-3">
                             <input class="form-check-input" type="checkbox" name="is_admin" id="edit_is_admin">
@@ -161,6 +182,7 @@
                 const teacherId = button.getAttribute('data-teacher-id');
                 const teacherName = button.getAttribute('data-teacher-name');
                 const teacherRegistration = button.getAttribute('data-teacher-registration');
+                const teacherWhatsapp = button.getAttribute('data-teacher-whatsapp') || '';
                 const teacherIsAdmin = button.getAttribute('data-teacher-is-admin') === 'true';
 
                 const modalForm = editTeacherModal.querySelector('#editTeacherForm');
@@ -170,6 +192,7 @@
                 modalForm.action = `/admin/teacher/edit/${teacherId}`;
                 modalForm.querySelector('#edit_name').value = teacherName;
                 modalForm.querySelector('#edit_registration').value = teacherRegistration;
+                modalForm.querySelector('#edit_whatsapp').value = teacherWhatsapp;
                 modalForm.querySelector('#edit_is_admin').checked = teacherIsAdmin;
             });
         }

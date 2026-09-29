@@ -6,7 +6,7 @@ import os
 from flask import Flask, jsonify, url_for as flask_url_for
 from models import db, Teacher
 from extensions import init_extensions, celery, migrate, login_manager, csrf
-from routes import auth_bp, agenda_bp, admin_bp
+from routes import auth_bp, agenda_bp, admin_bp, integrations_bp
 from utils import clean_old_backups
 
 # --- CONFIGURAÇÃO DA APLICAÇÃO ---
@@ -36,6 +36,9 @@ init_extensions(app)
 app.register_blueprint(auth_bp)
 app.register_blueprint(agenda_bp)
 app.register_blueprint(admin_bp)
+app.register_blueprint(integrations_bp)
+csrf.exempt(integrations_bp)
+
 
 # --- ALIASES DE URL PARA COMPATIBILIDADE TOTAL ---
 _endpoint_aliases = {
@@ -47,6 +50,7 @@ _endpoint_aliases = {
     'delete_booking': 'agenda.delete_booking',
     'my_bookings': 'agenda.my_bookings',
     'delete_my_booking': 'agenda.delete_my_booking',
+    'update_my_whatsapp': 'agenda.update_my_whatsapp',
     'login': 'auth.login',
     'logout': 'auth.logout',
     'admin_dashboard': 'admin.admin_dashboard',

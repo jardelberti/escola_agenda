@@ -16,7 +16,7 @@ from sqlalchemy import func
 from werkzeug.utils import secure_filename
 from models import db, Teacher, Resource, ScheduleTemplate, Booking
 from extensions import celery
-from utils import admin_required, clean_old_backups
+from utils import admin_required, clean_old_backups, sanitize_phone, format_phone
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -208,18 +208,19 @@ def manage_schedules(resource_id):
 def manage_teachers():
     if request.method == 'POST':
         name, registration = request.form.get('name'), request.form.get('registration')
+        whatsapp = sanitize_phone(request.form.get('whatsapp'))
         is_admin = 'is_admin' in request.form
         if not all([name, registration]):
             flash('Nome e matrícula são obrigatórios.', 'danger')
         elif Teacher.query.filter_by(registration=registration).first():
             flash('A matrícula informada já está cadastrada.', 'warning')
         else:
-            db.session.add(Teacher(name=name, registration=registration, is_admin=is_admin))
+            db.session.add(Teacher(name=name, registration=registration, whatsapp=whatsapp, is_admin=is_admin))
             db.session.commit()
             flash('Usuário cadastrado com sucesso!', 'success')
         return redirect(url_for('admin.manage_teachers'))
     teachers = Teacher.query.order_by(Teacher.name).all()
-    return render_template('admin_teachers.html', teachers=teachers)
+    return render_template('admin_teachers.html', teachers=teachers, format_phone=format_phone)
 
 @admin_bp.route('/teacher/edit/<int:teacher_id>', methods=['POST'])
 @admin_required
@@ -234,6 +235,7 @@ def edit_teacher(teacher_id):
 
     teacher.name = request.form.get('name')
     teacher.registration = new_registration
+    teacher.whatsapp = sanitize_phone(request.form.get('whatsapp'))
     teacher.is_admin = 'is_admin' in request.form
     db.session.commit()
     flash('Usuário atualizado com sucesso!', 'success')

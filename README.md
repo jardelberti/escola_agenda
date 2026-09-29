@@ -4,7 +4,7 @@
   <p><strong>Um sistema completo de agendamento de recursos para ambientes escolares, conteinerizado com Docker.</strong></p>
   <p>
     <a href="#">
-      <img alt="Versão" src="https://img.shields.io/badge/version-1.2.0-blue?style=for-the-badge&logo=appveyor">
+      <img alt="Versão" src="https://img.shields.io/badge/version-1.3.0-blue?style=for-the-badge&logo=appveyor">
     </a>
     <a href="#">
       <img alt="Licença" src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge">
@@ -38,8 +38,9 @@ O sistema possui uma interface administrativa para gestão completa e uma área 
 ## ✨ Funcionalidades Principais
 
 * **Painel de Administração:**
-    * Gerenciamento de usuários (professores e administradores).
+    * Gerenciamento de usuários (professores e administradores) com **número de WhatsApp** para lembretes automáticos.
     * Cadastro, edição e exclusão de recursos (salas, equipamentos).
+    * Suporte a **múltiplas unidades por recurso** (ex: 2 ou mais Projetores simultâneos no mesmo horário).
     * **Pausar/Reativar agendamento de recursos** sem apagar histórico ou configurações.
     * Configuração de grades de horários personalizadas (matutino/vespertino).
     * **Agenda Semanal Completa:** Grid responsivo com colunas alinhadas e visualização por turno.
@@ -54,9 +55,13 @@ O sistema possui uma interface administrativa para gestão completa e uma área 
     * Navegação inteligente entre os dias úteis (pulando finais de semana).
     * **Bloqueio de Agendamento Retroativo:** Professores só agendam datas a partir do dia atual (administradores mantêm permissão para ajustes de histórico).
     * Agendamento rápido de horários livres e gestão de "Meus Agendamentos".
+    * **Cadastro e Atualização de WhatsApp Próprio:** O professor pode cadastrar seu WhatsApp diretamente em "Meus Agendamentos" para receber lembretes de aula.
+* **Integrações e Automações (WhatsApp & n8n):**
+    * **Endpoint de Resumo Diário (`/api/integrations/daily-summary`):** Fornece mensagens formatadas para grupos de WhatsApp e lembretes individuais por professor para disparo via n8n e Evolution API.
 * **Segurança e Arquitetura:**
     * **Proteção CSRF Global:** Validação automática com `Flask-WTF` em todos os formulários e chamadas assíncronas.
-    * **Modularização em Blueprints:** Código desacoplado e escalável dividido em `auth`, `agenda` e `admin`.
+    * **Modularização em Blueprints:** Código desacoplado e escalável dividido em `auth`, `agenda`, `admin` e `integrations`.
+
 
 ---
 

@@ -45,3 +45,39 @@ def clean_old_backups(folder, keep_latest=10, max_days=14):
             except OSError:
                 pass
     return deleted
+
+def sanitize_phone(phone_str):
+    """
+    Higieniza e normaliza números de WhatsApp no padrão internacional (DDI 55).
+    Exemplos:
+      '(47) 99123-4567' -> '5547991234567'
+      '47991234567'     -> '5547991234567'
+      '+55 47 99123-4567' -> '5547991234567'
+    """
+    if not phone_str:
+        return None
+    import re
+    digits = re.sub(r'\D', '', str(phone_str))
+    if not digits:
+        return None
+    # Se inserido com DDD brasileiro (10 ou 11 dígitos), prefixa o DDI 55
+    if len(digits) in (10, 11):
+        digits = f"55{digits}"
+    return digits
+
+def format_phone(phone_str):
+    """
+    Formata o número de telefone para exibição amigável na interface: (XX) XXXXX-XXXX.
+    """
+    if not phone_str:
+        return ""
+    import re
+    digits = re.sub(r'\D', '', str(phone_str))
+    if digits.startswith('55') and len(digits) in (12, 13):
+        digits = digits[2:] # Remove o 55 para formatar nacional
+    if len(digits) == 11:
+        return f"({digits[:2]}) {digits[2:7]}-{digits[7:]}"
+    elif len(digits) == 10:
+        return f"({digits[:2]}) {digits[2:6]}-{digits[6:]}"
+    return phone_str
+
