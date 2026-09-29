@@ -29,8 +29,8 @@
                                     {% if slot_bookings %}
                                         <div class="flex flex-col gap-1 items-center">
                                         {% for booking in slot_bookings %}
-                                            <span class="inline-block max-w-[95%] px-2.5 py-1 text-xs font-semibold rounded-full truncate align-middle {% if booking.status == 'closed' %}bg-gray-100 text-gray-800 border border-gray-200{% else %}bg-blue-100 text-blue-800 border border-blue-200{% endif %}" title="{{ slot.name }}: {{ booking.teacher_name }}">
-                                                {{ booking.teacher_name }}
+                                            <span class="inline-block max-w-[95%] px-2.5 py-1 text-xs font-semibold rounded-full truncate align-middle {% if booking.status == 'closed' %}bg-gray-100 text-gray-800 border border-gray-200{% else %}bg-blue-100 text-blue-800 border border-blue-200{% endif %}" title="{{ slot.name }}: {{ booking.teacher_name }}{% if booking.classroom_or_notes %} ({{ booking.classroom_or_notes }}){% endif %}">
+                                                {{ booking.teacher_name }}{% if booking.classroom_or_notes %} <span class="font-normal opacity-85">({{ booking.classroom_or_notes }})</span>{% endif %}
                                             </span>
                                         {% endfor %}
                                         </div>

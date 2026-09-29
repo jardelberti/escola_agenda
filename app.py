@@ -32,6 +32,25 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024 # 50 MB
 # --- INICIALIZAÇÃO DE EXTENSÕES E CELERY ---
 init_extensions(app)
 
+def ensure_schema_updates():
+    """Garante de forma idempotente que novas colunas existam no banco sem necessidade de migration manual."""
+    with app.app_context():
+        try:
+            engine = db.engine
+            is_postgres = 'postgresql' in str(engine.url)
+            if is_postgres:
+                db.session.execute(db.text("ALTER TABLE booking ADD COLUMN IF NOT EXISTS classroom_or_notes VARCHAR(150);"))
+            else:
+                cols = [row[1] for row in db.session.execute(db.text("PRAGMA table_info(booking);")).fetchall()]
+                if cols and 'classroom_or_notes' not in cols:
+                    db.session.execute(db.text("ALTER TABLE booking ADD COLUMN classroom_or_notes VARCHAR(150);"))
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.warning(f"Aviso na verificação de schema: {e}")
+
+ensure_schema_updates()
+
 # --- REGISTRO DE BLUEPRINTS ---
 app.register_blueprint(auth_bp)
 app.register_blueprint(agenda_bp)

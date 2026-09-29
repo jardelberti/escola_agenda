@@ -86,7 +86,8 @@ def daily_summary():
         by_resource[resource.name]['bookings'].append({
             'shift': booking.shift,
             'slot_name': booking.slot_name,
-            'teacher_name': teacher.name
+            'teacher_name': teacher.name,
+            'classroom_or_notes': getattr(booking, 'classroom_or_notes', None) or ''
         })
 
     # Constrói o texto geral formatado para WhatsApp (com emojis e negrito)
@@ -105,7 +106,8 @@ def daily_summary():
             summary_lines.append(f"{icon_emoji} *{res_name}*")
             for b in data['bookings']:
                 shift_label = "Matutino" if b['shift'] == 'matutino' else "Vespertino" if b['shift'] == 'vespertino' else b['shift'].capitalize()
-                summary_lines.append(f"  • {b['slot_name']} ({shift_label}): Prof(a). {b['teacher_name']}")
+                note_str = f" [{b['classroom_or_notes']}]" if b.get('classroom_or_notes') else ""
+                summary_lines.append(f"  • {b['slot_name']} ({shift_label}): Prof(a). {b['teacher_name']}{note_str}")
             summary_lines.append("")
 
         summary_lines.append("✨ Desejamos a todos um ótimo dia de aulas e atividades!")
@@ -126,7 +128,8 @@ def daily_summary():
         by_teacher[teacher.id]['bookings'].append({
             'resource_name': resource.name,
             'shift': booking.shift,
-            'slot_name': booking.slot_name
+            'slot_name': booking.slot_name,
+            'classroom_or_notes': getattr(booking, 'classroom_or_notes', None) or ''
         })
 
     teachers_summaries = []
@@ -139,7 +142,8 @@ def daily_summary():
         ]
         for b in t_data['bookings']:
             shift_label = "Matutino" if b['shift'] == 'matutino' else "Vespertino" if b['shift'] == 'vespertino' else b['shift'].capitalize()
-            prof_lines.append(f"• *{b['resource_name']}*: {b['slot_name']} ({shift_label})")
+            note_str = f" [{b['classroom_or_notes']}]" if b.get('classroom_or_notes') else ""
+            prof_lines.append(f"• *{b['resource_name']}*: {b['slot_name']} ({shift_label}){note_str}")
         
         prof_lines.append("")
         prof_lines.append("Tenha uma excelente aula! 🎓")

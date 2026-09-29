@@ -69,6 +69,12 @@
                                 <span class="material-symbols-outlined text-base">schedule</span>
                                 {{ booking.slot_name }}
                             </p>
+                            {% if booking.classroom_or_notes %}
+                            <p class="text-xs text-blue-800 bg-blue-50 border border-blue-200 rounded-md px-2 py-1 inline-flex items-center gap-1.5 mt-2 font-medium">
+                                <span class="material-symbols-outlined text-xs">label</span>
+                                {{ booking.classroom_or_notes }}
+                            </p>
+                            {% endif %}
                         </div>
                         <div class="flex flex-col items-end gap-3">
                             {% if booking.shift == 'matutino' %}

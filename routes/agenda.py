@@ -49,6 +49,25 @@ def agenda_view(resource_id, shift):
     """Redirecionamento de compatibilidade da URL antiga."""
     return redirect(url_for('agenda.select_shift', resource_id=resource_id, shift=shift))
 
+OFFICIAL_SLOT_TIMES = {
+    'matutino': {
+        '1ª Aula': '07:30 - 08:15',
+        '2ª Aula': '08:15 - 09:00',
+        '3ª Aula': '09:00 - 09:45',
+        'Intervalo': '09:45 - 10:00',
+        '4ª Aula': '10:00 - 10:45',
+        '5ª Aula': '10:45 - 11:30',
+    },
+    'vespertino': {
+        '1ª Aula': '13:00 - 13:45',
+        '2ª Aula': '13:45 - 14:30',
+        '3ª Aula': '14:30 - 15:15',
+        'Intervalo': '15:15 - 15:30',
+        '4ª Aula': '15:30 - 16:15',
+        '5ª Aula': '16:15 - 17:00',
+    }
+}
+
 @agenda_bp.route('/api/agenda/<int:resource_id>/<string:date_str>')
 @login_required
 def get_agenda_data(resource_id, date_str):
@@ -80,7 +99,8 @@ def get_agenda_data(resource_id, date_str):
             if not isinstance(slot, dict) or 'name' not in slot or 'type' not in slot:
                 continue
 
-            slot_bookings = bookings_by_slot.get((template.shift, slot['name']), [])
+            slot_name = slot.get('name', 'Inválido')
+            slot_bookings = bookings_by_slot.get((template.shift, slot_name), [])
             booked_count = len(slot_bookings)
             available_count = max(0, capacity - booked_count)
             
@@ -91,6 +111,7 @@ def get_agenda_data(resource_id, date_str):
                     'teacher_name': 'Fechado' if b.status == 'closed' else b.teacher_name,
                     'status': b.status,
                     'is_closed': b.status == 'closed',
+                    'classroom_or_notes': getattr(b, 'classroom_or_notes', None) or '',
                     'is_mine': b.teacher_id == current_user.id,
                     'is_admin': current_user.is_admin
                 })
@@ -99,18 +120,24 @@ def get_agenda_data(resource_id, date_str):
 
             first_booking = slot_bookings[0] if slot_bookings else None
             booked_by_name = None
+            first_notes = ''
             if first_booking and available_count == 0:
                 booked_by_name = 'Fechado' if first_booking.status == 'closed' else first_booking.teacher_name
+                first_notes = getattr(first_booking, 'classroom_or_notes', '') or ''
+
+            time_range = OFFICIAL_SLOT_TIMES.get(template.shift, {}).get(slot_name, '')
 
             slot_info = {
-                'name': slot.get('name', 'Inválido'),
+                'name': slot_name,
                 'type': slot.get('type', 'aula'),
+                'time_range': time_range,
                 'capacity': capacity,
                 'booked_count': booked_count,
                 'available_count': available_count,
                 'already_booked_by_me': already_booked_by_me,
                 'bookings': bookings_list,
                 'booked_by': booked_by_name,
+                'classroom_or_notes': first_notes,
                 'booking_id': first_booking.id if first_booking else None,
                 'is_mine': first_booking.teacher_id == current_user.id if first_booking else False,
                 'is_admin': current_user.is_admin
@@ -215,6 +242,10 @@ def book_slot():
         flash('Este professor já possui um agendamento para este horário.', 'warning')
         return redirect(url_for('agenda.select_shift', resource_id=resource_id, date=date_str, shift=shift))
 
+    classroom_or_notes = (request.form.get('classroom_or_notes') or '').strip()
+    if not classroom_or_notes:
+        classroom_or_notes = None
+
     new_booking = Booking(
         resource_id=int(resource_id),
         date=booking_date,
@@ -222,7 +253,8 @@ def book_slot():
         shift=shift,
         teacher_id=book_for_teacher.id,
         teacher_name=book_for_teacher.name,
-        status='booked'
+        status='booked',
+        classroom_or_notes=classroom_or_notes
     )
     try:
         db.session.add(new_booking)

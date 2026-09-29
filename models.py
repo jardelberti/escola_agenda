@@ -47,6 +47,7 @@ class Booking(db.Model):
     shift = db.Column(db.String(50), nullable=False)
     slot_name = db.Column(db.String(100), nullable=False)
     status = db.Column(db.String(50), nullable=False, default='booked') # 'booked' ou 'closed'
+    classroom_or_notes = db.Column(db.String(150), nullable=True) # Ex: Turma 7º B ou Finalidade
 
     # Garante integridade de agendamentos e impede reserva duplicada pelo mesmo professor no mesmo horário
     __table_args__ = (
