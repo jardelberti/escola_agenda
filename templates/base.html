@@ -44,8 +44,18 @@
                         <span class="text-[10px] text-slate-500 font-medium leading-none hidden sm:block">EMEB Prof. Ricardo Hoffmann</span>
                     </div>
                 </a>
-                <div class="text-xs sm:text-sm text-slate-600">
-                    Olá, <strong class="font-semibold text-slate-800">{{ current_user.name }}</strong>
+                <div class="text-xs sm:text-sm text-slate-600 flex items-center gap-2 sm:gap-3">
+                    {% if current_user.is_admin %}
+                    <button type="button" onclick="toggleNotificationPanel()" class="relative p-1.5 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors inline-flex items-center justify-center" title="Central de Reservas em Tempo Real">
+                        <span class="material-symbols-outlined text-xl text-amber-500">notifications</span>
+                        <span id="baseLiveNotificationDot" class="absolute top-1 right-1 flex h-2 w-2">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        <span id="baseLiveNotificationBadge" class="hidden absolute -top-1 -right-1 bg-rose-600 text-white text-[9px] font-bold px-1 rounded-full shadow-sm">0</span>
+                    </button>
+                    {% endif %}
+                    <span>Olá, <strong class="font-semibold text-slate-800">{{ current_user.name }}</strong></span>
                 </div>
             </div>
         </div>
@@ -169,5 +179,8 @@
             }
         }, true);
     </script>
+    {% if current_user.is_authenticated and current_user.is_admin %}
+        {% include 'live_notifications.html' %}
+    {% endif %}
 </body>
 </html>

@@ -41,11 +41,14 @@ def ensure_schema_updates():
             is_postgres = 'postgresql' in str(engine.url)
             if is_postgres:
                 db.session.execute(db.text("ALTER TABLE booking ADD COLUMN IF NOT EXISTS classroom_or_notes VARCHAR(150);"))
+                db.session.execute(db.text("ALTER TABLE booking ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
                 db.session.execute(db.text("ALTER TABLE resource ADD COLUMN IF NOT EXISTS max_weekly_bookings INTEGER;"))
             else:
                 booking_cols = [row[1] for row in db.session.execute(db.text("PRAGMA table_info(booking);")).fetchall()]
                 if booking_cols and 'classroom_or_notes' not in booking_cols:
                     db.session.execute(db.text("ALTER TABLE booking ADD COLUMN classroom_or_notes VARCHAR(150);"))
+                if booking_cols and 'created_at' not in booking_cols:
+                    db.session.execute(db.text("ALTER TABLE booking ADD COLUMN created_at TIMESTAMP;"))
                 
                 resource_cols = [row[1] for row in db.session.execute(db.text("PRAGMA table_info(resource);")).fetchall()]
                 if resource_cols and 'max_weekly_bookings' not in resource_cols:

@@ -709,3 +709,73 @@ def recurring_booking():
         return redirect(url_for('admin.recurring_booking'))
 
     return render_template('admin_recurring_booking.html', resources=resources, teachers=teachers)
+
+
+@admin_bp.route('/live-notifications')
+@admin_required
+def live_notifications():
+    """Endpoint de polling leve para notificações de reservas em tempo real no navegador do administrador."""
+    last_id = request.args.get('last_id', type=int, default=0)
+    initial = request.args.get('initial', type=int, default=0)
+
+    max_id = db.session.query(func.max(Booking.id)).scalar() or 0
+
+    def serialize_booking(b):
+        is_today = (b.date == date.today())
+        is_tomorrow = (b.date == date.today() + timedelta(days=1))
+        
+        if is_today:
+            date_display = 'HOJE'
+        elif is_tomorrow:
+            date_display = 'AMANHÃ'
+        else:
+            date_display = b.date.strftime('%d/%m/%Y')
+
+        shift_map = {'matutino': 'Matutino', 'vespertino': 'Vespertino'}
+        shift_label = shift_map.get(b.shift.lower(), b.shift)
+
+        return {
+            'id': b.id,
+            'teacher_name': b.teacher_name,
+            'resource_name': b.resource.name if b.resource else 'Recurso',
+            'resource_icon': b.resource.icon if (b.resource and b.resource.icon) else 'meeting_room',
+            'date': b.date.strftime('%d/%m/%Y'),
+            'date_display': date_display,
+            'is_today': is_today,
+            'is_tomorrow': is_tomorrow,
+            'shift': shift_label,
+            'slot_name': b.slot_name,
+            'classroom_or_notes': b.classroom_or_notes or '',
+            'created_at': b.created_at.strftime('%H:%M') if getattr(b, 'created_at', None) else ''
+        }
+
+    # Se for o carregamento inicial da página, obtém o max_id e as 5 últimas reservas sem soar alarme
+    if initial == 1:
+        recent = (
+            Booking.query
+            .filter(Booking.status == 'booked')
+            .order_by(Booking.id.desc())
+            .limit(5)
+            .all()
+        )
+        return jsonify({
+            'max_id': max_id,
+            'new_bookings': [],
+            'recent_history': [serialize_booking(b) for b in recent]
+        })
+
+    # Consulta novos agendamentos criados após last_id
+    new_bookings = []
+    if last_id > 0 and last_id < max_id:
+        new_bookings = (
+            Booking.query
+            .filter(Booking.id > last_id, Booking.status == 'booked')
+            .order_by(Booking.id.asc())
+            .limit(10)
+            .all()
+        )
+
+    return jsonify({
+        'max_id': max(max_id, last_id),
+        'new_bookings': [serialize_booking(b) for b in new_bookings]
+    })

@@ -49,6 +49,9 @@ class Booking(db.Model):
     slot_name = db.Column(db.String(100), nullable=False)
     status = db.Column(db.String(50), nullable=False, default='booked') # 'booked' ou 'closed'
     classroom_or_notes = db.Column(db.String(150), nullable=True) # Ex: Turma 7º B ou Finalidade
+    created_at = db.Column(db.DateTime, default=db.func.now(), server_default=db.func.now())
+
+    resource = db.relationship('Resource', backref=db.backref('bookings', lazy=True))
 
     # Garante integridade de agendamentos e impede reserva duplicada pelo mesmo professor no mesmo horário
     __table_args__ = (

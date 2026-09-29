@@ -1,0 +1,546 @@
+<!-- Sistema de Notificações em Tempo Real de Reservas para Administradores -->
+<div id="liveNotificationsWrapper">
+
+    <!-- Container de Toasts Flutuantes (Canto inferior direito) -->
+    <div id="liveToastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+    <!-- Banner Suave para Solicitar Permissão de Notificações no Navegador -->
+    <div id="livePermissionBanner" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-lg w-[92%] bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-2xl shadow-2xl border border-slate-700 transition-all">
+        <div class="flex items-start gap-3">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-2xl">notifications_active</span>
+            </div>
+            <div class="flex-grow">
+                <h4 class="font-bold text-sm text-slate-100 flex items-center gap-1.5">
+                    <span>Avisos de Reservas em Tempo Real</span>
+                    <span class="bg-amber-400/20 text-amber-300 text-[10px] font-semibold px-2 py-0.5 rounded-full">Recomendado</span>
+                </h4>
+                <p class="text-xs text-slate-300 mt-1 leading-relaxed">
+                    Deseja receber avisos sonoros e notificações na tela sempre que um professor fizer um agendamento (especialmente reservas de última hora para hoje)?
+                </p>
+                <div class="flex items-center gap-2 mt-3">
+                    <button type="button" onclick="requestNotificationPermission()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3.5 py-1.5 rounded-xl transition-all shadow-sm inline-flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-sm">check_circle</span>
+                        Ativar Alertas
+                    </button>
+                    <button type="button" onclick="dismissPermissionBanner()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium px-3 py-1.5 rounded-xl transition-all">
+                        Agora não
+                    </button>
+                </div>
+            </div>
+            <button type="button" onclick="dismissPermissionBanner()" class="text-slate-400 hover:text-slate-200 p-1">
+                <span class="material-symbols-outlined text-base">close</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Painel Lateral / Drawer da Central de Reservas em Tempo Real -->
+    <div id="liveNotificationDrawer" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm transition-opacity" onclick="closeNotificationPanelOnBackdrop(event)">
+        <div class="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col z-50 border-l border-slate-200 transition-transform">
+            
+            <!-- Header do Painel -->
+            <div class="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-xl">notifications_active</span>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-base leading-tight">Central de Reservas</h3>
+                        <p class="text-xs text-slate-500 font-medium">Alertas ao vivo no navegador</p>
+                    </div>
+                </div>
+                <button type="button" onclick="toggleNotificationPanel()" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-200/60 transition-colors">
+                    <span class="material-symbols-outlined text-xl">close</span>
+                </button>
+            </div>
+
+            <!-- Controles e Configurações Rápidas -->
+            <div class="p-4 border-b border-slate-100 bg-white space-y-3">
+                <div class="flex items-center justify-between text-xs">
+                    <span class="font-medium text-slate-700 flex items-center gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span id="liveStatusText">Monitoramento Ativo</span>
+                    </span>
+                    <span class="text-slate-400">Verificação a cada 15s</span>
+                </div>
+                
+                <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-slate-600 text-lg" id="soundIconState">volume_up</span>
+                        <div>
+                            <div class="text-xs font-semibold text-slate-700">Som do Alerta</div>
+                            <div class="text-[11px] text-slate-400" id="soundDesc">Toque de sino quando agendado</div>
+                        </div>
+                    </div>
+                    <button type="button" onclick="toggleSoundPreference()" id="soundToggleBtn" class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors inline-flex items-center gap-1">
+                        Ativado
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="testNotificationAlert()" class="flex-1 text-xs font-semibold px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors inline-flex items-center justify-center gap-1.5">
+                        <span class="material-symbols-outlined text-base text-amber-500">play_circle</span>
+                        Testar Alerta e Som
+                    </button>
+                    <button type="button" onclick="requestNotificationPermission()" id="permBtnInDrawer" class="text-xs font-semibold px-3 py-2 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors inline-flex items-center gap-1">
+                        <span class="material-symbols-outlined text-base">desktop_windows</span>
+                        <span id="permBtnText">Permitir no PC</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Título da Lista -->
+            <div class="px-4 pt-3 pb-1 flex items-center justify-between bg-slate-50 border-b border-slate-100 text-xs font-semibold text-slate-500">
+                <span>ÚLTIMAS RESERVAS RECEBIDAS</span>
+                <span id="recentListCount" class="text-slate-400">0</span>
+            </div>
+
+            <!-- Lista de Reservas -->
+            <div class="flex-grow overflow-y-auto p-4 space-y-2.5" id="liveRecentList">
+                <div id="emptyRecentState" class="py-8 text-center text-slate-400 text-xs">
+                    <span class="material-symbols-outlined text-3xl mb-1 text-slate-300">notifications_paused</span>
+                    <p>Nenhuma reserva registrada nesta sessão.</p>
+                    <p class="text-[11px] mt-1 text-slate-400">Novos agendamentos aparecerão aqui automaticamente.</p>
+                </div>
+            </div>
+
+            <!-- Rodapé Informativo -->
+            <div class="p-3 border-t border-slate-200 bg-slate-50 text-center text-[11px] text-slate-500 flex items-center justify-center gap-1">
+                <span class="material-symbols-outlined text-xs text-amber-500">info</span>
+                <span>Mantenha esta aba aberta para ouvir os alertas na hora que o professor reservar.</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    let lastBookingId = 0;
+    let pollingInterval = null;
+    let unreadCount = 0;
+    let audioCtx = null;
+    let soundEnabled = localStorage.getItem('agenda_sound_enabled') !== 'false'; // Padrão: ativado
+
+    // Inicialização do Web Audio API para síntese dos sinos sonoros
+    function getAudioContext() {
+        try {
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioContextClass) {
+                    audioCtx = new AudioContextClass();
+                }
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        } catch (e) {
+            console.warn('Web Audio não suportado:', e);
+        }
+        return audioCtx;
+    }
+
+    // Desbloqueia o contexto de áudio no primeiro clique do usuário em qualquer lugar da tela
+    document.addEventListener('click', function unlockAudio() {
+        getAudioContext();
+    }, { once: false });
+
+    // Toca o sino (chime)
+    // Se for HOJE: acorde tríade de 3 tons mais destacado (C5 -> E5 -> G5)
+    // Se for futuro: 2 tons suaves (C5 -> G5)
+    window.playChime = function(isUrgent = false) {
+        if (!soundEnabled) return;
+        const ctx = getAudioContext();
+        if (!ctx) return;
+
+        try {
+            const now = ctx.currentTime;
+            const notes = isUrgent
+                ? [
+                    { f: 523.25, start: 0.00, dur: 0.20 }, // Dó (C5)
+                    { f: 659.25, start: 0.15, dur: 0.22 }, // Mi (E5)
+                    { f: 783.99, start: 0.32, dur: 0.48 }  // Sol (G5)
+                  ]
+                : [
+                    { f: 523.25, start: 0.00, dur: 0.22 },
+                    { f: 659.25, start: 0.18, dur: 0.38 }
+                  ];
+
+            notes.forEach(note => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.type = isUrgent ? 'triangle' : 'sine';
+                osc.frequency.setValueAtTime(note.f, now + note.start);
+
+                gain.gain.setValueAtTime(0.001, now + note.start);
+                gain.gain.exponentialRampToValueAtTime(isUrgent ? 0.35 : 0.22, now + note.start + 0.03);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + note.start + note.dur);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start(now + note.start);
+                osc.stop(now + note.start + note.dur + 0.05);
+            });
+        } catch (e) {
+            console.warn('Erro ao emitir sino de notificação:', e);
+        }
+    };
+
+    // Preferência de Som
+    window.toggleSoundPreference = function() {
+        soundEnabled = !soundEnabled;
+        localStorage.setItem('agenda_sound_enabled', soundEnabled ? 'true' : 'false');
+        updateSoundUI();
+        if (soundEnabled) {
+            playChime(false);
+        }
+    };
+
+    function updateSoundUI() {
+        const btn = document.getElementById('soundToggleBtn');
+        const icon = document.getElementById('soundIconState');
+        const desc = document.getElementById('soundDesc');
+        if (btn && icon && desc) {
+            if (soundEnabled) {
+                btn.textContent = 'Ativado';
+                btn.className = 'text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors';
+                icon.textContent = 'volume_up';
+                icon.className = 'material-symbols-outlined text-blue-600 text-lg';
+                desc.textContent = 'Toque de sino quando agendado';
+            } else {
+                btn.textContent = 'Mudo';
+                btn.className = 'text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300 transition-colors';
+                icon.textContent = 'volume_off';
+                icon.className = 'material-symbols-outlined text-slate-400 text-lg';
+                desc.textContent = 'Silencioso (apenas aviso visual)';
+            }
+        }
+    }
+
+    // Notificação Nativa do Sistema Operacional / Navegador
+    window.showDesktopNotification = function(booking) {
+        if (!("Notification" in window) || Notification.permission !== "granted") return;
+
+        const isToday = booking.is_today;
+        const title = isToday
+            ? `🚨 RESERVA PARA HOJE: ${booking.resource_name}!`
+            : `📅 Nova Reserva: ${booking.resource_name}`;
+
+        let body = `Prof. ${booking.teacher_name} agendou para ${booking.date_display} (${booking.slot_name} - ${booking.shift})`;
+        if (booking.classroom_or_notes) {
+            body += `\nTurma/Obs: ${booking.classroom_or_notes}`;
+        }
+
+        try {
+            const notif = new Notification(title, {
+                body: body,
+                icon: '/static/img/logo.png',
+                badge: '/static/img/logo.png',
+                tag: `booking-${booking.id}`,
+                requireInteraction: isToday // Na área de trabalho do Windows/Mac, permanece na tela até o admin fechar se for para hoje!
+            });
+
+            notif.onclick = function() {
+                window.focus();
+                this.close();
+            };
+        } catch (e) {
+            console.warn('Erro ao disparar notificação nativa:', e);
+        }
+    };
+
+    // Card Toast Flutuante na Aplicação
+    window.createToast = function(booking) {
+        const container = document.getElementById('liveToastContainer');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = `pointer-events-auto bg-white rounded-2xl shadow-2xl border transition-all duration-300 transform translate-y-4 opacity-0 ${
+            booking.is_today ? 'border-amber-400 ring-2 ring-amber-400/30' : 'border-slate-200'
+        } p-4`;
+
+        const urgentTag = booking.is_today
+            ? `<span class="bg-rose-100 text-rose-700 text-[10px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-1 animate-pulse">
+                 <span class="material-symbols-outlined text-xs">bolt</span> HOJE
+               </span>`
+            : `<span class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                 ${booking.date_display}
+               </span>`;
+
+        toast.innerHTML = `
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    ${urgentTag}
+                    <span class="text-xs font-bold text-slate-800">${booking.resource_name}</span>
+                </div>
+                <button type="button" class="text-slate-400 hover:text-slate-600 p-0.5" onclick="this.closest('.pointer-events-auto').remove()">
+                    <span class="material-symbols-outlined text-sm">close</span>
+                </button>
+            </div>
+            <div class="mt-2 text-xs">
+                <div class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-base text-blue-600">person</span>
+                    <span>Prof. ${booking.teacher_name}</span>
+                </div>
+                <div class="text-slate-500 mt-1 flex items-center gap-1">
+                    <span class="material-symbols-outlined text-xs">schedule</span>
+                    <span>${booking.slot_name} • ${booking.shift}</span>
+                </div>
+                ${booking.classroom_or_notes ? `
+                <div class="text-slate-700 mt-2 bg-slate-50 p-2 rounded-xl border border-slate-100 text-[11px]">
+                    <span class="font-semibold text-slate-600">Turma/Obs:</span> ${booking.classroom_or_notes}
+                </div>` : ''}
+            </div>
+            <div class="mt-3 flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-100 pt-2">
+                <span class="text-emerald-600 font-medium flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                    Acabou de agendar
+                </span>
+                <a href="{{ url_for('admin_dashboard') }}" class="text-blue-600 hover:text-blue-700 font-semibold inline-flex items-center gap-0.5">
+                    Ver no Painel <span class="material-symbols-outlined text-xs">chevron_right</span>
+                </a>
+            </div>
+        `;
+
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.classList.remove('translate-y-4', 'opacity-0');
+        }, 30);
+
+        // Se for HOJE dura 25 segundos na tela; se for futuro dura 14 segundos
+        const timeout = booking.is_today ? 25000 : 14000;
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.classList.add('opacity-0', 'translate-x-6');
+                setTimeout(() => toast.remove(), 400);
+            }
+        }, timeout);
+    };
+
+    // Adiciona à lista recente do Drawer
+    function addToRecentList(booking, isNew = false) {
+        const list = document.getElementById('liveRecentList');
+        const emptyState = document.getElementById('emptyRecentState');
+        const countBadge = document.getElementById('recentListCount');
+        if (!list) return;
+
+        if (emptyState) emptyState.remove();
+
+        const card = document.createElement('div');
+        card.className = `p-3 rounded-xl border text-xs transition-all ${
+            booking.is_today
+                ? 'bg-amber-50/80 border-amber-200 shadow-sm'
+                : 'bg-white border-slate-200'
+        }`;
+
+        card.innerHTML = `
+            <div class="flex items-start justify-between gap-2">
+                <div class="flex items-center gap-1.5">
+                    ${booking.is_today 
+                        ? '<span class="bg-rose-100 text-rose-700 font-extrabold text-[9px] px-1.5 py-0.5 rounded">HOJE</span>' 
+                        : `<span class="bg-blue-100 text-blue-700 font-semibold text-[9px] px-1.5 py-0.5 rounded">${booking.date_display}</span>`
+                    }
+                    <span class="font-bold text-slate-800">${booking.resource_name}</span>
+                </div>
+                ${isNew ? '<span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1 rounded">NOVO</span>' : ''}
+            </div>
+            <div class="mt-1 text-slate-700 font-semibold">
+                Prof. ${booking.teacher_name}
+            </div>
+            <div class="text-slate-500 text-[11px] mt-0.5">
+                ${booking.slot_name} • ${booking.shift}
+            </div>
+            ${booking.classroom_or_notes ? `
+                <div class="mt-1.5 text-[10px] text-slate-600 bg-white/70 p-1.5 rounded border border-slate-100">
+                    <strong class="font-medium">Obs:</strong> ${booking.classroom_or_notes}
+                </div>
+            ` : ''}
+        `;
+
+        list.prepend(card);
+
+        if (countBadge) {
+            const currentTotal = list.querySelectorAll('.rounded-xl.border').length;
+            countBadge.textContent = currentTotal;
+        }
+
+        if (isNew) {
+            unreadCount++;
+            updateBadges();
+        }
+    }
+
+    function updateBadges() {
+        const badge1 = document.getElementById('liveNotificationBadge');
+        const badge2 = document.getElementById('baseLiveNotificationBadge');
+        [badge1, badge2].forEach(b => {
+            if (b) {
+                if (unreadCount > 0) {
+                    b.textContent = unreadCount > 9 ? '9+' : unreadCount;
+                    b.classList.remove('hidden');
+                } else {
+                    b.classList.add('hidden');
+                }
+            }
+        });
+    }
+
+    // Toggle do Drawer
+    window.toggleNotificationPanel = function() {
+        const drawer = document.getElementById('liveNotificationDrawer');
+        if (drawer) {
+            drawer.classList.toggle('hidden');
+            if (!drawer.classList.contains('hidden')) {
+                // Ao abrir, limpa o contador de não lidas
+                unreadCount = 0;
+                updateBadges();
+                updatePermissionButtonUI();
+            }
+        }
+    };
+
+    window.closeNotificationPanelOnBackdrop = function(e) {
+        if (e.target.id === 'liveNotificationDrawer') {
+            toggleNotificationPanel();
+        }
+    };
+
+    // Solicitação de Permissão
+    window.requestNotificationPermission = async function() {
+        getAudioContext(); // desbloqueia audio
+        if (!("Notification" in window)) {
+            alert('Seu navegador não suporta notificações nativas.');
+            return;
+        }
+
+        const permission = await Notification.requestPermission();
+        updatePermissionButtonUI();
+        dismissPermissionBanner();
+
+        if (permission === 'granted') {
+            playChime(false);
+            new Notification('🔔 Notificações Ativadas!', {
+                body: 'Você receberá avisos sonoros e na tela a cada nova reserva de professor.',
+                icon: '/static/img/logo.png'
+            });
+        }
+    };
+
+    window.dismissPermissionBanner = function() {
+        const b = document.getElementById('livePermissionBanner');
+        if (b) b.classList.add('hidden');
+        sessionStorage.setItem('agenda_perm_banner_dismissed', 'true');
+    };
+
+    function updatePermissionButtonUI() {
+        const btn = document.getElementById('permBtnInDrawer');
+        const txt = document.getElementById('permBtnText');
+        if (!btn || !txt) return;
+
+        if (!("Notification" in window)) {
+            txt.textContent = 'Não Suportado';
+            btn.disabled = true;
+            return;
+        }
+
+        if (Notification.permission === 'granted') {
+            txt.textContent = 'Permitido';
+            btn.className = 'text-xs font-semibold px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 transition-colors inline-flex items-center gap-1';
+        } else if (Notification.permission === 'denied') {
+            txt.textContent = 'Bloqueado';
+            btn.className = 'text-xs font-semibold px-3 py-2 rounded-xl bg-rose-50 text-rose-700 transition-colors inline-flex items-center gap-1';
+        } else {
+            txt.textContent = 'Permitir no PC';
+            btn.className = 'text-xs font-semibold px-3 py-2 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors inline-flex items-center gap-1';
+        }
+    }
+
+    // Testar Alerta
+    window.testNotificationAlert = function() {
+        getAudioContext();
+        playChime(true);
+
+        const mockBooking = {
+            id: 999999,
+            resource_name: 'Sala de Informática (Teste)',
+            teacher_name: 'Professor de Teste',
+            date_display: 'HOJE',
+            is_today: true,
+            shift: 'Matutino',
+            slot_name: '2ª Aula',
+            classroom_or_notes: 'Demonstração de alerta sonoro e visual'
+        };
+
+        createToast(mockBooking);
+        showDesktopNotification(mockBooking);
+        addToRecentList(mockBooking, true);
+    };
+
+    // Ciclo de Polling
+    async function pollLiveBookings(isInitial = false) {
+        try {
+            const url = `/admin/live-notifications?last_id=${lastBookingId}&initial=${isInitial ? 1 : 0}`;
+            const res = await fetch(url, { credentials: 'same-origin' });
+            if (!res.ok) return;
+
+            const data = await res.json();
+
+            if (isInitial) {
+                lastBookingId = data.max_id || 0;
+                if (data.recent_history && Array.isArray(data.recent_history)) {
+                    data.recent_history.forEach(b => addToRecentList(b, false));
+                }
+                return;
+            }
+
+            if (data.max_id && data.max_id > lastBookingId) {
+                lastBookingId = data.max_id;
+            }
+
+            if (data.new_bookings && Array.isArray(data.new_bookings) && data.new_bookings.length > 0) {
+                let hasTodayBooking = false;
+                data.new_bookings.forEach(b => {
+                    if (b.is_today) hasTodayBooking = true;
+                    addToRecentList(b, true);
+                    createToast(b);
+                    showDesktopNotification(b);
+                });
+                playChime(hasTodayBooking);
+            }
+        } catch (err) {
+            // Em caso de falha de conexão transitória, ignora silenciosamente
+            console.debug('Polling check:', err);
+        }
+    }
+
+    // Inicialização ao carregar o DOM
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSoundUI();
+        updatePermissionButtonUI();
+
+        // Se a permissão não foi concedida ainda e o usuário não dispensou na sessão
+        if ("Notification" in window && Notification.permission === 'default') {
+            if (!sessionStorage.getItem('agenda_perm_banner_dismissed')) {
+                setTimeout(() => {
+                    const banner = document.getElementById('livePermissionBanner');
+                    if (banner) banner.classList.remove('hidden');
+                }, 2000);
+            }
+        }
+
+        // Carga inicial (pega max_id sem soar alarme)
+        pollLiveBookings(true);
+
+        // Dispara verificação a cada 15 segundos
+        pollingInterval = setInterval(() => {
+            pollLiveBookings(false);
+        }, 15000);
+
+        // Se a aba voltar a ficar em foco, faz uma checagem imediata
+        window.addEventListener('focus', () => {
+            pollLiveBookings(false);
+        });
+    });
+})();
+</script>
