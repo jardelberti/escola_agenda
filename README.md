@@ -4,7 +4,7 @@
   <p><strong>Um sistema completo de agendamento de recursos para ambientes escolares, conteinerizado com Docker.</strong></p>
   <p>
     <a href="#">
-      <img alt="Versão" src="https://img.shields.io/badge/version-1.3.0-blue?style=for-the-badge&logo=appveyor">
+      <img alt="Versão" src="https://img.shields.io/badge/version-1.4.0-blue?style=for-the-badge&logo=appveyor">
     </a>
     <a href="#">
       <img alt="Licença" src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge">
@@ -38,8 +38,9 @@ O sistema possui uma interface administrativa para gestão completa e uma área 
 ## ✨ Funcionalidades Principais
 
 * **Painel de Administração:**
-    * Gerenciamento de usuários (professores e administradores) com **número de WhatsApp** para lembretes automáticos.
+    * Gerenciamento de usuários com **número de WhatsApp** e **opção de Ativar/Desativar (sem apagar histórico)**.
     * Cadastro, edição e exclusão de recursos (salas, equipamentos).
+
     * Suporte a **múltiplas unidades por recurso** (ex: 2 ou mais Projetores simultâneos no mesmo horário).
     * **Pausar/Reativar agendamento de recursos** sem apagar histórico ou configurações.
     * Configuração de grades de horários personalizadas (matutino/vespertino).

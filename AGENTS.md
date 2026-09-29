@@ -105,7 +105,19 @@ docker exec -it agenda_db psql -U agenda_user -d agenda_db
   UPDATE resource SET is_active = TRUE WHERE id = 2;
   ```
 
+### Desativar / Reativar Professor via Painel ou SQL:
+- **Pelo Painel**: Acesse `https://agendaricardo.com.br/admin/teachers` e clique no botão **Desativar** ou **Ativar** ao lado do professor. Professores desativados não conseguem fazer login nem receber novos agendamentos, mas todo o histórico de reservas anteriores é 100% preservado.
+- **Pelo SQL**:
+  ```sql
+  -- Desativar professor pela matrícula:
+  UPDATE teacher SET is_active = FALSE WHERE registration = '451943';
+
+  -- Reativar professor:
+  UPDATE teacher SET is_active = TRUE WHERE registration = '451943';
+  ```
+
 ---
+
 
 ## ☁️ 7. Backup Automatizado Offsite (Cloudflare R2)
 
