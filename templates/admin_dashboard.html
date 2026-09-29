@@ -1,349 +1,403 @@
 {% extends "base.html" %}
 
-{% block title %}Painel do Admin{% endblock %}
+{% block title %}Dashboard do Administrador - Agenda Escolar{% endblock %}
 
 {% block content %}
-<body class="bg-slate-50" style='font-family: Inter, "Noto Sans", sans-serif;'>
-    <div class="container mx-auto px-4 py-8">
+<div class="container mx-auto px-4 py-6 max-w-6xl">
 
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
-            <h1 class="text-3xl font-bold text-slate-800">Painel do Administrador</h1>
-            <div class="mt-4 sm:mt-0 flex space-x-2">
-                <a href="{{ url_for('home') }}" class="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700 transition-colors">Ver Agendas</a>
-                <a href="{{ url_for('logout') }}" class="bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-lg hover:bg-slate-300 transition-colors">Sair</a>
+    <!-- Navegação do Admin -->
+    {% with active_tab='dashboard' %}
+        {% include 'admin_nav.html' %}
+    {% endwith %}
+
+    <!-- Mensagens Flash -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="space-y-2 mb-6">
+            {% for category, message in messages %}
+                {% set color = 'blue' if category == 'success' else 'red' if category == 'danger' else 'yellow' if category == 'warning' else 'gray' %}
+                <div class="bg-{{ color }}-100 border-l-4 border-{{ color }}-500 text-{{ color }}-700 p-4 rounded-xl text-sm shadow-sm" role="alert">
+                    <p class="font-medium">{{ message }}</p>
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- 1. CARDS DE MÉTRICAS PRINCIPAIS (KPIs) -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+        
+        <!-- Card 1: Hoje -->
+        <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Aulas Hoje</p>
+                <h3 class="text-2xl sm:text-3xl font-extrabold text-blue-600 mt-0.5">{{ bookings_today_count }}</h3>
+                <span class="text-[11px] text-slate-400 font-medium">Reservas ativas</span>
+            </div>
+            <div class="size-11 sm:size-12 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center flex-shrink-0">
+                <span class="material-symbols-outlined text-2xl sm:text-3xl">today</span>
             </div>
         </div>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="space-y-2 mb-6">
-                {% for category, message in messages %}
-                    {% set color = 'blue' if category == 'success' else 'red' if category == 'danger' else 'yellow' if category == 'warning' else 'gray' %}
-                    <div class="bg-{{ color }}-100 border-l-4 border-{{ color }}-500 text-{{ color }}-700 p-4 rounded-lg" role="alert">
-                        <p>{{ message }}</p>
-                    </div>
-                {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-            <div class="lg:col-span-1 space-y-6">
-                
-                <div class="bg-white p-6 rounded-xl border border-slate-200">
-                    <h3 class="text-xl font-bold text-slate-800 mb-4">Adicionar Recurso</h3>
-                    <form method="POST" action="{{ url_for('add_resource') }}" class="space-y-4">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <div>
-                            <label for="name" class="block text-sm font-medium text-slate-600 mb-1">Nome do Recurso</label>
-                            <input type="text" name="name" class="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500" required>
-                        </div>
-                        <div>
-                            <label for="description" class="block text-sm font-medium text-slate-600 mb-1">Descrição (Opcional)</label>
-                            <input type="text" name="description" class="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label for="icon" class="block text-sm font-medium text-slate-600 mb-1">Ícone</label>
-                            <input type="text" name="icon" class="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500" placeholder="Ex: bi-projector-fill">
-                            <p class="text-xs text-slate-400 mt-1">Use classes do <a href="https://icons.getbootstrap.com/" target="_blank" class="text-blue-500 hover:underline">Bootstrap Icons</a>.</p>
-                        </div>
-                        <div>
-                            <label for="add_quantity" class="block text-sm font-medium text-slate-600 mb-1">Quantidade de Itens (Capacidade)</label>
-                            <input type="number" id="add_quantity" name="quantity" min="1" value="1" class="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500" required>
-                            <p class="text-xs text-slate-400 mt-1">Ex: 1 para salas, 2 para projetores simultâneos.</p>
-                        </div>
-                        <div>
-                            <label for="add_max_weekly" class="block text-sm font-medium text-slate-600 mb-1">Cota Máxima Semanal por Professor (Opcional)</label>
-                            <input type="number" id="add_max_weekly" name="max_weekly_bookings" min="1" class="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500" placeholder="Ex: 4 (Vazio = Ilimitado)">
-                            <p class="text-xs text-slate-400 mt-1">Limite de aulas que cada professor pode reservar por semana.</p>
-                        </div>
-                        <div class="flex items-center">
-                            <input type="checkbox" id="add_active" name="is_active" value="true" checked class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4">
-                            <label for="add_active" class="ml-2 text-sm text-slate-700 font-medium">Disponível para agendamento (Ativo)</label>
-                        </div>
-                        <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-2 rounded-lg shadow-sm hover:bg-blue-700 transition-colors">Adicionar</button>
-                    </form>
-                </div>
-
-                    <h3 class="text-xl font-bold text-slate-800 mb-2">Outras Ações</h3>
-                    <div class="space-y-2.5 mt-4">
-                        <a href="{{ url_for('admin.recurring_booking') }}" class="block w-full text-center bg-indigo-600 text-white font-semibold py-2 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm flex items-center justify-center gap-1.5">
-                            <span class="material-symbols-outlined text-lg">event_repeat</span> Agendamento em Lote
-                        </a>
-                        <a href="{{ url_for('admin.manage_audit_logs') }}" class="block w-full text-center bg-rose-600 text-white font-semibold py-2 rounded-lg hover:bg-rose-700 transition-colors shadow-sm flex items-center justify-center gap-1.5">
-                            <span class="material-symbols-outlined text-lg">history</span> Auditoria de Cancelamentos
-                        </a>
-                        <a href="{{ url_for('weekly_view') }}" class="block w-full text-center bg-teal-600 text-white font-semibold py-2 rounded-lg hover:bg-teal-700 transition-colors">Agenda Semanal</a>
-                        <a href="{{ url_for('reports') }}" class="block w-full text-center bg-emerald-600 text-white font-semibold py-2 rounded-lg hover:bg-emerald-700 transition-colors">Gerar Relatórios</a>
-                        <a href="{{ url_for('manage_teachers') }}" class="block w-full text-center bg-amber-600 text-white font-semibold py-2 rounded-lg hover:bg-amber-700 transition-colors">Gerenciar Usuários</a>
-                        <a href="{{ url_for('backup_restore_page') }}" class="block w-full text-center bg-slate-600 text-white font-semibold py-2 rounded-lg hover:bg-slate-700 transition-colors mt-2">Backup e Restauração</a>
-                    </div>
-                </div>
-
+        <!-- Card 2: Esta Semana -->
+        <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Esta Semana</p>
+                <h3 class="text-2xl sm:text-3xl font-extrabold text-indigo-600 mt-0.5">{{ bookings_week_count }}</h3>
+                <span class="text-[11px] text-slate-400 font-medium">Segunda a Sexta</span>
             </div>
+            <div class="size-11 sm:size-12 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center flex-shrink-0">
+                <span class="material-symbols-outlined text-2xl sm:text-3xl">date_range</span>
+            </div>
+        </div>
 
-            <div class="lg:col-span-2">
-                <h3 class="text-xl font-bold text-slate-800 mb-2">Recursos Cadastrados</h3>
-                <p class="text-sm text-slate-500 mb-4"><i class="bi bi-arrows-move"></i> Arraste os itens para reordenar.</p>
+        <!-- Card 3: Recursos Ativos -->
+        <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Recursos</p>
+                <h3 class="text-2xl sm:text-3xl font-extrabold text-emerald-600 mt-0.5">{{ active_resources }}</h3>
+                <span class="text-[11px] text-slate-400 font-medium">{{ total_resources }} cadastrado(s)</span>
+            </div>
+            <div class="size-11 sm:size-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center flex-shrink-0">
+                <span class="material-symbols-outlined text-2xl sm:text-3xl">inventory_2</span>
+            </div>
+        </div>
 
-                <div class="space-y-3" id="resource-list">
-                    {% for resource in resources %}
-                    <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center" data-id="{{ resource.id }}">
-                        <div class="flex items-center gap-4 mb-4 sm:mb-0">
-                            <i class="bi bi-grip-vertical text-slate-400 cursor-grab"></i>
-                            <div>
-                                <div class="flex items-center gap-2">
-                                    <h4 class="font-bold text-slate-800 flex items-center gap-2">
-                                        <i class="{{ resource.icon or 'bi-box' }}"></i>{{ resource.name }}
-                                    </h4>
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-700" title="Capacidade: {{ resource.quantity }} simultâneo(s)">
-                                        <i class="bi bi-stack mr-1 text-slate-500"></i>{{ resource.quantity }} unid.
-                                    </span>
-                                    {% if resource.is_active %}
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">
-                                        <i class="bi bi-check-circle-fill mr-1 text-emerald-500"></i> Ativo
-                                    </span>
-                                    {% else %}
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800">
-                                        <i class="bi bi-pause-circle-fill mr-1 text-amber-500"></i> Pausado
-                                    </span>
-                                    {% endif %}
-                                    {% if resource.max_weekly_bookings %}
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200" title="Cota máxima semanal por professor">
-                                        <i class="bi bi-clock-history mr-1"></i>Máx {{ resource.max_weekly_bookings }}/sem
-                                    </span>
-                                    {% endif %}
-                                </div>
-                                <p class="text-sm text-slate-500">{{ resource.description or '' }}</p>
-                            </div>
-                        </div>
-                        <div class="w-full sm:w-auto flex flex-col items-stretch space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-2">
-                            {% if resource.is_active %}
-                            <a href="{{ url_for('toggle_resource', resource_id=resource.id) }}" class="text-center bg-amber-100 text-amber-800 font-semibold px-3 py-1 rounded-md text-sm hover:bg-amber-200" title="Pausar agendamento deste recurso">
-                                Pausar
-                            </a>
-                            {% else %}
-                            <a href="{{ url_for('toggle_resource', resource_id=resource.id) }}" class="text-center bg-emerald-100 text-emerald-800 font-semibold px-3 py-1 rounded-md text-sm hover:bg-emerald-200" title="Reativar agendamento deste recurso">
-                                Ativar
-                            </a>
-                            {% endif %}
-                            <a href="{{ url_for('manage_schedules', resource_id=resource.id) }}" class="text-center bg-sky-100 text-sky-700 font-semibold px-3 py-1 rounded-md text-sm hover:bg-sky-200">Horários</a>
-                            <button type="button" class="bg-yellow-100 text-yellow-700 font-semibold px-3 py-1 rounded-md text-sm hover:bg-yellow-200" data-bs-toggle="modal" data-bs-target="#editResourceModal" 
-                                    data-resource-id="{{ resource.id }}" data-resource-name="{{ resource.name }}" data-resource-description="{{ resource.description or '' }}" data-resource-icon="{{ resource.icon or '' }}" data-resource-active="{{ 'true' if resource.is_active else 'false' }}" data-resource-quantity="{{ resource.quantity }}" data-resource-max-weekly="{{ resource.max_weekly_bookings or '' }}">
-                                Editar
-                            </button>
-                            <button type="button" class="bg-indigo-100 text-indigo-700 font-semibold px-3 py-1 rounded-md text-sm hover:bg-indigo-200" data-bs-toggle="modal" data-bs-target="#copyResourceModal"
-                                    data-resource-id="{{ resource.id }}" data-resource-name="{{ resource.name }}" data-resource-icon="{{ resource.icon or '' }}">
-                                Copiar
-                            </button>
-                            <button type="button" class="bg-red-100 text-red-700 font-semibold px-3 py-1 rounded-md text-sm hover:bg-red-200" 
-                                    data-bs-toggle="modal" data-bs-target="#deleteResourceModal"
-                                    data-resource-id="{{ resource.id }}" data-resource-name="{{ resource.name }}">
-                                Excluir
-                            </button>
-                        </div>
-                    </div>
-                    {% else %}
-                    <div class="bg-white p-4 rounded-xl border border-slate-200 text-center text-slate-500">
-                        Nenhum recurso cadastrado.
-                    </div>
-                    {% endfor %}
-                </div>
-
-                <form method="POST" action="{{ url_for('reorder_resources') }}" id="reorder-form" class="mt-4" style="display: none;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="order" id="resource-order-input">
-                    <button type="submit" class="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-green-700 transition-colors">Salvar Nova Ordem</button>
-                </form>
+        <!-- Card 4: Professores Ativos -->
+        <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Professores</p>
+                <h3 class="text-2xl sm:text-3xl font-extrabold text-amber-600 mt-0.5">{{ total_teachers }}</h3>
+                <span class="text-[11px] text-slate-400 font-medium">Cadastrados e ativos</span>
+            </div>
+            <div class="size-11 sm:size-12 rounded-2xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center flex-shrink-0">
+                <span class="material-symbols-outlined text-2xl sm:text-3xl">group</span>
             </div>
         </div>
     </div>
 
-    <div class="modal fade" id="editResourceModal" tabindex="-1" aria-labelledby="editResourceModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="editResourceModalLabel">Editar Recurso</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <!-- 2. SEÇÃO DE GRÁFICOS (DASHBOARD ANALÍTICO) -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        
+        <!-- Gráfico 1: Evolução dos Últimos 14 Dias (Linha do Tempo) -->
+        <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
+                        <span class="material-symbols-outlined text-blue-600">trending_up</span>
+                        Ritmo de Agendamentos (Últimos 14 Dias)
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Volume diário de horários reservados na escola.</p>
                 </div>
-                <form id="editResourceForm" method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="edit_name" class="form-label">Nome do Recurso</label>
-                            <input type="text" class="form-control" id="edit_name" name="name" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="edit_description" class="form-label">Descrição (Opcional)</label>
-                            <input type="text" class="form-control" id="edit_description" name="description">
-                        </div>
-                        <div class="mb-3">
-                            <label for="edit_icon" class="form-label">Ícone</label>
-                            <input type="text" class="form-control" id="edit_icon" name="icon">
-                        </div>
-                        <div class="mb-3">
-                            <label for="edit_quantity" class="form-label">Quantidade de Itens (Capacidade)</label>
-                            <input type="number" class="form-control" id="edit_quantity" name="quantity" min="1" required>
-                            <div class="form-text">Ex: 1 para salas, 2 ou mais para múltiplos itens simultâneos.</div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="edit_max_weekly" class="form-label">Cota Máxima Semanal por Professor (Opcional)</label>
-                            <input type="number" class="form-control" id="edit_max_weekly" name="max_weekly_bookings" min="1" placeholder="Ex: 4 (Vazio = Ilimitado)">
-                            <div class="form-text">Número máximo de aulas semanais por professor neste recurso.</div>
-                        </div>
-                        <div class="mb-3 form-check">
-                            <input type="checkbox" class="form-check-input" id="edit_active" name="is_active" value="true">
-                            <label class="form-check-label font-semibold" for="edit_active">Disponível para agendamento (Ativo)</label>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Salvar Alterações</button>
-                    </div>
-                </form>
+            </div>
+            <div class="h-64 relative">
+                <canvas id="timelineChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Gráfico 2: Turno Matutino vs Vespertino -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col justify-between">
+            <div>
+                <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2 mb-1">
+                    <span class="material-symbols-outlined text-amber-500">wb_twilight</span>
+                    Distribuição por Turno
+                </h3>
+                <p class="text-xs text-slate-400 mb-4">Proporção de uso entre Manhã e Tarde.</p>
+            </div>
+            <div class="h-52 relative flex items-center justify-center">
+                <canvas id="shiftChart"></canvas>
+            </div>
+            <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-100 text-center text-xs">
+                <div class="p-2 rounded-xl bg-sky-50 text-sky-800 font-semibold">
+                    ☀️ Matutino: {{ chart_shift_data[0] }}
+                </div>
+                <div class="p-2 rounded-xl bg-amber-50 text-amber-800 font-semibold">
+                    🌅 Vespertino: {{ chart_shift_data[1] }}
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="modal fade" id="copyResourceModal" tabindex="-1" aria-labelledby="copyResourceModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="copyResourceModalLabel">Copiar Recurso</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form id="copyResourceForm" method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="modal-body">
-                        <p class="mb-4">Insira os novos dados para a cópia. A descrição e os horários serão mantidos do original.</p>
-                        <div class="mb-3">
-                            <label for="copy_name" class="form-label">Novo Nome do Recurso</label>
-                            <input type="text" class="form-control" id="copy_name" name="new_name" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="copy_icon" class="form-label">Novo Ícone</label>
-                            <input type="text" class="form-control" id="copy_icon" name="new_icon">
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Salvar Cópia</button>
-                    </div>
-                </form>
+    <!-- Gráfico 3: Utilização por Recurso -->
+    <div class="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-sm mb-6">
+        <div class="flex items-center justify-between mb-3">
+            <div>
+                <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
+                    <span class="material-symbols-outlined text-emerald-600">bar_chart</span>
+                    Uso por Recurso (Últimos 30 Dias)
+                </h3>
+                <p class="text-xs text-slate-400 mt-0.5">Identifique os espaços e equipamentos mais demandados pelos professores.</p>
             </div>
         </div>
-    </div>
-
-    <div class="modal fade" id="deleteResourceModal" tabindex="-1" aria-labelledby="deleteResourceModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <form id="deleteResourceForm" method="POST" action="">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="deleteResourceModalLabel">Confirmar Exclusão</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <p>Você tem certeza que deseja excluir o recurso <strong id="resourceNameToDelete"></strong>?</p>
-                        <p class="mt-2 text-sm text-red-600">
-                            <strong>Atenção:</strong> Todos os horários e agendamentos associados a ele serão <strong>permanentemente removidos</strong>. Esta ação não pode ser desfeita.
-                        </p>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" id="deleteConfirmButton" class="btn btn-danger">Sim, Excluir</button>
-                    </div>
-                </div>
-            </form>
+        <div class="h-60 relative">
+            <canvas id="resourceChart"></canvas>
         </div>
     </div>
 
+    <!-- 3. ATIVIDADES DE HOJE NA ESCOLA & ATALHOS RÁPIDOS -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Tabela do Dia de Hoje -->
+        <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
+            <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
+                        <span class="material-symbols-outlined text-blue-600">notifications_active</span>
+                        Em Uso Hoje na Escola
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Aulas e recursos reservados para a data de hoje.</p>
+                </div>
+                <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                    {{ today_bookings|length }} horário(s)
+                </span>
+            </div>
 
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Script do modal de edição
-        const editResourceModal = document.getElementById('editResourceModal');
-        if (editResourceModal) {
-            editResourceModal.addEventListener('show.bs.modal', function (event) {
-                const button = event.relatedTarget;
-                const resourceId = button.getAttribute('data-resource-id');
-                const resourceName = button.getAttribute('data-resource-name');
-                const resourceDescription = button.getAttribute('data-resource-description');
-                const resourceIcon = button.getAttribute('data-resource-icon');
-                const resourceActive = button.getAttribute('data-resource-active') === 'true';
-                const resourceQuantity = button.getAttribute('data-resource-quantity') || '1';
-                const resourceMaxWeekly = button.getAttribute('data-resource-max-weekly') || '';
-                const modalForm = editResourceModal.querySelector('#editResourceForm');
-                const modalTitle = editResourceModal.querySelector('.modal-title');
-                modalTitle.textContent = `Editar Recurso: ${resourceName}`;
-                modalForm.action = `/admin/resource/edit/${resourceId}`;
-                modalForm.querySelector('#edit_name').value = resourceName;
-                modalForm.querySelector('#edit_description').value = resourceDescription;
-                modalForm.querySelector('#edit_icon').value = resourceIcon;
-                modalForm.querySelector('#edit_quantity').value = resourceQuantity;
-                modalForm.querySelector('#edit_max_weekly').value = resourceMaxWeekly;
-                const editActiveCheckbox = modalForm.querySelector('#edit_active');
-                if (editActiveCheckbox) {
-                    editActiveCheckbox.checked = resourceActive;
+            <div class="overflow-x-auto">
+                <table class="w-full table-auto text-left text-xs sm:text-sm divide-y divide-slate-100">
+                    <thead class="bg-slate-50 text-slate-500 uppercase tracking-wider text-[11px] font-semibold">
+                        <tr>
+                            <th class="px-4 py-2.5">Recurso</th>
+                            <th class="px-4 py-2.5">Turno / Aula</th>
+                            <th class="px-4 py-2.5">Professor</th>
+                            <th class="px-4 py-2.5">Turma/Finalidade</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-slate-700">
+                        {% for booking, resource in today_bookings %}
+                        <tr class="hover:bg-slate-50/70 transition-colors">
+                            <td class="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">
+                                <i class="{{ resource.icon or 'bi-box' }} text-blue-600 mr-1.5"></i>
+                                {{ resource.name }}
+                            </td>
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                <span class="font-medium">{{ booking.slot_name }}</span>
+                                <span class="text-xs text-slate-400 block sm:inline sm:ml-1">({{ booking.shift|capitalize }})</span>
+                            </td>
+                            <td class="px-4 py-3 font-medium whitespace-nowrap">
+                                👤 {{ booking.teacher_name }}
+                            </td>
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                {% if booking.classroom_or_notes %}
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 border border-blue-200 text-xs font-medium">
+                                    <span class="material-symbols-outlined text-xs">label</span>
+                                    {{ booking.classroom_or_notes }}
+                                </span>
+                                {% else %}
+                                <span class="text-slate-400 italic text-xs">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="px-4 py-10 text-center text-slate-400">
+                                <span class="material-symbols-outlined text-3xl text-slate-300 mb-1">event_available</span>
+                                <p class="font-medium text-xs sm:text-sm">Nenhum recurso agendado para o dia de hoje.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Atalhos Rápidos Operacionais -->
+        <div class="space-y-3">
+            <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2 mb-2 px-1">
+                <span class="material-symbols-outlined text-indigo-600">bolt</span>
+                Ações Rápidas
+            </h3>
+
+            <!-- Atalho 1: Agendamento Recorrente -->
+            <a href="{{ url_for('admin.recurring_booking') }}" class="group bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm hover:border-indigo-400 hover:shadow transition-all block">
+                <div class="flex items-center gap-3">
+                    <div class="size-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                        <span class="material-symbols-outlined">event_repeat</span>
+                    </div>
+                    <div class="flex-grow">
+                        <h4 class="font-bold text-slate-800 text-sm leading-tight">Agendar em Lote</h4>
+                        <p class="text-xs text-slate-500 mt-0.5">Reservar bimestre fixo para professor.</p>
+                    </div>
+                    <span class="material-symbols-outlined text-slate-400 group-hover:translate-x-1 transition-transform">chevron_right</span>
+                </div>
+            </a>
+
+            <!-- Atalho 2: Gestão de Recursos -->
+            <a href="{{ url_for('admin.manage_resources') }}" class="group bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm hover:border-blue-400 hover:shadow transition-all block">
+                <div class="flex items-center gap-3">
+                    <div class="size-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                        <span class="material-symbols-outlined">inventory_2</span>
+                    </div>
+                    <div class="flex-grow">
+                        <h4 class="font-bold text-slate-800 text-sm leading-tight">Gestão de Recursos</h4>
+                        <p class="text-xs text-slate-500 mt-0.5">Pausar, reordenar ou criar novas salas.</p>
+                    </div>
+                    <span class="material-symbols-outlined text-slate-400 group-hover:translate-x-1 transition-transform">chevron_right</span>
+                </div>
+            </a>
+
+            <!-- Atalho 3: Gerenciar Professores -->
+            <a href="{{ url_for('manage_teachers') }}" class="group bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm hover:border-amber-400 hover:shadow transition-all block">
+                <div class="flex items-center gap-3">
+                    <div class="size-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                        <span class="material-symbols-outlined">group</span>
+                    </div>
+                    <div class="flex-grow">
+                        <h4 class="font-bold text-slate-800 text-sm leading-tight">Gerenciar Professores</h4>
+                        <p class="text-xs text-slate-500 mt-0.5">Ativar/desativar e editar matrículas.</p>
+                    </div>
+                    <span class="material-symbols-outlined text-slate-400 group-hover:translate-x-1 transition-transform">chevron_right</span>
+                </div>
+            </a>
+
+            <!-- Atalho 4: Auditoria de Cancelamentos -->
+            <a href="{{ url_for('admin.manage_audit_logs') }}" class="group bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm hover:border-rose-400 hover:shadow transition-all block">
+                <div class="flex items-center gap-3">
+                    <div class="size-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                        <span class="material-symbols-outlined">history</span>
+                    </div>
+                    <div class="flex-grow">
+                        <h4 class="font-bold text-slate-800 text-sm leading-tight">Auditoria de Cancelamentos</h4>
+                        <p class="text-xs text-slate-500 mt-0.5">Ver quem apagou reservas e quando.</p>
+                    </div>
+                    <span class="material-symbols-outlined text-slate-400 group-hover:translate-x-1 transition-transform">chevron_right</span>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts do Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // --- 1. Gráfico de Linha do Tempo (Últimos 14 Dias) ---
+    const timelineLabels = {{ chart_timeline_labels|safe }};
+    const timelineData = {{ chart_timeline_data|safe }};
+    
+    const ctxTimeline = document.getElementById('timelineChart').getContext('2d');
+    new Chart(ctxTimeline, {
+        type: 'line',
+        data: {
+            labels: timelineLabels,
+            datasets: [{
+                label: 'Aulas Agendadas',
+                data: timelineData,
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                borderWidth: 2.5,
+                fill: true,
+                tension: 0.35,
+                pointBackgroundColor: '#2563eb',
+                pointRadius: 3.5,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    padding: 10,
+                    titleFont: { size: 12, weight: 'bold' },
+                    bodyFont: { size: 12 }
                 }
-            });
-        }
-
-        // Script para o modal de cópia
-        const copyResourceModal = document.getElementById('copyResourceModal');
-        if (copyResourceModal) {
-            copyResourceModal.addEventListener('show.bs.modal', function (event) {
-                const button = event.relatedTarget;
-                const resourceId = button.getAttribute('data-resource-id');
-                const resourceName = button.getAttribute('data-resource-name');
-                const resourceIcon = button.getAttribute('data-resource-icon');
-                const modalForm = copyResourceModal.querySelector('#copyResourceForm');
-                const modalTitle = copyResourceModal.querySelector('.modal-title');
-                modalTitle.textContent = `Copiar Recurso: ${resourceName}`;
-                modalForm.action = `/admin/resource/copy/${resourceId}`;
-                modalForm.querySelector('#copy_name').value = `${resourceName} (Cópia)`;
-                modalForm.querySelector('#copy_icon').value = resourceIcon;
-            });
-        }
-
-        // NOVO SCRIPT PARA O MODAL DE EXCLUSÃO
-        const deleteResourceModal = document.getElementById('deleteResourceModal');
-        if (deleteResourceModal) {
-            deleteResourceModal.addEventListener('show.bs.modal', function (event) {
-                const button = event.relatedTarget;
-                const resourceId = button.getAttribute('data-resource-id');
-                const resourceName = button.getAttribute('data-resource-name');
-                const resourceNameSpan = deleteResourceModal.querySelector('#resourceNameToDelete');
-                const deleteForm = deleteResourceModal.querySelector('#deleteResourceForm');
-                
-                resourceNameSpan.textContent = resourceName;
-                deleteForm.action = `/admin/resource/delete/${resourceId}`;
-            });
-        }
-
-        // SCRIPT PARA ORDENAÇÃO
-        const resourceList = document.getElementById('resource-list');
-        if (resourceList) {
-            const reorderForm = document.getElementById('reorder-form');
-            const orderInput = document.getElementById('resource-order-input');
-
-            new Sortable(resourceList, {
-                animation: 150,
-                ghostClass: 'opacity-50',
-                handle: '.bi-grip-vertical',
-                onEnd: function () {
-                    reorderForm.style.display = 'block';
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { precision: 0, font: { size: 11 } },
+                    grid: { color: 'rgba(226, 232, 240, 0.6)' }
+                },
+                x: {
+                    ticks: { font: { size: 11 } },
+                    grid: { display: false }
                 }
-            });
-
-            reorderForm.addEventListener('submit', function (e) {
-                const resourceItems = resourceList.querySelectorAll('div[data-id]');
-                const newOrder = Array.from(resourceItems).map(item => item.getAttribute('data-id'));
-                orderInput.value = newOrder.join(',');
-            });
+            }
         }
     });
-    </script>
-</body>
+
+    // --- 2. Gráfico de Turnos (Matutino vs Vespertino) ---
+    const shiftLabels = {{ chart_shift_labels|safe }};
+    const shiftData = {{ chart_shift_data|safe }};
+    
+    const ctxShift = document.getElementById('shiftChart').getContext('2d');
+    new Chart(ctxShift, {
+        type: 'doughnut',
+        data: {
+            labels: shiftLabels,
+            datasets: [{
+                data: shiftData,
+                backgroundColor: ['#0284c7', '#d97706'],
+                hoverBackgroundColor: ['#0369a1', '#b45309'],
+                borderWidth: 2,
+                borderColor: '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { boxWidth: 12, font: { size: 11 } }
+                }
+            }
+        }
+    });
+
+    // --- 3. Gráfico de Uso por Recurso (Últimos 30 Dias) ---
+    const resourceLabels = {{ chart_resource_labels|safe }};
+    const resourceData = {{ chart_resource_data|safe }};
+
+    const ctxResource = document.getElementById('resourceChart').getContext('2d');
+    new Chart(ctxResource, {
+        type: 'bar',
+        data: {
+            labels: resourceLabels,
+            datasets: [{
+                label: 'Aulas Agendadas',
+                data: resourceData,
+                backgroundColor: [
+                    'rgba(16, 185, 129, 0.75)',
+                    'rgba(59, 130, 246, 0.75)',
+                    'rgba(245, 158, 11, 0.75)',
+                    'rgba(99, 102, 241, 0.75)',
+                    'rgba(236, 72, 153, 0.75)'
+                ],
+                borderColor: [
+                    '#10b981',
+                    '#3b82f6',
+                    '#f59e0b',
+                    '#6366f1',
+                    '#ec4899'
+                ],
+                borderWidth: 1.5,
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { precision: 0, font: { size: 11 } },
+                    grid: { color: 'rgba(226, 232, 240, 0.6)' }
+                },
+                x: {
+                    ticks: { font: { size: 11 } },
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+});
+</script>
 {% endblock %}

@@ -3,16 +3,17 @@
 {% block title %}Backup e Restauração{% endblock %}
 
 {% block content %}
-<body class="bg-slate-50" style='font-family: Inter, "Noto Sans", sans-serif;'>
-    <div class="container mx-auto px-4 py-8">
-        
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
-            <h1 class="text-3xl font-bold text-slate-800">Backup e Restauração</h1>
-            <div class="mt-4 sm:mt-0 flex space-x-2">
-                <a href="{{ url_for('admin_dashboard') }}" class="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700 transition-colors">Voltar ao Painel</a>
-                <a href="{{ url_for('logout') }}" class="bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-lg hover:bg-slate-300 transition-colors">Sair</a>
-            </div>
+<div class="container mx-auto px-4 py-6 max-w-6xl">
+    {% with active_tab='backup' %}
+        {% include 'admin_nav.html' %}
+    {% endwith %}
+
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+        <div>
+            <h2 class="text-xl sm:text-2xl font-bold text-slate-800">Backup e Restauração de Dados</h2>
+            <p class="text-xs sm:text-sm text-slate-500">Exporte dumps completos do PostgreSQL ou restaure backups anteriores.</p>
         </div>
+    </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -81,5 +82,5 @@
         fileInput.addEventListener('change', checkFormState);
     });
     </script>
-</body>
+</div>
 {% endblock %}

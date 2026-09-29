@@ -60,8 +60,96 @@ def restore_task_bg(filepath, db_uri_str):
 @admin_bp.route('/')
 @admin_required
 def admin_dashboard():
+    """Painel principal do administrador com resumo de KPIs, gráficos e atividades de hoje."""
+    today = date.today()
+    start_of_week = today - timedelta(days=today.weekday())
+    end_of_week = start_of_week + timedelta(days=6)
+    thirty_days_ago = today - timedelta(days=30)
+    fourteen_days_ago = today - timedelta(days=13)
+
+    # 1. Indicadores Chave (KPIs)
+    bookings_today_count = Booking.query.filter_by(date=today, status='booked').count()
+    bookings_week_count = Booking.query.filter(
+        Booking.date.between(start_of_week, end_of_week),
+        Booking.status == 'booked'
+    ).count()
+    total_resources = Resource.query.count()
+    active_resources = Resource.query.filter_by(is_active=True).count()
+    total_teachers = Teacher.query.filter_by(is_active=True).count()
+    total_cancelations = BookingAuditLog.query.count()
+
+    # 2. Agendamentos de Hoje (Resumo operacional)
+    today_bookings = db.session.query(Booking, Resource)\
+        .join(Resource, Booking.resource_id == Resource.id)\
+        .filter(Booking.date == today, Booking.status == 'booked')\
+        .order_by(Booking.shift, Booking.slot_name, Resource.name)\
+        .all()
+
+    # 3. Gráfico 1: Utilização por Recurso (Últimos 30 dias)
+    resource_usage_query = db.session.query(
+        Resource.name, func.count(Booking.id)
+    ).join(Booking, Resource.id == Booking.resource_id)\
+     .filter(Booking.date >= thirty_days_ago, Booking.status == 'booked')\
+     .group_by(Resource.name)\
+     .order_by(func.count(Booking.id).desc())\
+     .all()
+
+    chart_resource_labels = [r[0] for r in resource_usage_query]
+    chart_resource_data = [r[1] for r in resource_usage_query]
+
+    if not chart_resource_labels:
+        all_res = Resource.query.all()
+        chart_resource_labels = [r.name for r in all_res]
+        chart_resource_data = [0 for _ in all_res]
+
+    # 4. Gráfico 2: Evolução dos Últimos 14 Dias (Linha do tempo)
+    daily_counts_map = dict(
+        db.session.query(Booking.date, func.count(Booking.id))\
+        .filter(Booking.date.between(fourteen_days_ago, today), Booking.status == 'booked')\
+        .group_by(Booking.date)\
+        .all()
+    )
+
+    chart_timeline_labels = []
+    chart_timeline_data = []
+    for i in range(14):
+        d = fourteen_days_ago + timedelta(days=i)
+        chart_timeline_labels.append(d.strftime('%d/%m'))
+        chart_timeline_data.append(daily_counts_map.get(d, 0))
+
+    # 5. Gráfico 3: Matutino vs Vespertino (Últimos 30 dias)
+    shift_counts = dict(
+        db.session.query(Booking.shift, func.count(Booking.id))\
+        .filter(Booking.date >= thirty_days_ago, Booking.status == 'booked')\
+        .group_by(Booking.shift)\
+        .all()
+    )
+    chart_shift_labels = ['☀️ Matutino', '🌅 Vespertino']
+    chart_shift_data = [shift_counts.get('matutino', 0), shift_counts.get('vespertino', 0)]
+
+    return render_template(
+        'admin_dashboard.html',
+        bookings_today_count=bookings_today_count,
+        bookings_week_count=bookings_week_count,
+        total_resources=total_resources,
+        active_resources=active_resources,
+        total_teachers=total_teachers,
+        total_cancelations=total_cancelations,
+        today_bookings=today_bookings,
+        chart_resource_labels=chart_resource_labels,
+        chart_resource_data=chart_resource_data,
+        chart_timeline_labels=chart_timeline_labels,
+        chart_timeline_data=chart_timeline_data,
+        chart_shift_labels=chart_shift_labels,
+        chart_shift_data=chart_shift_data
+    )
+
+@admin_bp.route('/resources')
+@admin_required
+def manage_resources():
+    """Gerencia a lista de recursos escolares (cadastro, edição, reordenação)."""
     resources = Resource.query.order_by(Resource.sort_order, Resource.name).all()
-    return render_template('admin_dashboard.html', resources=resources)
+    return render_template('admin_resources.html', resources=resources)
 
 @admin_bp.route('/resource/toggle/<int:resource_id>', methods=['POST', 'GET'])
 @admin_required
@@ -71,7 +159,7 @@ def toggle_resource(resource_id):
     db.session.commit()
     status_str = "reativado" if resource.is_active else "pausado"
     flash(f'Recurso "{resource.name}" foi {status_str} com sucesso!', 'success')
-    return redirect(url_for('admin.admin_dashboard'))
+    return redirect(url_for('admin.manage_resources'))
 
 @admin_bp.route('/resources/reorder', methods=['POST'])
 @admin_required
@@ -84,7 +172,7 @@ def reorder_resources():
                 resource.sort_order = index
         db.session.commit()
         flash('A ordem dos recursos foi salva com sucesso!', 'success')
-    return redirect(url_for('admin.admin_dashboard'))
+    return redirect(url_for('admin.manage_resources'))
 
 @admin_bp.route('/resource/add', methods=['POST'])
 @admin_required
@@ -116,7 +204,7 @@ def add_resource():
         flash('Recurso adicionado com sucesso!', 'success')
     else:
         flash('O nome do recurso é obrigatório.', 'danger')
-    return redirect(url_for('admin.admin_dashboard'))
+    return redirect(url_for('admin.manage_resources'))
 
 @admin_bp.route('/resource/edit/<int:resource_id>', methods=['POST'])
 @admin_required
@@ -146,7 +234,7 @@ def edit_resource(resource_id):
         flash('Recurso atualizado com sucesso!', 'success')
     else:
         flash('O nome do recurso não pode ficar em branco.', 'danger')
-    return redirect(url_for('admin.admin_dashboard'))
+    return redirect(url_for('admin.manage_resources'))
 
 @admin_bp.route('/resource/delete/<int:resource_id>', methods=['POST'])
 @admin_required
@@ -157,7 +245,7 @@ def delete_resource(resource_id):
     db.session.delete(resource)
     db.session.commit()
     flash('Recurso e todos os seus dados foram removidos com sucesso!', 'success')
-    return redirect(url_for('admin.admin_dashboard'))
+    return redirect(url_for('admin.manage_resources'))
 
 @admin_bp.route('/resource/copy/<int:original_id>', methods=['POST'])
 @admin_required
@@ -168,14 +256,15 @@ def copy_resource(original_id):
 
     if not new_name:
         flash('O novo nome do recurso é obrigatório.', 'danger')
-        return redirect(url_for('admin.admin_dashboard'))
+        return redirect(url_for('admin.manage_resources'))
 
     new_resource = Resource(
         name=new_name,
         description=original_resource.description,
         icon=new_icon,
         sort_order=original_resource.sort_order + 1,
-        quantity=original_resource.quantity
+        quantity=original_resource.quantity,
+        max_weekly_bookings=original_resource.max_weekly_bookings
     )
     db.session.add(new_resource)
     db.session.commit()
@@ -190,7 +279,7 @@ def copy_resource(original_id):
 
     db.session.commit()
     flash(f'Recurso "{original_resource.name}" copiado com sucesso para "{new_name}"!', 'success')
-    return redirect(url_for('admin.admin_dashboard'))
+    return redirect(url_for('admin.manage_resources'))
 
 @admin_bp.route('/schedules/<int:resource_id>', methods=['GET', 'POST'])
 @admin_required

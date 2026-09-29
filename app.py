@@ -98,6 +98,7 @@ _endpoint_aliases = {
     'backup_database': 'admin.backup_database',
     'restore_database': 'admin.restore_database',
     'change_password': 'admin.change_password',
+    'manage_resources': 'admin.manage_resources',
     'manage_audit_logs': 'admin.manage_audit_logs',
     'recurring_booking': 'admin.recurring_booking',
 }
