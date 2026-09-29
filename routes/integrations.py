@@ -148,6 +148,11 @@ def daily_summary():
         t_data['bookings_count'] = len(t_data['bookings'])
         teachers_summaries.append(t_data)
 
+    # 3. Contatos dos Administradores para envio do resumo geral
+    admins = Teacher.query.filter_by(is_admin=True).all()
+    admins_whatsapp = [a.whatsapp for a in admins if a.whatsapp]
+    admin_whatsapp = admins_whatsapp[0] if admins_whatsapp else None
+
     return jsonify({
         'status': 'success',
         'date': target_date.strftime('%Y-%m-%d'),
@@ -155,8 +160,11 @@ def daily_summary():
         'weekday': weekday_name,
         'total_bookings': total_bookings,
         'summary_text': summary_text,
+        'admin_whatsapp': admin_whatsapp,
+        'admins_whatsapp': admins_whatsapp,
         'teachers_summaries': teachers_summaries
     }), 200
+
 
 
 @integrations_bp.route('/teachers', methods=['GET'])
