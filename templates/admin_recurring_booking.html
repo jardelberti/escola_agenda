@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Agendamento em Lote - Agenda Escolar{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-3xl">
+    
+    <!-- Cabeçalho -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+        <div>
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-indigo-600 text-3xl">event_repeat</span>
+                <h1 class="text-2xl sm:text-3xl font-bold text-slate-800">Agendamento Recorrente em Lote</h1>
+            </div>
+            <p class="text-slate-500 text-sm mt-1">Reserve horários fixos para um professor durante semanas, meses ou o bimestre todo.</p>
+        </div>
+        <div class="mt-4 sm:mt-0">
+            <a href="{{ url_for('admin_dashboard') }}" class="bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-xl hover:bg-slate-300 transition-colors inline-flex items-center gap-1.5 text-sm">
+                <span class="material-symbols-outlined text-base">arrow_back</span>
+                Voltar ao Painel
+            </a>
+        </div>
+    </div>
+
+    <!-- Mensagens Flash -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="space-y-2 mb-6">
+            {% for category, message in messages %}
+                {% set color = 'blue' if category == 'success' else 'red' if category == 'danger' else 'yellow' if category == 'warning' else 'gray' %}
+                <div class="bg-{{ color }}-100 border-l-4 border-{{ color }}-500 text-{{ color }}-700 p-4 rounded-xl text-sm shadow-sm" role="alert">
+                    <p class="font-medium">{{ message }}</p>
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Card de Agendamento em Lote -->
+    <div class="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm">
+        <form method="POST" action="{{ url_for('admin.recurring_booking') }}" class="space-y-5" onsubmit="return confirm('Confirma o agendamento em lote para o período selecionado?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <!-- 1. Recurso e Professor -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="resource_id" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Recurso / Espaço
+                    </label>
+                    <select name="resource_id" id="resource_id" class="w-full text-sm rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500" required>
+                        <option value="">Selecione um recurso...</option>
+                        {% for res in resources %}
+                        <option value="{{ res.id }}">{{ res.name }} (Capacidade: {{ res.quantity }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="teacher_id" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Professor Beneficiado
+                    </label>
+                    <select name="teacher_id" id="teacher_id" class="w-full text-sm rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500" required>
+                        <option value="">Selecione o professor...</option>
+                        {% for teacher in teachers %}
+                        <option value="{{ teacher.id }}">{{ teacher.name }} {% if teacher.is_admin %}(Admin){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- 2. Turno -->
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    Turno
+                </label>
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="flex items-center gap-2 p-3 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors has-[:checked]:bg-sky-50 has-[:checked]:border-sky-500 has-[:checked]:text-sky-900">
+                        <input type="radio" name="shift" value="matutino" checked class="text-sky-600 focus:ring-sky-500">
+                        <div>
+                            <span class="font-bold text-sm">☀️ Matutino</span>
+                            <span class="text-xs text-slate-500 block">07:30 - 11:30</span>
+                        </div>
+                    </label>
+                    <label class="flex items-center gap-2 p-3 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors has-[:checked]:bg-amber-50 has-[:checked]:border-amber-500 has-[:checked]:text-amber-900">
+                        <input type="radio" name="shift" value="vespertino" class="text-amber-600 focus:ring-amber-500">
+                        <div>
+                            <span class="font-bold text-sm">🌅 Vespertino</span>
+                            <span class="text-xs text-slate-500 block">13:00 - 17:00</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 3. Aulas Desejadas -->
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    Aulas a Agendar no Dia
+                </label>
+                <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    {% for slot_num, slot_name in [(1, '1ª Aula'), (2, '2ª Aula'), (3, '3ª Aula'), (4, '4ª Aula'), (5, '5ª Aula')] %}
+                    <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50 text-sm font-medium has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 has-[:checked]:text-indigo-900">
+                        <input type="checkbox" name="slot_names" value="{{ slot_name }}" class="rounded text-indigo-600 focus:ring-indigo-500">
+                        <span>{{ slot_name }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- 4. Dias da Semana -->
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    Dias da Semana Fixos
+                </label>
+                <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                    {% for val, name in [(0, 'Segunda'), (1, 'Terça'), (2, 'Quarta'), (3, 'Quinta'), (4, 'Sexta')] %}
+                    <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50 text-sm font-medium has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 has-[:checked]:text-indigo-900">
+                        <input type="checkbox" name="weekdays" value="{{ val }}" class="rounded text-indigo-600 focus:ring-indigo-500">
+                        <span>{{ name }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- 5. Período (Data Inicial e Final) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="start_date" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Data Inicial
+                    </label>
+                    <input type="date" id="start_date" name="start_date" class="w-full text-sm rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500" required>
+                </div>
+                <div>
+                    <label for="end_date" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Data Final (Até quando)
+                    </label>
+                    <input type="date" id="end_date" name="end_date" class="w-full text-sm rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500" required>
+                </div>
+            </div>
+
+            <!-- 6. Turma / Observação -->
+            <div>
+                <label for="classroom_or_notes" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Turma / Disciplina / Observação <span class="text-slate-400 font-normal normal-case">(Opcional)</span>
+                </label>
+                <input type="text" id="classroom_or_notes" name="classroom_or_notes" 
+                       class="w-full text-sm rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500" 
+                       placeholder="Ex: 9º Ano A - Robótica Bimestral" maxlength="100">
+            </div>
+
+            <!-- Botão de Ação -->
+            <div class="pt-3">
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md transition-all active:scale-[0.99] flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined">event_repeat</span>
+                    <span>Gerar Agendamentos em Lote</span>
+                </button>
+                <p class="text-xs text-slate-400 text-center mt-2">
+                    Horários que já estiverem ocupados por outros professores serão preservados automaticamente sem sobrescrita.
+                </p>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

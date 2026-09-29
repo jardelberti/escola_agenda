@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Auditoria de Cancelamentos - Agenda Escolar{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-6xl">
+    
+    <!-- Cabeçalho -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+        <div>
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-rose-600 text-3xl">history</span>
+                <h1 class="text-2xl sm:text-3xl font-bold text-slate-800">Auditoria de Cancelamentos</h1>
+            </div>
+            <p class="text-slate-500 text-sm mt-1">Histórico completo de quem desmarcou cada horário e quando aconteceu.</p>
+        </div>
+        <div class="mt-4 sm:mt-0">
+            <a href="{{ url_for('admin_dashboard') }}" class="bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-xl hover:bg-slate-300 transition-colors inline-flex items-center gap-1.5 text-sm">
+                <span class="material-symbols-outlined text-base">arrow_back</span>
+                Voltar ao Painel
+            </a>
+        </div>
+    </div>
+
+    <!-- Barra de Filtro / Busca -->
+    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-6">
+        <form method="GET" action="{{ url_for('admin.manage_audit_logs') }}" class="flex flex-col sm:flex-row gap-3">
+            <div class="flex-grow relative">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+                <input type="text" name="q" value="{{ search_q or '' }}" 
+                       placeholder="Buscar por professor, quem cancelou, recurso ou turma..."
+                       class="w-full pl-10 pr-4 py-2 text-sm rounded-xl border-slate-300 focus:border-rose-500 focus:ring-rose-500">
+            </div>
+            <div class="flex gap-2 flex-shrink-0">
+                <button type="submit" class="bg-rose-600 hover:bg-rose-700 text-white font-semibold px-5 py-2 rounded-xl text-sm transition-colors shadow-sm">
+                    Filtrar
+                </button>
+                {% if search_q %}
+                <a href="{{ url_for('admin.manage_audit_logs') }}" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold px-4 py-2 rounded-xl text-sm transition-colors flex items-center">
+                    Limpar
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- Tabela de Logs -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Exibindo {{ logs|length }} registro(s) mais recente(s)
+            </span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full table-auto text-left text-sm divide-y divide-slate-200">
+                <thead class="bg-slate-50 text-slate-600 font-semibold text-xs uppercase tracking-wider">
+                    <tr>
+                        <th class="px-4 py-3">Data/Hora do Cancelamento</th>
+                        <th class="px-4 py-3">Recurso</th>
+                        <th class="px-4 py-3">Data e Aula da Reserva</th>
+                        <th class="px-4 py-3">Professor Titular</th>
+                        <th class="px-4 py-3">Turma/Finalidade</th>
+                        <th class="px-4 py-3">Cancelado Por</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-slate-700">
+                    {% for log in logs %}
+                    <tr class="hover:bg-slate-50/80 transition-colors">
+                        <td class="px-4 py-3.5 whitespace-nowrap text-xs text-slate-500 font-medium">
+                            {{ log.created_at.strftime('%d/%m/%Y às %H:%M') }}
+                        </td>
+                        <td class="px-4 py-3.5 whitespace-nowrap font-semibold text-slate-800">
+                            {{ log.resource_name }}
+                        </td>
+                        <td class="px-4 py-3.5 whitespace-nowrap">
+                            <div class="flex flex-col">
+                                <span class="font-medium text-slate-800">{{ log.date.strftime('%d/%m/%Y') }}</span>
+                                <span class="text-xs text-slate-500">{{ log.slot_name }} ({{ log.shift|capitalize }})</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3.5 whitespace-nowrap">
+                            <span class="inline-flex items-center gap-1 font-semibold text-slate-800">
+                                👤 {{ log.teacher_name }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3.5 whitespace-nowrap text-xs">
+                            {% if log.classroom_or_notes %}
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 text-blue-800 border border-blue-200 font-medium">
+                                <span class="material-symbols-outlined text-xs">label</span>
+                                {{ log.classroom_or_notes }}
+                            </span>
+                            {% else %}
+                            <span class="text-slate-400 italic">Não informada</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3.5 whitespace-nowrap text-xs">
+                            {% if log.performed_by_name == log.teacher_name %}
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                                    Próprio Professor
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-200">
+                                    🛡️ Admin: {{ log.performed_by_name }}
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="px-4 py-12 text-center text-slate-500">
+                            <span class="material-symbols-outlined text-4xl text-slate-300 mb-2">check_circle</span>
+                            <p class="font-medium">Nenhum cancelamento registrado até o momento.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

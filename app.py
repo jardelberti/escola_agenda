@@ -33,17 +33,23 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024 # 50 MB
 init_extensions(app)
 
 def ensure_schema_updates():
-    """Garante de forma idempotente que novas colunas existam no banco sem necessidade de migration manual."""
+    """Garante de forma idempotente que novas colunas e tabelas existam no banco sem necessidade de migration manual."""
     with app.app_context():
         try:
+            db.create_all()
             engine = db.engine
             is_postgres = 'postgresql' in str(engine.url)
             if is_postgres:
                 db.session.execute(db.text("ALTER TABLE booking ADD COLUMN IF NOT EXISTS classroom_or_notes VARCHAR(150);"))
+                db.session.execute(db.text("ALTER TABLE resource ADD COLUMN IF NOT EXISTS max_weekly_bookings INTEGER;"))
             else:
-                cols = [row[1] for row in db.session.execute(db.text("PRAGMA table_info(booking);")).fetchall()]
-                if cols and 'classroom_or_notes' not in cols:
+                booking_cols = [row[1] for row in db.session.execute(db.text("PRAGMA table_info(booking);")).fetchall()]
+                if booking_cols and 'classroom_or_notes' not in booking_cols:
                     db.session.execute(db.text("ALTER TABLE booking ADD COLUMN classroom_or_notes VARCHAR(150);"))
+                
+                resource_cols = [row[1] for row in db.session.execute(db.text("PRAGMA table_info(resource);")).fetchall()]
+                if resource_cols and 'max_weekly_bookings' not in resource_cols:
+                    db.session.execute(db.text("ALTER TABLE resource ADD COLUMN max_weekly_bookings INTEGER;"))
             db.session.commit()
         except Exception as e:
             db.session.rollback()
@@ -92,6 +98,8 @@ _endpoint_aliases = {
     'backup_database': 'admin.backup_database',
     'restore_database': 'admin.restore_database',
     'change_password': 'admin.change_password',
+    'manage_audit_logs': 'admin.manage_audit_logs',
+    'recurring_booking': 'admin.recurring_booking',
 }
 
 def handle_build_error(error, endpoint, values):

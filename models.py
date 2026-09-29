@@ -24,6 +24,7 @@ class Resource(db.Model):
     sort_order = db.Column(db.Integer, nullable=False, default=0)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=1)
+    max_weekly_bookings = db.Column(db.Integer, nullable=True, default=None) # Limite semanal por professor (None = ilimitado)
     
     # CORREÇÃO: Adiciona o relacionamento para encontrar os templates de horário
     schedule_templates = db.relationship('ScheduleTemplate', backref='resource', lazy=True, cascade='all, delete-orphan')
@@ -61,4 +62,19 @@ class Booking(db.Model):
         db.Index('idx_booking_resource_date', 'resource_id', 'date'),
         db.Index('idx_booking_teacher_date', 'teacher_id', 'date'),
     )
+
+# Tabela de Auditoria de Cancelamentos
+class BookingAuditLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    booking_id = db.Column(db.Integer, nullable=True)
+    resource_name = db.Column(db.String(100), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    shift = db.Column(db.String(50), nullable=False)
+    slot_name = db.Column(db.String(100), nullable=False)
+    teacher_name = db.Column(db.String(150), nullable=False)
+    classroom_or_notes = db.Column(db.String(150), nullable=True)
+    action = db.Column(db.String(50), nullable=False, default='cancelado')
+    performed_by_name = db.Column(db.String(150), nullable=False)
+    performed_by_is_admin = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=db.func.now(), nullable=False)
 

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, date
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from sqlalchemy.exc import IntegrityError
-from models import db, Teacher, Resource, ScheduleTemplate, Booking
+from models import db, Teacher, Resource, ScheduleTemplate, Booking, BookingAuditLog
 from utils import sanitize_phone, format_phone
 
 agenda_bp = Blueprint('agenda', __name__)
@@ -242,6 +242,21 @@ def book_slot():
         flash('Este professor já possui um agendamento para este horário.', 'warning')
         return redirect(url_for('agenda.select_shift', resource_id=resource_id, date=date_str, shift=shift))
 
+    # Validação de Cota Semanal (Apenas para professores sem privilégio de admin)
+    if not current_user.is_admin and getattr(resource, 'max_weekly_bookings', None) and resource.max_weekly_bookings > 0:
+        start_of_week = booking_date - timedelta(days=booking_date.weekday())
+        end_of_week = start_of_week + timedelta(days=6)
+        weekly_count = Booking.query.filter(
+            Booking.resource_id == resource.id,
+            Booking.teacher_id == book_for_teacher.id,
+            Booking.status == 'booked',
+            Booking.date.between(start_of_week, end_of_week)
+        ).count()
+        
+        if weekly_count >= resource.max_weekly_bookings:
+            flash(f'Você atingiu a cota máxima permitida de {resource.max_weekly_bookings} aula(s) por semana para "{resource.name}".', 'warning')
+            return redirect(url_for('agenda.select_shift', resource_id=resource_id, date=date_str, shift=shift))
+
     classroom_or_notes = (request.form.get('classroom_or_notes') or '').strip()
     if not classroom_or_notes:
         classroom_or_notes = None
@@ -278,9 +293,25 @@ def delete_booking(booking_id):
     shift = request.form.get('shift') or request.args.get('shift')
 
     if current_user.is_admin or booking.teacher_id == current_user.id:
+        res = Resource.query.get(booking.resource_id)
+        resource_name = res.name if res else f"Recurso #{booking.resource_id}"
+        
+        audit_entry = BookingAuditLog(
+            booking_id=booking.id,
+            resource_name=resource_name,
+            date=booking.date,
+            shift=booking.shift,
+            slot_name=booking.slot_name,
+            teacher_name=booking.teacher_name,
+            classroom_or_notes=booking.classroom_or_notes,
+            action='cancelado',
+            performed_by_name=current_user.name,
+            performed_by_is_admin=current_user.is_admin
+        )
+        db.session.add(audit_entry)
         db.session.delete(booking)
         db.session.commit()
-        flash('Agendamento removido com sucesso.', 'success')
+        flash('Agendamento cancelado com sucesso.', 'success')
     else:
         flash('Você não tem permissão para remover este agendamento.', 'danger')
     
@@ -312,9 +343,25 @@ def delete_my_booking(booking_id):
     booking = Booking.query.get_or_404(booking_id)
 
     if booking.teacher_id == current_user.id or current_user.is_admin:
+        res = Resource.query.get(booking.resource_id)
+        resource_name = res.name if res else f"Recurso #{booking.resource_id}"
+
+        audit_entry = BookingAuditLog(
+            booking_id=booking.id,
+            resource_name=resource_name,
+            date=booking.date,
+            shift=booking.shift,
+            slot_name=booking.slot_name,
+            teacher_name=booking.teacher_name,
+            classroom_or_notes=booking.classroom_or_notes,
+            action='cancelado',
+            performed_by_name=current_user.name,
+            performed_by_is_admin=current_user.is_admin
+        )
+        db.session.add(audit_entry)
         db.session.delete(booking)
         db.session.commit()
-        flash('Agendamento removido com sucesso.', 'success')
+        flash('Agendamento cancelado com sucesso.', 'success')
     else:
         flash('Você não tem permissão para remover este agendamento.', 'danger')
     

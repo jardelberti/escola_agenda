@@ -14,7 +14,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import current_user
 from sqlalchemy import func
 from werkzeug.utils import secure_filename
-from models import db, Teacher, Resource, ScheduleTemplate, Booking
+from models import db, Teacher, Resource, ScheduleTemplate, Booking, BookingAuditLog
 from extensions import celery
 from utils import admin_required, clean_old_backups, sanitize_phone, format_phone
 
@@ -98,12 +98,18 @@ def add_resource():
         except (ValueError, TypeError):
             quantity = 1
 
+        max_weekly_str = request.form.get('max_weekly_bookings', '')
+        max_weekly_bookings = None
+        if max_weekly_str and max_weekly_str.strip().isdigit():
+            max_weekly_bookings = max(1, int(max_weekly_str.strip()))
+
         new_resource = Resource(
             name=name,
             description=request.form.get('description'),
             icon=request.form.get('icon') or 'bi-box',
             is_active=is_active,
-            quantity=quantity
+            quantity=quantity,
+            max_weekly_bookings=max_weekly_bookings
         )
         db.session.add(new_resource)
         db.session.commit()
@@ -128,6 +134,14 @@ def edit_resource(resource_id):
                 resource.quantity = max(1, int(request.form.get('quantity', 1)))
             except (ValueError, TypeError):
                 pass
+        
+        max_weekly_str = request.form.get('max_weekly_bookings')
+        if max_weekly_str is not None:
+            if max_weekly_str.strip().isdigit():
+                resource.max_weekly_bookings = max(1, int(max_weekly_str.strip()))
+            else:
+                resource.max_weekly_bookings = None
+
         db.session.commit()
         flash('Recurso atualizado com sucesso!', 'success')
     else:
@@ -505,3 +519,104 @@ def restore_database():
     
     flash('Restauração iniciada em segundo plano! O processo pode levar alguns minutos para ser concluído.', 'success')
     return redirect(url_for('admin.backup_restore_page'))
+
+@admin_bp.route('/audit-logs')
+@admin_required
+def manage_audit_logs():
+    """Exibe o histórico de cancelamentos de agendamentos para auditoria."""
+    query = BookingAuditLog.query.order_by(BookingAuditLog.created_at.desc())
+    search_q = request.args.get('q', '').strip()
+    if search_q:
+        search_filter = f"%{search_q}%"
+        query = query.filter(
+            db.or_(
+                BookingAuditLog.teacher_name.ilike(search_filter),
+                BookingAuditLog.performed_by_name.ilike(search_filter),
+                BookingAuditLog.resource_name.ilike(search_filter),
+                BookingAuditLog.classroom_or_notes.ilike(search_filter)
+            )
+        )
+    logs = query.limit(200).all()
+    return render_template('admin_audit_logs.html', logs=logs, search_q=search_q)
+
+@admin_bp.route('/recurring-booking', methods=['GET', 'POST'])
+@admin_required
+def recurring_booking():
+    """Permite ao administrador agendar horários fixos para o bimestre todo em lote."""
+    resources = Resource.query.filter_by(is_active=True).order_by(Resource.name).all()
+    teachers = Teacher.query.filter_by(is_active=True).order_by(Teacher.name).all()
+
+    if request.method == 'POST':
+        resource_id = request.form.get('resource_id')
+        teacher_id = request.form.get('teacher_id')
+        shift = request.form.get('shift')
+        slot_names = request.form.getlist('slot_names')
+        start_date_str = request.form.get('start_date')
+        end_date_str = request.form.get('end_date')
+        weekdays_selected = [int(w) for w in request.form.getlist('weekdays')]
+        classroom_or_notes = (request.form.get('classroom_or_notes') or '').strip() or None
+
+        if not all([resource_id, teacher_id, shift, slot_names, start_date_str, end_date_str, weekdays_selected]):
+            flash('Por favor, preencha todos os campos obrigatórios do agendamento recorrente.', 'danger')
+            return redirect(url_for('admin.recurring_booking'))
+
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            flash('Formato de data inválido.', 'danger')
+            return redirect(url_for('admin.recurring_booking'))
+
+        if start_date > end_date:
+            flash('A data inicial deve ser anterior ou igual à data final.', 'danger')
+            return redirect(url_for('admin.recurring_booking'))
+
+        resource = Resource.query.get_or_404(int(resource_id))
+        teacher = Teacher.query.get_or_404(int(teacher_id))
+        capacity = resource.quantity or 1
+
+        created_count = 0
+        skipped_count = 0
+
+        current_d = start_date
+        while current_d <= end_date:
+            if current_d.weekday() in weekdays_selected:
+                for s_name in slot_names:
+                    # Verifica conflito e capacidade
+                    existing_bookings = Booking.query.filter_by(
+                        resource_id=resource.id,
+                        date=current_d,
+                        shift=shift,
+                        slot_name=s_name
+                    ).all()
+
+                    already_by_teacher = any(b.teacher_id == teacher.id and b.status == 'booked' for b in existing_bookings)
+                    if len(existing_bookings) < capacity and not already_by_teacher:
+                        new_b = Booking(
+                            resource_id=resource.id,
+                            teacher_id=teacher.id,
+                            teacher_name=teacher.name,
+                            date=current_d,
+                            shift=shift,
+                            slot_name=s_name,
+                            status='booked',
+                            classroom_or_notes=classroom_or_notes
+                        )
+                        db.session.add(new_b)
+                        created_count += 1
+                    else:
+                        skipped_count += 1
+            current_d += timedelta(days=1)
+
+        db.session.commit()
+        if created_count > 0:
+            msg = f'Sucesso! {created_count} aulas foram agendadas em lote para {teacher.name}.'
+            if skipped_count > 0:
+                msg += f' ({skipped_count} horários ignorados por já estarem ocupados).'
+            flash(msg, 'success')
+        else:
+            flash(f'Nenhuma aula foi agendada. Todos os {skipped_count} horários selecionados já estavam ocupados.', 'warning')
+
+        return redirect(url_for('admin.recurring_booking'))
+
+    return render_template('admin_recurring_booking.html', resources=resources, teachers=teachers)
