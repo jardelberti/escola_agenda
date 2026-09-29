@@ -104,10 +104,34 @@ def daily_summary():
         for res_name, data in by_resource.items():
             icon_emoji = "🖥️" if "informática" in res_name.lower() else "📽️" if "projetor" in res_name.lower() or "multimídia" in res_name.lower() else "📍"
             summary_lines.append(f"{icon_emoji} *{res_name}*")
-            for b in data['bookings']:
-                shift_label = "Matutino" if b['shift'] == 'matutino' else "Vespertino" if b['shift'] == 'vespertino' else b['shift'].capitalize()
-                note_str = f" [{b['classroom_or_notes']}]" if b.get('classroom_or_notes') else ""
-                summary_lines.append(f"  • {b['slot_name']} ({shift_label}): Prof(a). {b['teacher_name']}{note_str}")
+            
+            # Agrupa por turno dentro do recurso
+            matutino_bookings = [b for b in data['bookings'] if b['shift'].lower() == 'matutino']
+            vespertino_bookings = [b for b in data['bookings'] if b['shift'].lower() == 'vespertino']
+            outros_bookings = [b for b in data['bookings'] if b['shift'].lower() not in ('matutino', 'vespertino')]
+            
+            if matutino_bookings:
+                summary_lines.append("☀️ *Matutino*")
+                for b in matutino_bookings:
+                    note_str = f" [{b['classroom_or_notes']}]" if b.get('classroom_or_notes') else ""
+                    summary_lines.append(f"  • {b['slot_name']}: Prof(a). {b['teacher_name']}{note_str}")
+            
+            if vespertino_bookings:
+                if matutino_bookings:
+                    summary_lines.append("")
+                summary_lines.append("⛅ *Vespertino*")
+                for b in vespertino_bookings:
+                    note_str = f" [{b['classroom_or_notes']}]" if b.get('classroom_or_notes') else ""
+                    summary_lines.append(f"  • {b['slot_name']}: Prof(a). {b['teacher_name']}{note_str}")
+                    
+            if outros_bookings:
+                if matutino_bookings or vespertino_bookings:
+                    summary_lines.append("")
+                summary_lines.append("📌 *Outros Horários*")
+                for b in outros_bookings:
+                    note_str = f" [{b['classroom_or_notes']}]" if b.get('classroom_or_notes') else ""
+                    summary_lines.append(f"  • {b['slot_name']}: Prof(a). {b['teacher_name']}{note_str}")
+                    
             summary_lines.append("")
 
         summary_lines.append("✨ Desejamos a todos um ótimo dia de aulas e atividades!")
@@ -134,16 +158,38 @@ def daily_summary():
 
     teachers_summaries = []
     for t_id, t_data in by_teacher.items():
-        # Gera texto personalizado para cada professor
+        # Gera texto personalizado para cada professor separado por turno
         prof_lines = [
             f"Olá Prof(a). {t_data['teacher_name']}! 👋",
             f"📌 *Seu lembrete de agendamentos para hoje ({formatted_date} - {weekday_name}):*",
             ""
         ]
-        for b in t_data['bookings']:
-            shift_label = "Matutino" if b['shift'] == 'matutino' else "Vespertino" if b['shift'] == 'vespertino' else b['shift'].capitalize()
-            note_str = f" [{b['classroom_or_notes']}]" if b.get('classroom_or_notes') else ""
-            prof_lines.append(f"• *{b['resource_name']}*: {b['slot_name']} ({shift_label}){note_str}")
+
+        matutino_bookings = [b for b in t_data['bookings'] if b['shift'].lower() == 'matutino']
+        vespertino_bookings = [b for b in t_data['bookings'] if b['shift'].lower() == 'vespertino']
+        outros_bookings = [b for b in t_data['bookings'] if b['shift'].lower() not in ('matutino', 'vespertino')]
+
+        if matutino_bookings:
+            prof_lines.append("☀️ *Matutino*")
+            for b in matutino_bookings:
+                note_str = f" [{b['classroom_or_notes']}]" if b.get('classroom_or_notes') else ""
+                prof_lines.append(f"  • *{b['resource_name']}*: {b['slot_name']}{note_str}")
+
+        if vespertino_bookings:
+            if matutino_bookings:
+                prof_lines.append("")
+            prof_lines.append("⛅ *Vespertino*")
+            for b in vespertino_bookings:
+                note_str = f" [{b['classroom_or_notes']}]" if b.get('classroom_or_notes') else ""
+                prof_lines.append(f"  • *{b['resource_name']}*: {b['slot_name']}{note_str}")
+
+        if outros_bookings:
+            if matutino_bookings or vespertino_bookings:
+                prof_lines.append("")
+            prof_lines.append("📌 *Outros Horários*")
+            for b in outros_bookings:
+                note_str = f" [{b['classroom_or_notes']}]" if b.get('classroom_or_notes') else ""
+                prof_lines.append(f"  • *{b['resource_name']}*: {b['slot_name']}{note_str}")
         
         prof_lines.append("")
         prof_lines.append("Tenha uma excelente aula! 🎓")
