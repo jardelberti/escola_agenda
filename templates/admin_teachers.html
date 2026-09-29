@@ -67,10 +67,20 @@
                 <h3 class="text-xl font-bold text-slate-800 mb-4">Usuários Cadastrados</h3>
                 <div class="space-y-3">
                     {% for teacher in teachers %}
-                    <div class="bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center">
+                    <div class="bg-white p-4 rounded-xl border {{ 'border-slate-200' if teacher.is_active else 'border-slate-300 bg-slate-50 opacity-75' }} flex justify-between items-center">
                         <div>
-                            <h4 class="font-bold text-slate-800">{{ teacher.name }}</h4>
-                            <p class="text-sm text-slate-500">Matrícula: {{ teacher.registration }}</p>
+                            <div class="flex items-center gap-2">
+                                <h4 class="font-bold text-slate-800 {{ 'text-slate-500 line-through' if not teacher.is_active }}">{{ teacher.name }}</h4>
+                                {% if teacher.is_active %}
+                                    <span class="inline-block bg-emerald-100 text-emerald-800 text-xs font-semibold px-2 py-0.5 rounded-full">Ativo</span>
+                                {% else %}
+                                    <span class="inline-block bg-slate-200 text-slate-700 text-xs font-semibold px-2 py-0.5 rounded-full">Desativado</span>
+                                {% endif %}
+                                {% if teacher.is_admin %}
+                                    <span class="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full">Admin</span>
+                                {% endif %}
+                            </div>
+                            <p class="text-sm text-slate-500 mt-1">Matrícula: {{ teacher.registration }}</p>
                             {% if teacher.whatsapp %}
                                 <p class="text-xs text-emerald-600 font-medium flex items-center mt-1">
                                     <span class="material-symbols-outlined text-sm mr-1">chat</span>
@@ -82,13 +92,21 @@
                                     Sem WhatsApp
                                 </p>
                             {% endif %}
-                            {% if teacher.is_admin %}
-                                <span class="inline-block mt-2 bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">Admin</span>
-                            {% endif %}
                         </div>
                         <div class="flex items-center space-x-2 flex-shrink-0">
+                            {% if teacher.id != current_user.id %}
+                                {% if teacher.is_active %}
+                                    <a href="{{ url_for('admin.toggle_teacher', teacher_id=teacher.id) }}" class="bg-amber-100 text-amber-800 font-semibold px-3 py-1.5 rounded-md text-sm hover:bg-amber-200" title="Desativar acesso deste usuário">
+                                        Desativar
+                                    </a>
+                                {% else %}
+                                    <a href="{{ url_for('admin.toggle_teacher', teacher_id=teacher.id) }}" class="bg-emerald-100 text-emerald-800 font-semibold px-3 py-1.5 rounded-md text-sm hover:bg-emerald-200" title="Reativar acesso deste usuário">
+                                        Ativar
+                                    </a>
+                                {% endif %}
+                            {% endif %}
                             <button type="button" class="bg-yellow-100 text-yellow-800 font-semibold px-3 py-1.5 rounded-md text-sm hover:bg-yellow-200" data-bs-toggle="modal" data-bs-target="#editTeacherModal"
-                                    data-teacher-id="{{ teacher.id }}" data-teacher-name="{{ teacher.name }}" data-teacher-registration="{{ teacher.registration }}" data-teacher-whatsapp="{{ teacher.whatsapp or '' }}" data-teacher-is-admin="{{ teacher.is_admin|string|lower }}">
+                                    data-teacher-id="{{ teacher.id }}" data-teacher-name="{{ teacher.name }}" data-teacher-registration="{{ teacher.registration }}" data-teacher-whatsapp="{{ teacher.whatsapp or '' }}" data-teacher-is-admin="{{ teacher.is_admin|string|lower }}" data-teacher-is-active="{{ teacher.is_active|string|lower }}">
                                 Editar
                             </button>
                             {% if teacher.id != current_user.id %}
@@ -140,6 +158,13 @@
                                 É Administrador
                             </label>
                         </div>
+                        <div class="form-check mb-3" id="edit_is_active_container">
+                            <input class="form-check-input" type="checkbox" name="is_active" id="edit_is_active">
+                            <label class="form-check-label font-medium text-slate-700" for="edit_is_active">
+                                Usuário Ativo (acesso liberado para login e agendamentos)
+                            </label>
+                            <div class="text-xs text-slate-500">Se desmarcado, o professor não conseguirá fazer login nem receber novos agendamentos, mas todo o histórico de aulas passadas é preservado.</div>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -184,6 +209,7 @@
                 const teacherRegistration = button.getAttribute('data-teacher-registration');
                 const teacherWhatsapp = button.getAttribute('data-teacher-whatsapp') || '';
                 const teacherIsAdmin = button.getAttribute('data-teacher-is-admin') === 'true';
+                const teacherIsActive = button.getAttribute('data-teacher-is-active') !== 'false';
 
                 const modalForm = editTeacherModal.querySelector('#editTeacherForm');
                 const modalTitle = editTeacherModal.querySelector('.modal-title');
@@ -194,6 +220,15 @@
                 modalForm.querySelector('#edit_registration').value = teacherRegistration;
                 modalForm.querySelector('#edit_whatsapp').value = teacherWhatsapp;
                 modalForm.querySelector('#edit_is_admin').checked = teacherIsAdmin;
+                modalForm.querySelector('#edit_is_active').checked = teacherIsActive;
+
+                // Não permite desativar o próprio usuário logado
+                const activeContainer = modalForm.querySelector('#edit_is_active_container');
+                if (teacherId === "{{ current_user.id }}") {
+                    activeContainer.classList.add('opacity-50', 'pointer-events-none');
+                } else {
+                    activeContainer.classList.remove('opacity-50', 'pointer-events-none');
+                }
             });
         }
 

@@ -11,6 +11,8 @@ class Teacher(UserMixin, db.Model):
     registration = db.Column(db.String(50), unique=True, nullable=False)
     whatsapp = db.Column(db.String(30), nullable=True)
     is_admin = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+
 
 
 # Tabela de Recursos (Salas/Equipamentos)

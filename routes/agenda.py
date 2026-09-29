@@ -31,7 +31,7 @@ def select_shift(resource_id):
         flash(f'O recurso "{resource.name}" está temporariamente indisponível para novos agendamentos.', 'warning')
         return redirect(url_for('agenda.home'))
 
-    teachers = Teacher.query.order_by(Teacher.name).all()
+    teachers = Teacher.query.filter_by(is_active=True).order_by(Teacher.name).all()
     
     # Lógica para data inicial: se fim de semana, avança para segunda-feira
     initial_date = date.today()
@@ -204,6 +204,11 @@ def book_slot():
         selected_teacher_id = request.form.get('teacher_id')
         if selected_teacher_id:
             book_for_teacher = Teacher.query.get(int(selected_teacher_id))
+
+    if not getattr(book_for_teacher, 'is_active', True):
+        flash('Não é possível realizar agendamento para um usuário desativado.', 'danger')
+        return redirect(url_for('agenda.select_shift', resource_id=resource_id, date=date_str, shift=shift))
+
 
     # Validação: Cada professor só pode agendar no máximo 1 unidade por horário
     if any(b.teacher_id == book_for_teacher.id and b.status == 'booked' for b in current_bookings):

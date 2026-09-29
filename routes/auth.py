@@ -17,11 +17,15 @@ def login():
         teacher = Teacher.query.filter_by(registration=registration).first()
 
         if teacher:
+            if not getattr(teacher, 'is_active', True):
+                flash('Este cadastro está desativado pela administração. Entre em contato com a coordenação.', 'danger')
+                return render_template('login.html')
             login_user(teacher)
             flash(f'Bem-vindo(a), {teacher.name}!', 'success')
             return redirect(url_for('agenda.home'))
         else:
             flash('Matrícula inválida.', 'danger')
+
 
     return render_template('login.html')
 

@@ -219,7 +219,7 @@ def manage_teachers():
             db.session.commit()
             flash('Usuário cadastrado com sucesso!', 'success')
         return redirect(url_for('admin.manage_teachers'))
-    teachers = Teacher.query.order_by(Teacher.name).all()
+    teachers = Teacher.query.order_by(Teacher.is_active.desc(), Teacher.name).all()
     return render_template('admin_teachers.html', teachers=teachers, format_phone=format_phone)
 
 @admin_bp.route('/teacher/edit/<int:teacher_id>', methods=['POST'])
@@ -237,9 +237,28 @@ def edit_teacher(teacher_id):
     teacher.registration = new_registration
     teacher.whatsapp = sanitize_phone(request.form.get('whatsapp'))
     teacher.is_admin = 'is_admin' in request.form
+    if current_user.id != teacher_id:
+        teacher.is_active = 'is_active' in request.form
     db.session.commit()
     flash('Usuário atualizado com sucesso!', 'success')
     return redirect(url_for('admin.manage_teachers'))
+
+@admin_bp.route('/teacher/toggle/<int:teacher_id>', methods=['GET', 'POST'])
+@admin_required
+def toggle_teacher(teacher_id):
+    """Ativa ou desativa o acesso de um professor sem apagar histórico de agendamentos."""
+    if current_user.id == teacher_id:
+        flash('Você não pode desativar seu próprio usuário administrador.', 'danger')
+        return redirect(url_for('admin.manage_teachers'))
+        
+    teacher = Teacher.query.get_or_404(teacher_id)
+    teacher.is_active = not teacher.is_active
+    db.session.commit()
+    status_str = "reativado" if teacher.is_active else "desativado"
+    category = "success" if teacher.is_active else "warning"
+    flash(f'Usuário "{teacher.name}" foi {status_str} com sucesso!', category)
+    return redirect(url_for('admin.manage_teachers'))
+
 
 @admin_bp.route('/teacher/delete/<int:teacher_id>', methods=['POST'])
 @admin_required

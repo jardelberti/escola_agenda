@@ -62,7 +62,9 @@ _endpoint_aliases = {
     'toggle_resource': 'admin.toggle_resource',
     'manage_teachers': 'admin.manage_teachers',
     'edit_teacher': 'admin.edit_teacher',
+    'toggle_teacher': 'admin.toggle_teacher',
     'delete_teacher': 'admin.delete_teacher',
+
     'manage_schedules': 'admin.manage_schedules',
     'reports': 'admin.reports',
     'export_report': 'admin.export_report',
