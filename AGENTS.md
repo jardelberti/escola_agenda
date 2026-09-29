@@ -127,3 +127,19 @@ O sistema possui uma rotina de backup em nuvem gratuita no bucket `agenda-escola
   rclone ls r2:agenda-escola-backups
   ```
 
+---
+
+## 📲 8. Integração WhatsApp & n8n (Lembretes Automáticos)
+
+O sistema possui uma integração oficial para envio de lembretes matinais via WhatsApp para o Administrador e professores.
+
+* **Endpoint de Resumo**: `GET https://agendaricardo.com.br/api/integrations/daily-summary`
+* **Autenticação**: Parâmetro `?token=` ou header `X-API-Key` (definido por `INTEGRATION_API_KEY` no `.env`).
+* **Homelab (Tailscale `100.81.69.55`)**:
+  * **Evolution API**: `http://100.81.69.55:8085` (Stack em `/home/jardel/evolution-api`, instância `agenda-escola`).
+  * **n8n**: `http://100.81.69.55:5678` (Workflow: `Agenda Escolar - Notificações WhatsApp`).
+* **Rotina Automática**: Executa de segunda a sexta-feira às **07:00**:
+  * Envia o resumo geral consolidado para o Administrador (Jardel).
+  * Envia mensagens personalizadas no privado de cada professor com agendamento no dia e WhatsApp cadastrado no sistema.
+
+
