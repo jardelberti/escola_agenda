@@ -153,5 +153,10 @@ O sistema possui uma integração oficial para envio de lembretes matinais via W
 * **Rotina Automática**: Executa de segunda a sexta-feira às **07:00**:
   * Envia o resumo geral consolidado para o Administrador (Jardel).
   * Envia mensagens personalizadas no privado de cada professor com agendamento no dia e WhatsApp cadastrado no sistema.
+* **Atenção Técnica sobre o Agendador n8n (v2.x+)**:
+  * O nó `Schedule Trigger` deve ser configurado preferencialmente com **`Custom (Cron Expression)`** usando `0 7 * * 1-5`.
+  * No n8n 2.x, intervalos do tipo `weeks` sem o campo explícito `weeksInterval: 1` caem no método interno `recurrenceCheck`, descartando a execução matinal silenciosamente (`intervalSize: undefined`).
+  * O script utilitário [`scripts/manage_n8n.py`](file:///c:/Projetos/escola_agenda/scripts/manage_n8n.py) permite atualizar workflows e injetar fluxos de teste sem quebrar as tabelas internas `shared_workflow` e `workflow_history`.
+
 
 
