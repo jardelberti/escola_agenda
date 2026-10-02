@@ -57,8 +57,7 @@ services:
 
   # --- Serviço do Trabalhador (Celery) ---
   worker:
-    # Também precisa ser construído a partir do mesmo código
-    build: .
+    # Reutiliza a imagem construída pelo serviço app (um único build).
     image: ${APP_IMAGE}
     restart: unless-stopped
     command: celery -A app.celery worker --loglevel=info

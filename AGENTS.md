@@ -324,24 +324,27 @@ O arquivo `/home/ubuntu/escola_agenda/.env` na VPS contém as configurações de
 ## 🚀 12. Procedimento Oficial de Deploy e Manutenção
 
 ### 12.1. Ciclo de Atualização em Produção
-1. **Desenvolvimento Local**: Sempre na branch estável `main`.
-2. **Executar Testes**: `.\.venv\Scripts\python.exe -m unittest discover tests`
-3. **Commit e Push**:
-   ```bash
-   git add .
-   git commit -m "feat/fix: mensagem explicativa"
-   git push origin main
-   ```
-4. **Deploy na VPS via SSH**:
-   * Para alterações apenas documentais, atualizar o checkout com `git pull --ff-only origin main` e verificar sincronização; não reconstruir nem reiniciar containers sem necessidade. Para mudanças de código, dependências ou Docker, seguir build/subida abaixo, avaliando os recursos disponíveis na VPS.
-   ```bash
-   ssh -i C:\Users\monit\Downloads\ssh-key\ssh-key-agendaricardo.key ubuntu@163.176.251.63
-   cd ~/escola_agenda
-   git pull origin main
-   docker compose build
-   docker compose up -d
-   docker compose ps
-   ```
+
+1. Desenvolver localmente na `main`, atualizar este guia e executar verificações adequadas à mudança.
+2. Revisar o diff, criar commit apenas dos arquivos pretendidos e publicar no GitHub.
+3. Na VPS, executar `bash scripts/deploy.sh` a partir de `/home/ubuntu/escola_agenda`. Na primeira instalação do script, atualizar o checkout com `git pull --ff-only origin main` e aplicar separadamente a configuração já recebida; nas próximas tarefas, o script deve rodar antes do pull para identificar o diff.
+4. Conferir revisão local/GitHub/VPS, aplicação, banco e worker. Registrar resultados e pendências neste arquivo; atualizações finais exclusivamente documentais não exigem novo build.
+
+**Comportamento de `scripts/deploy.sh`:**
+
+* Exige checkout limpo na `main`, histórico fast-forward e lock para evitar dois deploys simultâneos.
+* Documentação, scripts operacionais e testes: apenas atualiza o checkout. Mudanças em scripts não aplicam automaticamente configurações externas (n8n, cron ou swap); executar somente os procedimentos específicos autorizados.
+* Código/templates/assets: atualiza e reinicia app/worker, aproveitando os bind mounts `.:/app`, sem reinstalar dependências.
+* Compose: aplica `docker compose up -d --no-build`.
+* Dockerfile, requisitos/dependências ou `.dockerignore`: verifica tarefas ativas/reservadas/agendadas do Celery, pausa o worker somente se a consulta válida indicar ausência de tarefas e faz parada graciosa sem timeout de encerramento. Se o worker não responder, cancela o deploy para revisão manual.
+* Constrói uma única imagem com `docker compose --parallel 1 build app`; o worker reutiliza essa imagem e não possui `build` próprio. Preserva cache; não usar `--no-cache` ou limpar o cache rotineiramente. Após build, aplica os serviços e confirma `/health` e resposta `pong` do Celery.
+* Se houver falha após pausar o worker, tenta iniciá-lo novamente via trap. O script não faz rollback automático do checkout nem migrações completas: interromper, registrar e avaliar falhas antes de repetir um deploy.
+
+**Swap na VPS (configurado em 02/10/2026):**
+
+* Arquivo `/swapfile-agenda`: 2 GiB, permissão 600; persistência em `/etc/fstab`.
+* `vm.swappiness=10` em `/etc/sysctl.d/99-agenda-swap.conf`; backup prévio do fstab em `/etc/fstab.agenda-before-swap-20261002`.
+* Verificar com `swapon --show`, `free -m` e `sysctl vm.swappiness`. Swap é margem para picos, não substitui RAM; uso persistente elevado exige investigar consumo e recursos da VPS.
 
 ### 12.2. Diagnóstico e Verificações Operacionais Rápidas
 * **Logs da Aplicação Flask**: `docker logs agenda_app -f --tail 50`
@@ -403,3 +406,12 @@ O arquivo `/home/ubuntu/escola_agenda/.env` na VPS contém as configurações de
 * **Pendência operacional:** Docker marcou agenda_app como unhealthy por timeouts ao iniciar o healthcheck durante a carga elevada, apesar de /health público saudável. Reconstrução cancelada; não foi alterada a configuração de memória, swap ou healthcheck. Confirmar recuperação da carga e do healthcheck em uma verificação posterior; não considerar toda a infraestrutura validada como saudável somente pela sincronização dos arquivos.
 
 * **Recuperação confirmada na verificação final de 02/10/2026:** após a atualização do registro 38b6d4c na VPS, docker inspect agenda_app confirmou healthy. A pendência de healthcheck descrita acima foi resolvida nessa verificação; manter o histórico da ocorrência para evitar novo build desnecessário em alterações documentais.
+
+### 2026-10-02 — GPT/Codex — Otimização de deploy e margem de memória
+
+* **Alterações:** configurados 2 GiB de swap persistente na VPS com swappiness 10; criado `scripts/deploy.sh` com deploy por tipo de alteração, build único/cache, pausa graciosa do worker ocioso e tentativa de retomada em falhas. Removido build duplicado do worker no Compose, mantendo a imagem compartilhada.
+* **Motivo:** evitar reconstruções desnecessárias e pressão de memória observada na VPS de 952 MB de RAM.
+* **Escopo:** `scripts/deploy.sh`, `docker-compose.yml`, `AGENTS.md` e configuração de swap no host. Nenhuma alteração nas regras de negócio, banco ou integração WhatsApp.
+* **Validações:** swap ativo confirmado pelo host; verificar sintaxe Bash, Compose, deploy documental e resposta dos serviços antes de encerrar. Não executar build completo ou restauração apenas como teste; o ramo de build será validado operacionalmente no próximo deploy que realmente altere dependências/imagem.
+
+* **Testes realizados:** bash -n aprovado; cinco cenários com comandos simulados em diretório temporário passaram (documentação sem reinício/build, código com restart, build único, worker ocupado impedindo atualização e falha de build retomando worker). Swap confirmado com 2047 MiB, persistência no fstab e swappiness 10. A suíte funcional da aplicação não foi executada, pois não houve mudança funcional.
