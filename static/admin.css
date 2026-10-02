@@ -19,6 +19,55 @@
 .admin-tabs a { flex-shrink: 0; text-decoration: none; }
 .admin-tabs a:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
 .admin-content table { max-width: 100%; }
+.operations-compact { margin-bottom:20px; }
+.operations-heading { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px; color:#475569; font-size:13px; font-weight:600; }
+.operations-heading small { font-size:11px; font-weight:400; color:#64748b; }
+.operations-strip { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+.operation-indicator { position:relative; min-width:0; background:white; border:1px solid #e2e8f0; border-radius:12px; }
+.operation-indicator summary { display:flex; align-items:center; gap:10px; padding:10px 12px; cursor:pointer; list-style:none; }
+.operation-indicator summary::-webkit-details-marker { display:none; }
+.operation-indicator summary:focus-visible { outline:2px solid #2563eb; outline-offset:3px; border-radius:12px; }
+.operation-icon { display:grid; place-items:center; width:32px; height:32px; flex-shrink:0; border-radius:9px; font-size:18px; background:var(--soft); color:var(--status); }
+.operation-ok { --status:#047857; --soft:#ecfdf5; }
+.operation-warning { --status:#b45309; --soft:#fffbeb; }
+.operation-error { --status:#b91c1c; --soft:#fef2f2; }
+.operation-label { display:flex; flex-direction:column; min-width:0; flex:1; }
+.operation-label strong { color:#334155; font-size:12px; font-weight:600; }
+.operation-label small { color:var(--status); font-size:11px; }
+.operation-chevron { color:#94a3b8; font-size:10px; }
+.operation-indicator[open] .operation-chevron { transform:rotate(180deg); }
+.operation-detail { position:absolute; top:calc(100% + 6px); left:0; width:min(340px,calc(100vw - 48px)); padding:14px; background:white; border:1px solid #e2e8f0; border-radius:12px; box-shadow:0 8px 24px #0f172a20; z-index:20; font-size:12px; color:#475569; }
+.operation-detail strong { color:var(--status); }
+.operation-detail p { margin-top:6px; line-height:1.6; }
+.operation-indicator:nth-child(n+3) .operation-detail { left:auto; right:0; }
+.dashboard-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:20px; }
+.dashboard-metric { background:white; border:1px solid #e2e8f0; border-radius:12px; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.dashboard-metric p { color:#64748b; font-size:12px; font-weight:600; }
+.dashboard-metric strong { font-size:26px; line-height:1.3; color:#1e293b; }
+.dashboard-metric small { color:#64748b; font-size:11px; display:block; }
+.dashboard-metric > i { color:#94a3b8; font-size:22px; }
+.dashboard-analytics { display:grid; grid-template-columns:2fr 1fr 1fr; gap:16px; margin-top:20px; }
+.dashboard-chart { background:white; border:1px solid #e2e8f0; border-radius:14px; padding:16px; min-width:0; }
+.admin-content .dashboard-chart h3 { font-size:14px; line-height:20px; }
+.dashboard-period { color:#64748b; font-size:11px; margin-top:4px; margin-bottom:14px; }
+.dashboard-canvas { height:168px; position:relative; }
+.dashboard-bar-row { margin-top:12px; }
+.dashboard-bar-label { display:flex; justify-content:space-between; gap:8px; font-size:12px; color:#475569; margin-bottom:5px; }
+.dashboard-bar-label span { overflow-wrap:anywhere; }
+.dashboard-track { height:8px; border-radius:8px; background:#f1f5f9; overflow:hidden; }
+.dashboard-track span { display:block; height:100%; border-radius:8px; background:#3b82f6; }
+.dashboard-resource-list { max-height:178px; overflow-y:auto; padding-right:4px; }
+.dashboard-today-scroll { max-height:360px; overflow:auto; }
+.dashboard-today-scroll thead { position:sticky; top:0; z-index:1; }
+@media (max-width:1023px) { .dashboard-analytics { grid-template-columns:1fr 1fr; } .dashboard-chart:first-child { grid-column:1 / -1; } }
+@media (max-width:639px) {
+    .operations-strip,.dashboard-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .operation-indicator:nth-child(2n) .operation-detail { left:auto; right:0; }
+    .operation-indicator:nth-child(3) .operation-detail { left:0; right:auto; }
+    .operation-indicator summary { padding:9px; gap:7px; }
+    .dashboard-metric { padding:12px; }
+    .dashboard-analytics { grid-template-columns:1fr; }
+}
 @media (max-width: 639px) {
     .admin-container { padding-inline: 16px; }
     .admin-shell { padding-block: 20px; }

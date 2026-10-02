@@ -1,163 +1,39 @@
 {% extends "admin_base.html" %}
 {% set active_tab = "dashboard" %}
-
-{% block title %}Dashboard do Administrador - Agenda Escolar{% endblock %}
-
+{% block title %}Visão Geral - Agenda Escolar{% endblock %}
 {% block admin_content %}
-
-
-    <!-- Navegação do Admin -->
-
-    <!-- Mensagens Flash -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-        <div class="space-y-2 mb-6">
-            {% for category, message in messages %}
-                {% set color = 'blue' if category == 'success' else 'red' if category == 'danger' else 'yellow' if category == 'warning' else 'gray' %}
-                <div class="bg-{{ color }}-100 border-l-4 border-{{ color }}-500 text-{{ color }}-700 p-4 rounded-xl text-sm shadow-sm" role="alert">
-                    <p class="font-medium">{{ message }}</p>
-                </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-    {% endwith %}
-
-    <div class="mb-6">
-        <h2 class="text-xl sm:text-2xl font-bold text-slate-800">Visão Geral</h2>
-        <p class="text-xs sm:text-sm text-slate-500">Acompanhe os agendamentos e a utilização dos recursos escolares.</p>
-    </div>
-
-    {% include 'admin_operations.html' %}
-
-    <!-- 1. CARDS DE MÉTRICAS PRINCIPAIS (KPIs) -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-
-        <!-- Card 1: Hoje -->
-        <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm flex items-center justify-between">
-            <div>
-                <p class="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Aulas Hoje</p>
-                <h3 class="text-2xl sm:text-3xl font-extrabold text-blue-600 mt-0.5">{{ bookings_today_count }}</h3>
-                <span class="text-[11px] text-slate-400 font-medium">Reservas ativas</span>
-            </div>
-            <div class="size-11 sm:size-12 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center flex-shrink-0">
-                <span class="material-symbols-outlined text-2xl sm:text-3xl">today</span>
-            </div>
-        </div>
-
-        <!-- Card 2: Esta Semana -->
-        <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm flex items-center justify-between">
-            <div>
-                <p class="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Esta Semana</p>
-                <h3 class="text-2xl sm:text-3xl font-extrabold text-indigo-600 mt-0.5">{{ bookings_week_count }}</h3>
-                <span class="text-[11px] text-slate-400 font-medium">Segunda a Sexta</span>
-            </div>
-            <div class="size-11 sm:size-12 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center flex-shrink-0">
-                <span class="material-symbols-outlined text-2xl sm:text-3xl">date_range</span>
-            </div>
-        </div>
-
-        <!-- Card 3: Recursos Ativos -->
-        <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm flex items-center justify-between">
-            <div>
-                <p class="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Recursos</p>
-                <h3 class="text-2xl sm:text-3xl font-extrabold text-emerald-600 mt-0.5">{{ active_resources }}</h3>
-                <span class="text-[11px] text-slate-400 font-medium">{{ total_resources }} cadastrado(s)</span>
-            </div>
-            <div class="size-11 sm:size-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center flex-shrink-0">
-                <span class="material-symbols-outlined text-2xl sm:text-3xl">inventory_2</span>
-            </div>
-        </div>
-
-        <!-- Card 4: Professores Ativos -->
-        <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm flex items-center justify-between">
-            <div>
-                <p class="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Professores</p>
-                <h3 class="text-2xl sm:text-3xl font-extrabold text-amber-600 mt-0.5">{{ total_teachers }}</h3>
-                <span class="text-[11px] text-slate-400 font-medium">Cadastrados e ativos</span>
-            </div>
-            <div class="size-11 sm:size-12 rounded-2xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center flex-shrink-0">
-                <span class="material-symbols-outlined text-2xl sm:text-3xl">group</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- 2. SEÇÃO DE GRÁFICOS (DASHBOARD ANALÍTICO) -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-
-        <!-- Gráfico 1: Evolução dos Últimos 14 Dias (Linha do Tempo) -->
-        <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-sm">
-            <div class="flex items-center justify-between mb-4">
-                <div>
-                    <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
-                        <span class="material-symbols-outlined text-blue-600">trending_up</span>
-                        Ritmo de Agendamentos (Últimos 14 Dias)
-                    </h3>
-                    <p class="text-xs text-slate-400 mt-0.5">Volume diário de horários reservados na escola.</p>
-                </div>
-            </div>
-            <div class="h-64 relative">
-                <canvas id="timelineChart"></canvas>
-            </div>
-        </div>
-
-        <!-- Gráfico 2: Turno Matutino vs Vespertino -->
-        <div class="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col justify-between">
-            <div>
-                <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2 mb-1">
-                    <span class="material-symbols-outlined text-amber-500">wb_twilight</span>
-                    Distribuição por Turno
-                </h3>
-                <p class="text-xs text-slate-400 mb-4">Proporção de uso entre Manhã e Tarde.</p>
-            </div>
-            <div class="h-52 relative flex items-center justify-center">
-                <canvas id="shiftChart"></canvas>
-            </div>
-            <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-100 text-center text-xs">
-                <div class="p-2 rounded-xl bg-sky-50 text-sky-800 font-semibold">
-                    ☀️ Matutino: {{ chart_shift_data[0] }}
-                </div>
-                <div class="p-2 rounded-xl bg-amber-50 text-amber-800 font-semibold">
-                    🌅 Vespertino: {{ chart_shift_data[1] }}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Gráfico 3: Utilização por Recurso -->
-    <div class="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-sm mb-6">
-        <div class="flex items-center justify-between mb-3">
-            <div>
-                <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
-                    <span class="material-symbols-outlined text-emerald-600">bar_chart</span>
-                    Uso por Recurso (Últimos 30 Dias)
-                </h3>
-                <p class="text-xs text-slate-400 mt-0.5">Identifique os espaços e equipamentos mais demandados pelos professores.</p>
-            </div>
-        </div>
-        <div class="h-60 relative">
-            <canvas id="resourceChart"></canvas>
-        </div>
-    </div>
-
-    <!-- 3. ATIVIDADES DE HOJE NA ESCOLA & ATALHOS RÁPIDOS -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
+<div class="mb-4">
+  <h2>Visão Geral</h2>
+  <p class="text-sm text-slate-500">Acompanhe o dia na escola e os indicadores do sistema.</p>
+</div>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}
+  <div role="alert" class="mb-3 p-3 rounded-lg text-sm {% if category == 'danger' %}bg-red-50 text-red-700{% elif category == 'warning' %}bg-amber-50 text-amber-700{% else %}bg-blue-50 text-blue-700{% endif %}">{{ message }}</div>
+  {% endfor %}
+{% endwith %}
+{% include 'admin_operations.html' %}
+<div class="dashboard-metrics">
+  <div class="dashboard-metric"><div><p>Aulas hoje</p><strong>{{ bookings_today_count }}</strong><small>Reservas ativas</small></div><i class="bi bi-calendar-check" aria-hidden="true"></i></div>
+  <div class="dashboard-metric"><div><p>Esta semana</p><strong>{{ bookings_week_count }}</strong><small>Segunda a domingo</small></div><i class="bi bi-calendar-week" aria-hidden="true"></i></div>
+  <div class="dashboard-metric"><div><p>Recursos ativos</p><strong>{{ active_resources }}</strong><small>{{ total_resources }} cadastrados</small></div><i class="bi bi-box-seam" aria-hidden="true"></i></div>
+  <div class="dashboard-metric"><div><p>Professores</p><strong>{{ total_teachers }}</strong><small>Cadastros ativos</small></div><i class="bi bi-people" aria-hidden="true"></i></div>
+</div>
         <!-- Tabela do Dia de Hoje -->
-        <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
+        <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
             <div class="p-4 border-b border-slate-100 flex items-center justify-between">
                 <div>
                     <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
                         <span class="material-symbols-outlined text-blue-600">notifications_active</span>
                         Em Uso Hoje na Escola
                     </h3>
-                    <p class="text-xs text-slate-400 mt-0.5">Aulas e recursos reservados para a data de hoje.</p>
+                    <p class="text-xs text-slate-400 mt-0.5">{{ today_label }} · Aulas e recursos reservados para hoje.</p>
                 </div>
                 <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
                     {{ today_bookings|length }} horário(s)
                 </span>
             </div>
 
-            <div class="overflow-x-auto">
+            <div class="dashboard-today-scroll">
                 <table class="w-full table-auto text-left text-xs sm:text-sm divide-y divide-slate-100">
                     <thead class="bg-slate-50 text-slate-500 uppercase tracking-wider text-[11px] font-semibold">
                         <tr>
@@ -205,204 +81,60 @@
             </div>
         </div>
 
-        <!-- Atalhos Rápidos Operacionais -->
-        <div class="space-y-3">
-            <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2 mb-2 px-1">
-                <span class="material-symbols-outlined text-indigo-600">bolt</span>
-                Ações Rápidas
-            </h3>
 
-            <!-- Atalho 1: Agendamento Recorrente -->
-            <a href="{{ url_for('admin.recurring_booking') }}" class="group bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm hover:border-indigo-400 hover:shadow transition-all block">
-                <div class="flex items-center gap-3">
-                    <div class="size-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
-                        <span class="material-symbols-outlined">event_repeat</span>
-                    </div>
-                    <div class="flex-grow">
-                        <h4 class="font-bold text-slate-800 text-sm leading-tight">Agendar em Lote</h4>
-                        <p class="text-xs text-slate-500 mt-0.5">Reservar bimestre fixo para professor.</p>
-                    </div>
-                    <span class="material-symbols-outlined text-slate-400 group-hover:translate-x-1 transition-transform">chevron_right</span>
-                </div>
-            </a>
-
-            <!-- Atalho 2: Gestão de Recursos -->
-            <a href="{{ url_for('admin.manage_resources') }}" class="group bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm hover:border-blue-400 hover:shadow transition-all block">
-                <div class="flex items-center gap-3">
-                    <div class="size-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
-                        <span class="material-symbols-outlined">inventory_2</span>
-                    </div>
-                    <div class="flex-grow">
-                        <h4 class="font-bold text-slate-800 text-sm leading-tight">Gestão de Recursos</h4>
-                        <p class="text-xs text-slate-500 mt-0.5">Pausar, reordenar ou criar novas salas.</p>
-                    </div>
-                    <span class="material-symbols-outlined text-slate-400 group-hover:translate-x-1 transition-transform">chevron_right</span>
-                </div>
-            </a>
-
-            <!-- Atalho 3: Gerenciar Professores -->
-            <a href="{{ url_for('manage_teachers') }}" class="group bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm hover:border-amber-400 hover:shadow transition-all block">
-                <div class="flex items-center gap-3">
-                    <div class="size-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
-                        <span class="material-symbols-outlined">group</span>
-                    </div>
-                    <div class="flex-grow">
-                        <h4 class="font-bold text-slate-800 text-sm leading-tight">Gerenciar Professores</h4>
-                        <p class="text-xs text-slate-500 mt-0.5">Ativar/desativar e editar matrículas.</p>
-                    </div>
-                    <span class="material-symbols-outlined text-slate-400 group-hover:translate-x-1 transition-transform">chevron_right</span>
-                </div>
-            </a>
-
-            <!-- Atalho 4: Auditoria de Cancelamentos -->
-            <a href="{{ url_for('admin.manage_audit_logs') }}" class="group bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm hover:border-rose-400 hover:shadow transition-all block">
-                <div class="flex items-center gap-3">
-                    <div class="size-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
-                        <span class="material-symbols-outlined">history</span>
-                    </div>
-                    <div class="flex-grow">
-                        <h4 class="font-bold text-slate-800 text-sm leading-tight">Auditoria de Cancelamentos</h4>
-                        <p class="text-xs text-slate-500 mt-0.5">Ver quem apagou reservas e quando.</p>
-                    </div>
-                    <span class="material-symbols-outlined text-slate-400 group-hover:translate-x-1 transition-transform">chevron_right</span>
-                </div>
-            </a>
-        </div>
+<div class="dashboard-analytics">
+  <section class="dashboard-chart" aria-labelledby="rhythm-title">
+    <h3 id="rhythm-title">Ritmo de agendamentos</h3>
+    <p class="dashboard-period">Últimos 14 dias de segunda a sexta · {{ timeline_period }}<br>Reservas por data de uso, sem sábados e domingos.</p>
+    <div class="dashboard-canvas"><canvas id="timelineChart" role="img" aria-label="Reservas nos últimos 14 dias de segunda a sexta"></canvas></div>
+    {% if not chart_timeline_data|sum %}<p class="text-xs text-slate-500 mt-2">Sem reservas no período.</p>{% endif %}
+  </section>
+  <section class="dashboard-chart" aria-labelledby="shift-title">
+    <h3 id="shift-title">Distribuição por turno</h3>
+    <p class="dashboard-period">Últimos 30 dias · {{ analytics_period }}</p>
+    {% set shift_total = chart_shift_data|sum %}
+    {% for name, icon, color in [('Matutino', 'bi-sun', '#0284c7'), ('Vespertino', 'bi-sunset', '#d97706')] %}
+      {% set count = chart_shift_data[loop.index0] %}
+      {% set percentage = (100 * count / shift_total)|round|int if shift_total else 0 %}
+      <div class="dashboard-bar-row">
+        <div class="dashboard-bar-label"><span><i class="bi {{ icon }}" aria-hidden="true"></i> {{ name }}</span><strong>{{ count }} · {{ percentage }}%</strong></div>
+        <div class="dashboard-track" aria-hidden="true"><span style="width:{{ percentage }}%;background:{{ color }}"></span></div>
+      </div>
+    {% endfor %}
+    <p class="text-xs text-slate-500 mt-4">{{ shift_total }} reservas no período.</p>
+  </section>
+  <section class="dashboard-chart" aria-labelledby="resource-title">
+    <h3 id="resource-title">Uso por recurso</h3>
+    <p class="dashboard-period">Últimos 30 dias · {{ analytics_period }}</p>
+    <div class="dashboard-resource-list">
+      {% for name, count in resource_usage %}
+      <div class="dashboard-bar-row">
+        <div class="dashboard-bar-label"><span>{{ name }}</span><strong>{{ count }}</strong></div>
+        <div class="dashboard-track" aria-hidden="true"><span style="width:{{ (100 * count / resource_max)|round|int if resource_max else 0 }}%"></span></div>
+      </div>
+      {% else %}<p class="text-xs text-slate-500">Nenhum recurso cadastrado.</p>{% endfor %}
     </div>
-
-
-<!-- Scripts do Chart.js -->
+  </section>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-
-    // --- 1. Gráfico de Linha do Tempo (Últimos 14 Dias) ---
-    const timelineLabels = {{ chart_timeline_labels|safe }};
-    const timelineData = {{ chart_timeline_data|safe }};
-
-    const ctxTimeline = document.getElementById('timelineChart').getContext('2d');
-    new Chart(ctxTimeline, {
-        type: 'line',
-        data: {
-            labels: timelineLabels,
-            datasets: [{
-                label: 'Aulas Agendadas',
-                data: timelineData,
-                borderColor: '#2563eb',
-                backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                borderWidth: 2.5,
-                fill: true,
-                tension: 0.35,
-                pointBackgroundColor: '#2563eb',
-                pointRadius: 3.5,
-                pointHoverRadius: 6
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: '#1e293b',
-                    padding: 10,
-                    titleFont: { size: 12, weight: 'bold' },
-                    bodyFont: { size: 12 }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { precision: 0, font: { size: 11 } },
-                    grid: { color: 'rgba(226, 232, 240, 0.6)' }
-                },
-                x: {
-                    ticks: { font: { size: 11 } },
-                    grid: { display: false }
-                }
-            }
-        }
-    });
-
-    // --- 2. Gráfico de Turnos (Matutino vs Vespertino) ---
-    const shiftLabels = {{ chart_shift_labels|safe }};
-    const shiftData = {{ chart_shift_data|safe }};
-
-    const ctxShift = document.getElementById('shiftChart').getContext('2d');
-    new Chart(ctxShift, {
-        type: 'doughnut',
-        data: {
-            labels: shiftLabels,
-            datasets: [{
-                data: shiftData,
-                backgroundColor: ['#0284c7', '#d97706'],
-                hoverBackgroundColor: ['#0369a1', '#b45309'],
-                borderWidth: 2,
-                borderColor: '#ffffff'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: '65%',
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { boxWidth: 12, font: { size: 11 } }
-                }
-            }
-        }
-    });
-
-    // --- 3. Gráfico de Uso por Recurso (Últimos 30 Dias) ---
-    const resourceLabels = {{ chart_resource_labels|safe }};
-    const resourceData = {{ chart_resource_data|safe }};
-
-    const ctxResource = document.getElementById('resourceChart').getContext('2d');
-    new Chart(ctxResource, {
-        type: 'bar',
-        data: {
-            labels: resourceLabels,
-            datasets: [{
-                label: 'Aulas Agendadas',
-                data: resourceData,
-                backgroundColor: [
-                    'rgba(16, 185, 129, 0.75)',
-                    'rgba(59, 130, 246, 0.75)',
-                    'rgba(245, 158, 11, 0.75)',
-                    'rgba(99, 102, 241, 0.75)',
-                    'rgba(236, 72, 153, 0.75)'
-                ],
-                borderColor: [
-                    '#10b981',
-                    '#3b82f6',
-                    '#f59e0b',
-                    '#6366f1',
-                    '#ec4899'
-                ],
-                borderWidth: 1.5,
-                borderRadius: 8
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { precision: 0, font: { size: 11 } },
-                    grid: { color: 'rgba(226, 232, 240, 0.6)' }
-                },
-                x: {
-                    ticks: { font: { size: 11 } },
-                    grid: { display: false }
-                }
-            }
-        }
-    });
+  if (typeof Chart === 'undefined') return;
+  new Chart(document.getElementById('timelineChart'), {
+    type: 'bar',
+    data: { labels: {{ chart_timeline_labels|tojson }}, datasets: [{
+      label: 'Reservas', data: {{ chart_timeline_data|tojson }},
+      backgroundColor: '#60a5fa', hoverBackgroundColor: '#2563eb', borderRadius: 3, maxBarThickness: 20
+    }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { precision: 0, font: { size: 10 } }, grid: { color: '#f1f5f9' } },
+        x: { ticks: { font: { size: 10 }, maxRotation: 0, maxTicksLimit: 7 }, grid: { display: false } }
+      }
+    }
+  });
 });
 </script>
 {% endblock %}

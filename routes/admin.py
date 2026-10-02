@@ -10,6 +10,7 @@ import subprocess
 import secrets
 from urllib.parse import urlparse
 from datetime import datetime, timedelta, date
+from zoneinfo import ZoneInfo
 from logging import getLogger
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, Response, current_app
 from flask_login import current_user
@@ -71,15 +72,25 @@ def restore_task_bg(filepath, db_uri_str):
             os.remove(filepath)
             log.info(f"Arquivo de backup temporário {filepath} removido.")
 
+def recent_weekdays(today, count=14):
+    days = []
+    cursor = today
+    while len(days) < count:
+        if cursor.weekday() < 5:
+            days.append(cursor)
+        cursor -= timedelta(days=1)
+    return list(reversed(days))
+
+
 @admin_bp.route('/')
 @admin_required
 def admin_dashboard():
     """Painel principal do administrador com resumo de KPIs, gráficos e atividades de hoje."""
-    today = date.today()
+    today = datetime.now(ZoneInfo('America/Sao_Paulo')).date()
     start_of_week = today - timedelta(days=today.weekday())
     end_of_week = start_of_week + timedelta(days=6)
-    thirty_days_ago = today - timedelta(days=30)
-    fourteen_days_ago = today - timedelta(days=13)
+    thirty_days_ago = today - timedelta(days=29)
+    timeline_days = recent_weekdays(today)
 
     # 1. Indicadores Chave (KPIs)
     bookings_today_count = Booking.query.filter_by(date=today, status='booked').count()
@@ -103,7 +114,7 @@ def admin_dashboard():
     resource_usage_query = db.session.query(
         Resource.name, func.count(Booking.id)
     ).join(Booking, Resource.id == Booking.resource_id)\
-     .filter(Booking.date >= thirty_days_ago, Booking.status == 'booked')\
+     .filter(Booking.date.between(thirty_days_ago, today), Booking.status == 'booked')\
      .group_by(Resource.name)\
      .order_by(func.count(Booking.id).desc())\
      .all()
@@ -116,25 +127,24 @@ def admin_dashboard():
         chart_resource_labels = [r.name for r in all_res]
         chart_resource_data = [0 for _ in all_res]
 
-    # 4. Gráfico 2: Evolução dos Últimos 14 Dias (Linha do tempo)
+    # Últimos 14 dias de segunda a sexta; reservas futuras ficam fora do período.
     daily_counts_map = dict(
         db.session.query(Booking.date, func.count(Booking.id))\
-        .filter(Booking.date.between(fourteen_days_ago, today), Booking.status == 'booked')\
+        .filter(Booking.date.in_(timeline_days), Booking.status == 'booked')\
         .group_by(Booking.date)\
         .all()
     )
 
     chart_timeline_labels = []
     chart_timeline_data = []
-    for i in range(14):
-        d = fourteen_days_ago + timedelta(days=i)
+    for d in timeline_days:
         chart_timeline_labels.append(d.strftime('%d/%m'))
         chart_timeline_data.append(daily_counts_map.get(d, 0))
 
     # 5. Gráfico 3: Matutino vs Vespertino (Últimos 30 dias)
     shift_counts = dict(
         db.session.query(Booking.shift, func.count(Booking.id))\
-        .filter(Booking.date >= thirty_days_ago, Booking.status == 'booked')\
+        .filter(Booking.date.between(thirty_days_ago, today), Booking.status == 'booked')\
         .group_by(Booking.shift)\
         .all()
     )
@@ -156,7 +166,12 @@ def admin_dashboard():
         chart_timeline_labels=chart_timeline_labels,
         chart_timeline_data=chart_timeline_data,
         chart_shift_labels=chart_shift_labels,
-        chart_shift_data=chart_shift_data
+        chart_shift_data=chart_shift_data,
+        analytics_period=f'{thirty_days_ago:%d/%m/%Y} a {today:%d/%m/%Y}',
+        timeline_period=f'{timeline_days[0]:%d/%m} a {timeline_days[-1]:%d/%m}',
+        today_label=today.strftime('%d/%m/%Y'),
+        resource_usage=list(zip(chart_resource_labels, chart_resource_data)),
+        resource_max=max(chart_resource_data, default=0)
     )
 
 @admin_bp.route('/resources')
