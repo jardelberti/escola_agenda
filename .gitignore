@@ -9,4 +9,7 @@ __pycache__/
 data/backups/
 backups/
 *.log
-*.dump
+*.dump
+backup_agenda_db.sh
+restore_agenda_db.sh
+
