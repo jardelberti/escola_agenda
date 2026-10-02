@@ -1,159 +1,72 @@
 {% extends "admin_base.html" %}
 {% set active_tab = "reports" %}
-
-{% block title %}Relatórios de Uso{% endblock %}
-
+{% block title %}Relatórios de Reservas{% endblock %}
+{% block extra_head %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='reports.css', v='20261002') }}">
+{% endblock %}
 {% block admin_content %}
-
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-        <div>
-            <h2 class="text-xl sm:text-2xl font-bold text-slate-800">Relatórios de Utilização</h2>
-            <p class="text-xs sm:text-sm text-slate-500">Métricas consolidadas de agendamentos e uso dos espaços por professor.</p>
-        </div>
-    </div>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="space-y-2 mb-6">
-                {% for category, message in messages %}
-                    {% set color = 'red' if category == 'danger' else 'yellow' if category == 'warning' else 'gray' %}
-                    <div class="bg-{{ color }}-100 border-l-4 border-{{ color }}-500 text-{{ color }}-700 p-4 rounded-lg" role="alert">
-                        <p>{{ message }}</p>
-                    </div>
-                {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
-
-        <div class="bg-white p-6 rounded-xl border border-slate-200 mb-8">
-            <h3 class="text-xl font-bold text-slate-800 mb-4">Gerar Novo Relatório</h3>
-            <form method="POST" action="{{ url_for('reports') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="grid grid-cols-1 md:grid-cols-10 gap-4 items-end">
-                    <div class="md:col-span-3">
-                        <label for="resource_id" class="block text-sm font-medium text-slate-600 mb-1">Recurso</label>
-                        <select name="resource_id" id="resource_id" class="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500" required>
-                            <option value="">Selecione um recurso...</option>
-                            {% for resource in resources %}
-                                <option value="{{ resource.id }}" {% if selected_resource_id == resource.id %}selected{% endif %}>{{ resource.name }}{% if not resource.is_active %} (Pausado){% endif %}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="md:col-span-3">
-                        <label for="start_date" class="block text-sm font-medium text-slate-600 mb-1">Data Inicial</label>
-                        <input type="text" class="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500 datepicker" id="start_date" name="start_date" placeholder="dd/mm/aaaa" value="{{ start_date }}" required>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="end_date" class="block text-sm font-medium text-slate-600 mb-1">Data Final</label>
-                        <input type="text" class="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500 datepicker" id="end_date" name="end_date" placeholder="dd/mm/aaaa" value="{{ end_date }}" required>
-                    </div>
-                    <div class="md:col-span-2">
-                        <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-2.5 rounded-lg shadow-sm hover:bg-blue-700 transition-colors">Gerar</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-
-        {% if report_data is not none %}
-        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div class="p-6 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h3 class="text-xl font-bold text-slate-800">Resultado do Relatório</h3>
-                {% if report_data %}
-                <a href="{{ url_for('export_report', resource_id=selected_resource_id, start_date=start_date, end_date=end_date) }}" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg shadow-sm transition-colors text-sm">
-                    <span class="material-symbols-outlined text-base">download</span>
-                    Exportar para Excel (CSV)
-                </a>
-                {% endif %}
-            </div>
-
-            {% if chart_labels and chart_data and chart_labels != '[]' %}
-             <div class="p-6">
-                <div class="max-w-2xl mx-auto">
-                    <canvas id="usageChart"></canvas>
-                </div>
-            </div>
-            {% endif %}
-
-            <div class="p-6">
-                {% if report_data %}
-                <table class="min-w-full divide-y divide-slate-200">
-                    <thead class="bg-slate-50">
-                        <tr>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Professor</th>
-                            <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Quantidade de Usos</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-slate-200">
-                        {% for teacher, count in report_data %}
-                        <tr>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{{ teacher }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-center">{{ count }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                    <tfoot class="bg-slate-100 border-t-2 border-slate-300">
-                        <tr>
-                            <td class="px-6 py-3 text-right text-sm font-bold text-slate-800">Total Geral de Usos:</td>
-                            <td class="px-6 py-3 text-center text-sm font-bold text-slate-800">{{ report_data | sum(attribute=1) }}</td>
-                        </tr>
-                    </tfoot>
-                </table>
-                {% else %}
-                <p class="text-slate-500 text-center py-4">Nenhum agendamento encontrado para os filtros selecionados.</p>
-                {% endif %}
-            </div>
-        </div>
-        {% endif %}
-
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <script>
-        // Garante que o script só execute após os dados serem passados pelo Flask
-        document.addEventListener('DOMContentLoaded', function() {
-            // Pega as variáveis do Flask. Se não existirem, usa um array vazio.
-            const chartLabels = {{ chart_labels|safe if chart_labels else '[]' }};
-            const chartData = {{ chart_data|safe if chart_data else '[]' }};
-
-            // Só tenta renderizar o gráfico se houver dados
-            if (chartLabels.length > 0 && chartData.length > 0) {
-                const ctx = document.getElementById('usageChart').getContext('2d');
-                const usageChart = new Chart(ctx, {
-                    type: 'bar', // Outras opções: 'pie', 'line', 'doughnut'
-                    data: {
-                        labels: chartLabels,
-                        datasets: [{
-                            label: 'Quantidade de Usos',
-                            data: chartData,
-                            backgroundColor: 'rgba(59, 130, 246, 0.5)',
-                            borderColor: 'rgba(59, 130, 246, 1)',
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    // Garante que o eixo Y só tenha números inteiros
-                                    precision: 0
-                                }
-                            }
-                        },
-                        responsive: true,
-                        plugins: {
-                            legend: {
-                                display: false // A legenda é desnecessária aqui
-                            },
-                            title: {
-                                display: true,
-                                text: 'Uso de Recurso por Professor'
-                            }
-                        }
-                    }
-                });
-            }
-        });
-    </script>
+<div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+  <div><h2>Relatórios de reservas</h2><p class="text-sm text-slate-500">Compare períodos e acompanhe a distribuição das reservas na escola.</p></div>
+  <div class="report-actions report-no-print">
+    {% if report %}<a class="text-sm font-semibold px-3 py-2 rounded-lg bg-emerald-50 text-emerald-800" href="{{ url_for('admin.export_report', **export_params) }}"><i class="bi bi-download" aria-hidden="true"></i> Exportar CSV</a>{% endif %}
+    <button id="print-report" type="button" class="text-sm font-semibold px-3 py-2 rounded-lg bg-slate-100 text-slate-700"><i class="bi bi-printer" aria-hidden="true"></i> Imprimir / PDF</button>
+  </div>
 </div>
+{% for category,message in get_flashed_messages(with_categories=true) %}<div role="alert" class="p-3 mb-3 rounded-lg bg-red-50 text-red-700 text-sm">{{ message }}</div>{% endfor %}
+<form id="report-filters" method="GET" action="{{ url_for('admin.reports') }}" class="report-panel report-no-print mb-4">
+  <div class="report-filter-grid">
+    <div><label for="preset">Período</label><select id="preset" name="preset">{% for key,label in presets.items() %}<option value="{{ key }}" {% if filters.preset==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div><label for="start_date">Data inicial</label><input type="date" id="start_date" name="start_date" value="{{ filters.start.isoformat() }}" required></div>
+    <div><label for="end_date">Data final</label><input type="date" id="end_date" name="end_date" value="{{ filters.end.isoformat() }}" required></div>
+    <div><label for="compare">Comparar com</label><select id="compare" name="compare"><option value="previous" {% if filters.compare=='previous' %}selected{% endif %}>Período anterior de mesma duração</option><option value="custom" {% if filters.compare=='custom' %}selected{% endif %}>Escolher outro período</option><option value="none" {% if filters.compare=='none' %}selected{% endif %}>Sem comparação</option></select></div>
+    <div><label for="resource_id">Recurso</label><select id="resource_id" name="resource_id"><option value="0">Todos os recursos</option>{% for resource in resources %}<option value="{{ resource.id }}" {% if filters.resource_id==resource.id %}selected{% endif %}>{{ resource.name }}{% if not resource.is_active %} (Pausado){% endif %}</option>{% endfor %}</select></div>
+    <div><label for="teacher_id">Professor</label><select id="teacher_id" name="teacher_id"><option value="0">Todos os professores</option>{% for teacher in teachers %}<option value="{{ teacher.id }}" {% if filters.teacher_id==teacher.id %}selected{% endif %}>{{ teacher.name }} · {{ teacher.registration }}{% if not teacher.is_active %} (Pausado){% endif %}</option>{% endfor %}</select></div>
+    <div><label for="shift">Turno</label><select id="shift" name="shift"><option value="">Todos os turnos</option><option value="matutino" {% if filters.shift=='matutino' %}selected{% endif %}>Matutino</option><option value="vespertino" {% if filters.shift=='vespertino' %}selected{% endif %}>Vespertino</option></select></div>
+    <div><label for="granularity">Evolução por</label><select id="granularity" name="granularity">{% for key,label in [('auto','Automático'),('day','Dia'),('week','Semana'),('month','Mês')] %}<option value="{{ key }}" {% if filters.granularity==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div><label for="group">Agrupar tabela por</label><select id="group" name="group">{% for key,label in groups.items() %}<option value="{{ key }}" {% if filters.group==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div id="compare-dates" class="contents" {% if filters.compare!='custom' %}hidden{% endif %}>
+      <div><label for="compare_start">Comparação: início</label><input type="date" id="compare_start" name="compare_start" value="{{ filters.previous_start.isoformat() }}"></div>
+      <div><label for="compare_end">Comparação: fim</label><input type="date" id="compare_end" name="compare_end" value="{{ filters.previous_end.isoformat() }}"></div>
+    </div>
+  </div>
+  <div class="flex flex-wrap items-center justify-between gap-3 mt-4">
+    <label class="text-sm text-slate-600"><input type="hidden" name="weekdays" value="0"><input type="checkbox" name="weekdays" value="1" {% if filters.weekdays %}checked{% endif %}> Somente segunda a sexta</label>
+    <button class="bg-blue-600 text-white text-sm font-semibold rounded-lg px-4 py-2" type="submit">Atualizar análise</button>
+  </div>
+</form>
+{% if report %}
+{% set period = filters.start.strftime('%d/%m/%Y') ~ ' a ' ~ filters.end.strftime('%d/%m/%Y') %}
+{% set previous_period = filters.previous_start.strftime('%d/%m/%Y') ~ ' a ' ~ filters.previous_end.strftime('%d/%m/%Y') %}
+<div class="report-caption">
+  <strong>Período: {{ period }}</strong>{% if report.previous %} · Comparação: {{ previous_period }}{% endif %}<br>
+  {% if filters.weekdays %}Somente segunda a sexta.{% else %}Todos os dias incluídos.{% endif %} Feriados não são excluídos automaticamente. Intervalo máximo: 366 dias.
+  <br>Recurso: {% for resource in resources if resource.id==filters.resource_id %}{{ resource.name }}{% else %}Todos{% endfor %} · Professor: {% for teacher in teachers if teacher.id==filters.teacher_id %}{{ teacher.name }}{% else %}Todos{% endfor %} · Turno: {{ filters.shift|capitalize if filters.shift else 'Todos' }}.
+</div>
+<div class="dashboard-metrics">
+{% for kpi in report.kpis %}
+  <div class="dashboard-metric"><div><p>{{ kpi.title }}</p><strong>{{ ('%.2f'|format(kpi.value))|replace('.',',') if loop.last and kpi.value is not none else kpi.value if kpi.value is not none else '—' }}</strong>
+  {% if report.previous %}<small>Anterior: {{ ('%.2f'|format(kpi.previous))|replace('.',',') if loop.last and kpi.previous is not none else kpi.previous if kpi.previous is not none else '—' }} · {% if kpi.percent is none %}Sem base anterior{% else %}{{ ('%+.1f'|format(kpi.percent))|replace('.',',') }}%{% endif %}</small>{% endif %}</div></div>
+{% endfor %}
+</div>
+<p class="report-caption">As contagens representam reservas ativas na data de uso; não confirmam utilização efetiva. Média calculada apenas nos dias de segunda a sexta ({{ report.current.days }} dias no período atual). Bloqueios e cancelamentos não entram nas contagens.</p>
+{% if report.current.total==0 %}<div class="p-3 rounded-lg bg-slate-100 text-slate-600 text-sm mb-3">Nenhuma reserva no período atual para os filtros selecionados.{% if report.previous and report.previous.total %} Há reservas no período comparado.{% endif %}</div>{% endif %}
+<div class="report-chart-grid">
+  <section class="report-panel"><h3>Reservas por recurso</h3><p class="report-caption">{{ period }}{% if report.previous %}<br>Comparado com {{ previous_period }}{% endif %}<br>Até 10 recursos; os demais são reunidos em “Outros”.</p><div class="report-canvas"><canvas id="reportResourceChart" role="img" aria-label="Reservas por recurso nos períodos selecionados"></canvas></div>{% if not report.current.total and not (report.previous and report.previous.total) %}<p class="report-caption">Sem dados para comparar.</p>{% endif %}</section>
+  <section class="report-panel"><h3>Evolução das reservas</h3><p class="report-caption">{{ period }} · Por {{ {'day':'dia','week':'semana','month':'mês'}[report.grain] }}<br>Somente o período atual; semanas identificadas pela segunda-feira.</p><div class="report-canvas"><canvas id="reportEvolutionChart" role="img" aria-label="Evolução das reservas no período atual"></canvas></div>{% if not report.current.total %}<p class="report-caption">Sem reservas no período atual.</p>{% endif %}</section>
+  <section class="report-panel"><h3>Distribuição por turno</h3><p class="report-caption">{{ period }}{% if report.previous %}<br>Comparado com {{ previous_period }}{% endif %}</p><div class="report-canvas"><canvas id="reportShiftChart" role="img" aria-label="Reservas por turno nos períodos selecionados"></canvas></div><p class="report-caption">{% for name in report.charts.shift.labels %}{{ name }}: {{ report.charts.shift.current[loop.index0] }}{% if not loop.last %} · {% endif %}{% endfor %}</p></section>
+  <section class="report-panel"><h3>Dias mais procurados</h3><p class="report-caption">{{ period }} · Segunda a sexta<br>Totais por dia da semana; não entram sábados e domingos neste gráfico.</p><div class="report-canvas"><canvas id="reportWeekdayChart" role="img" aria-label="Reservas por dia da semana no período atual"></canvas></div></section>
+</div>
+<section class="report-panel">
+  <h3>Detalhamento por {{ groups[filters.group]|lower }}</h3><p class="report-caption">{{ period }}{% if report.previous %} · Comparação: {{ previous_period }}{% endif %}</p>
+  <div class="report-table-scroll"><table class="report-table">
+    <thead><tr><th>{{ groups[filters.group] }}</th><th class="numeric">Reservas</th>{% if report.previous %}<th class="numeric">Período comparado</th><th class="numeric">Diferença</th><th class="numeric">Variação</th>{% endif %}</tr></thead>
+    <tbody>{% for row in report.table %}<tr><td>{{ row.label }}</td><td class="numeric">{{ row.current }}</td>{% if report.previous %}<td class="numeric">{{ row.previous }}</td><td class="numeric">{{ '%+d'|format(row.difference) }}</td><td class="numeric">{% if row.percent is none %}Sem base anterior{% else %}{{ ('%+.1f'|format(row.percent))|replace('.',',') }}%{% endif %}</td>{% endif %}</tr>{% else %}<tr><td colspan="5">Nenhuma reserva encontrada.</td></tr>{% endfor %}</tbody>
+    <tfoot><tr><td>Total</td><td class="numeric">{{ report.current.total }}</td>{% if report.previous %}<td class="numeric">{{ report.previous.total }}</td><td class="numeric">{{ '%+d'|format(report.current.total-report.previous.total) }}</td><td></td>{% endif %}</tr></tfoot>
+  </table></div>
+</section>
+<script id="report-chart-data" type="application/json">{{ {'charts':report.charts,'compare':filters.compare!='none','currentPeriod':period,'previousPeriod':previous_period}|tojson }}</script>
+{% endif %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='reports.js', v='20261002') }}" defer></script>
 {% endblock %}

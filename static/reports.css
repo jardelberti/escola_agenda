@@ -1,0 +1,29 @@
+.report-filter-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+.report-filter-grid label { display:block; font-size:12px; font-weight:600; color:#475569; margin-bottom:5px; }
+.report-filter-grid input:not([type=checkbox]), .report-filter-grid select { width:100%; border:1px solid #cbd5e1; border-radius:8px; padding:8px 10px; font-size:13px; background:white; }
+.report-filter-grid input:focus, .report-filter-grid select:focus { outline:2px solid #93c5fd; outline-offset:1px; }
+#compare-dates[hidden] { display:none; }
+.report-chart-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:20px 0; }
+.report-panel { padding:16px; background:white; border:1px solid #e2e8f0; border-radius:14px; min-width:0; }
+.admin-content .report-panel h3 { font-size:15px; line-height:22px; font-weight:600; }
+.report-caption { font-size:12px; color:#64748b; margin:4px 0 12px; }
+.report-canvas { height:240px; position:relative; }
+.report-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.report-table-scroll { max-height:480px; overflow:auto; }
+.report-table { width:100%; font-size:13px; text-align:left; }
+.report-table th,.report-table td { padding:10px 12px; border-bottom:1px solid #f1f5f9; }
+.report-table th { background:#f8fafc; position:sticky; top:0; white-space:nowrap; }
+.report-table .numeric { text-align:right; white-space:nowrap; }
+.report-table tfoot { font-weight:700; background:#f8fafc; }
+@media(max-width:767px) { .report-filter-grid { grid-template-columns:1fr 1fr; } .report-chart-grid { grid-template-columns:1fr; } }
+@media(max-width:399px) { .report-filter-grid { grid-template-columns:1fr; } }
+@media print {
+  @page { size:A4 landscape; margin:10mm; }
+  header,footer,.admin-tabs,.report-no-print,.live-notifications-panel,#liveNotificationsWrapper { display:none !important; }
+  .admin-shell > :not(.admin-content) { display:none !important; }
+  main { padding-top:0 !important; } .admin-container { max-width:none; padding:0; } .admin-shell { padding:0; }
+  .report-chart-grid { grid-template-columns:1fr 1fr; gap:8px; } .report-canvas { height:160px; }
+  .report-panel { break-inside:avoid; padding:10px; } .report-table-scroll { max-height:none; overflow:visible; }
+  .report-table th { position:static; } .report-table thead { display:table-header-group; }
+  .report-table tr { break-inside:avoid; } body { background:white !important; }
+}

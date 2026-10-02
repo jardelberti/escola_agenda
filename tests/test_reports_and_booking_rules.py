@@ -144,7 +144,7 @@ class ReportsAndBookingRulesTestCase(unittest.TestCase):
         # O arquivo deve conter separador ; e os dados do professor
         csv_text = res.get_data().decode('utf-8-sig')
         self.assertIn('RELATÓRIO DE UTILIZAÇÃO DE RECURSOS', csv_text)
-        self.assertIn('Professor;Quantidade de Usos', csv_text)
+        self.assertIn('Professor;Reservas', csv_text)
         self.assertIn(self.admin.name, csv_text)
 
 if __name__ == '__main__':

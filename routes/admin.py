@@ -506,93 +506,65 @@ def weekly_view(date_str=None):
 @admin_bp.route('/reports', methods=['GET', 'POST'])
 @admin_required
 def reports():
-    resources = Resource.query.order_by(Resource.name).all()
-    report_data, selected_resource_id, start_date_str, end_date_str = None, None, '', ''
-    chart_labels, chart_data = [], []
+    from reporting import filters_from, aggregate, query_params, PRESETS, GROUPS
+    today = datetime.now(ZoneInfo('America/Sao_Paulo')).date()
+    values = request.form if request.method == 'POST' else request.args
+    report = None
+    try:
+        filters = filters_from(values, today)
+        report = aggregate(filters)
+    except ValueError as error:
+        flash(str(error), 'danger')
+        filters = filters_from({}, today)
+    return render_template('admin_reports.html', filters=filters, report=report,
+                           resources=Resource.query.order_by(Resource.name).all(),
+                           teachers=Teacher.query.order_by(Teacher.name).all(),
+                           presets=PRESETS, groups=GROUPS, export_params=query_params(filters))
 
-    if request.method == 'POST':
-        try:
-            selected_resource_id = int(request.form.get('resource_id'))
-            start_date_str = request.form.get('start_date')
-            end_date_str = request.form.get('end_date')
-            start_date = datetime.strptime(start_date_str, '%d/%m/%Y').date()
-            end_date = datetime.strptime(end_date_str, '%d/%m/%Y').date()
-            
-            report_query = db.session.query(Booking.teacher_name, func.count(Booking.id)).filter(
-                Booking.resource_id == selected_resource_id,
-                Booking.date.between(start_date, end_date),
-                Booking.status == 'booked').group_by(Booking.teacher_name).order_by(func.count(Booking.id).desc())
-            
-            report_data = report_query.all()
-
-            if report_data:
-                labels, data = zip(*report_data)
-                chart_labels = json.dumps(list(labels))
-                chart_data = json.dumps(list(data))
-
-        except (ValueError, TypeError):
-            flash('Filtros inválidos. Verifique o recurso e as datas (dd/mm/aaaa).', 'danger')
-
-    return render_template('admin_reports.html', resources=resources, report_data=report_data,
-                           selected_resource_id=selected_resource_id, start_date=start_date_str, end_date=end_date_str,
-                           chart_labels=chart_labels, chart_data=chart_data)
 
 @admin_bp.route('/reports/export')
 @admin_required
 def export_report():
-    """Exporta os dados do relatório de utilização em formato CSV compatível com Excel."""
+    from reporting import filters_from, aggregate, csv_cell, GROUPS
+    today = datetime.now(ZoneInfo('America/Sao_Paulo')).date()
     try:
-        resource_id = int(request.args.get('resource_id'))
-        start_date_str = request.args.get('start_date')
-        end_date_str = request.args.get('end_date')
-
-        resource = Resource.query.get_or_404(resource_id)
-        start_date = datetime.strptime(start_date_str, '%d/%m/%Y').date()
-        end_date = datetime.strptime(end_date_str, '%d/%m/%Y').date()
-
-        report_query = db.session.query(
-            Booking.teacher_name, func.count(Booking.id)
-        ).filter(
-            Booking.resource_id == resource_id,
-            Booking.date.between(start_date, end_date),
-            Booking.status == 'booked'
-        ).group_by(Booking.teacher_name).order_by(func.count(Booking.id).desc())
-
-        report_data = report_query.all()
-        total_uses = sum(count for _, count in report_data)
-
-        output = io.StringIO()
-        writer = csv.writer(output, delimiter=';')
-
-        writer.writerow(['RELATÓRIO DE UTILIZAÇÃO DE RECURSOS'])
-        writer.writerow(['Recurso', resource.name])
-        writer.writerow(['Período', f'{start_date_str} a {end_date_str}'])
-        writer.writerow(['Gerado em', datetime.now().strftime('%d/%m/%Y %H:%M')])
-        writer.writerow([])
-
-        writer.writerow(['Professor', 'Quantidade de Usos'])
-        for teacher, count in report_data:
-            writer.writerow([teacher, count])
-
-        writer.writerow([])
-        writer.writerow(['Total Geral de Usos', total_uses])
-
-        clean_name = secure_filename(resource.name.lower().replace(' ', '_')) or 'recurso'
-        filename = f"relatorio_{clean_name}_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}.csv"
-        csv_bytes = output.getvalue().encode('utf-8-sig')
-
-        return Response(
-            csv_bytes,
-            mimetype='text/csv',
-            headers={
-                'Content-Disposition': f'attachment; filename="{filename}"',
-                'Content-Type': 'text/csv; charset=utf-8'
-            }
-        )
-
-    except Exception as e:
-        flash(f'Erro ao exportar relatório: {str(e)}', 'danger')
+        filters = filters_from(request.args, today)
+        report = aggregate(filters)
+    except ValueError as error:
+        flash(str(error), 'danger')
         return redirect(url_for('admin.reports'))
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=';')
+    writer.writerow(['RELATÓRIO DE UTILIZAÇÃO DE RECURSOS'])
+    writer.writerow(['Indicador', 'Reservas; não confirma utilização efetiva'])
+    writer.writerow(['Período', f"{filters['start']:%d/%m/%Y} a {filters['end']:%d/%m/%Y}"])
+    writer.writerow(['Dias', 'Segunda a sexta' if filters['weekdays'] else 'Todos os dias'])
+    resource = db.session.get(Resource, filters['resource_id']) if filters['resource_id'] else None
+    teacher = db.session.get(Teacher, filters['teacher_id']) if filters['teacher_id'] else None
+    writer.writerow(['Recurso', csv_cell(resource.name if resource else 'Todos')])
+    writer.writerow(['Professor', csv_cell(teacher.name if teacher else 'Todos')])
+    writer.writerow(['Turno', filters['shift'] or 'Todos'])
+    writer.writerow(['Gerado em', datetime.now(ZoneInfo('America/Sao_Paulo')).strftime('%d/%m/%Y %H:%M')])
+    compare = filters['compare'] != 'none'
+    if compare:
+        writer.writerow(['Comparação', f"{filters['previous_start']:%d/%m/%Y} a {filters['previous_end']:%d/%m/%Y}"])
+    writer.writerow([])
+    writer.writerow([GROUPS[filters['group']], 'Reservas'] + (['Período comparado', 'Diferença', 'Variação (%)'] if compare else []))
+    for row in report['table']:
+        writer.writerow([csv_cell(row['label']), row['current']] +
+                        ([row['previous'], row['difference'], row['percent'] if row['percent'] is not None else 'Sem base anterior'] if compare else []))
+    writer.writerow(['Total de reservas', report['current']['total']])
+    writer.writerow([])
+    writer.writerow(['Indicador', 'Atual'] + (['Período comparado', 'Variação (%)'] if compare else []))
+    for kpi in report['kpis']:
+        writer.writerow([kpi['title'], kpi['value'] if kpi['value'] is not None else 'Sem dias úteis'] +
+                        ([kpi['previous'] if kpi['previous'] is not None else 'Sem dias úteis',
+                          kpi['percent'] if kpi['percent'] is not None else 'Sem base anterior'] if compare else []))
+    writer.writerow(['Dias de segunda a sexta', report['current']['days']] +
+                    ([report['previous']['days']] if compare else []))
+    return Response(output.getvalue().encode('utf-8-sig'), mimetype='text/csv',
+                    headers={'Content-Disposition': f'attachment; filename="relatorio_{filters["start"]:%Y%m%d}_{filters["end"]:%Y%m%d}.csv"',
+                             'Content-Type': 'text/csv; charset=utf-8'})
 
 @admin_bp.route('/backup-restore')
 @admin_required
