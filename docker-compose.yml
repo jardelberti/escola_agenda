@@ -60,6 +60,7 @@ services:
     # Também precisa ser construído a partir do mesmo código
     build: .
     image: ${APP_IMAGE}
+    restart: unless-stopped
     command: celery -A app.celery worker --loglevel=info
     volumes:
       - .:/app
