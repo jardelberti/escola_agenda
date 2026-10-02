@@ -80,6 +80,8 @@ O sistema possui uma interface administrativa avançada com dashboard analítico
 ---
 
 ### 🛡️ Segurança e Arquitetura
+* **Administradores:** matrícula e senha obrigatórias, com opção de manter o dispositivo conectado por sete dias. Operações críticas pedem confirmação recente; a página Segurança permite trocar a senha e sair de todos os dispositivos.
+* **Recuperação:** link privado de uso único, válido por 30 minutos, gerado por outro administrador autenticado ou pelo responsável via SSH. Saber a matrícula não permite definir uma senha.
 * **Proteção CSRF Global:** Validação em todos os formulários e chamadas assíncronas com `Flask-WTF`.
 * **Modularização em Blueprints:** Código desacoplado e escalável dividido em `auth`, `agenda`, `admin` e `integrations`.
 * **Healthcheck & Monitoramento:** Endpoint `/health` para monitoramento contínuo dos containers Docker.
@@ -123,3 +125,6 @@ O sistema possui uma interface administrativa avançada com dashboard analítico
 ## 🔑 Acesso Inicial
 
 * **Matrícula do Administrador Padrão:** `7363` (Jardel)
+* Professores entram por matrícula; administradores precisam também de senha e podem lembrar o dispositivo por sete dias.
+* Para criar ou recuperar a senha administrativa, execute pelo acesso confiável ao servidor: `docker compose exec -T app flask auth access-link 7363`. Abra o link privado gerado e escolha sua senha; ele expira em 30 minutos e funciona uma única vez.
+* Em desenvolvimento HTTP local, configure `COOKIE_SECURE=false` e `PUBLIC_BASE_URL=http://localhost:5000` no `.env`. Em produção, mantenha HTTPS e cookies seguros.

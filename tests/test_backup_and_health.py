@@ -1,3 +1,5 @@
+from tests.auth_helpers import authenticated_id
+import time
 """
 Testes automatizados para saúde da aplicação, retenção de backups e validação de arquivos.
 """
@@ -63,7 +65,8 @@ class BackupAndHealthTestCase(unittest.TestCase):
     def test_restore_rejects_invalid_file_extension(self):
         """Valida que /admin/restore rejeita extensões não autorizadas (ex: .exe, .txt)."""
         with self.client.session_transaction() as sess:
-            sess['_user_id'] = str(self.admin.id)
+            sess['_user_id'] = authenticated_id(self.admin)
+            sess['admin_verified_at'] = time.time()
             sess['_fresh'] = True
 
         fake_file = (BytesIO(b'malicious content'), 'exploit.exe')

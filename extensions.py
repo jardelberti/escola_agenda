@@ -2,6 +2,8 @@
 Inicialização e configuração centralizada de extensões do Flask.
 """
 import os
+import time
+import secrets
 from flask_migrate import Migrate
 from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
@@ -19,7 +21,21 @@ login_manager.login_message_category = "warning"
 
 @login_manager.user_loader
 def load_user(user_id):
-    return db.session.get(Teacher, int(user_id))
+    try:
+        parts = user_id.split(':')
+        teacher = db.session.get(Teacher, int(parts[0]))
+        if not teacher or not teacher.is_active:
+            return None
+        if teacher.is_admin:
+            if (len(parts) != 3 or not teacher.password_hash or not teacher.auth_version
+                    or not secrets.compare_digest(parts[1], teacher.auth_version)
+                    or int(parts[2]) <= time.time()):
+                return None
+        elif len(parts) != 1:
+            return None
+        return teacher
+    except (ValueError, TypeError, AttributeError):
+        return None
 
 def init_extensions(app):
     """Inicializa todas as extensões vinculando-as à aplicação Flask."""

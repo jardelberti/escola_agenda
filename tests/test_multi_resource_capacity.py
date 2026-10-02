@@ -1,3 +1,5 @@
+from tests.auth_helpers import authenticated_id
+import time
 """
 Testes automatizados para recursos com múltiplas unidades (Capacidade > 1).
 """
@@ -79,7 +81,8 @@ class MultiResourceCapacityTestCase(unittest.TestCase):
         if hasattr(g, '_login_user'):
             del g._login_user
         with client.session_transaction() as sess:
-            sess['_user_id'] = str(teacher.id)
+            sess['_user_id'] = authenticated_id(teacher)
+            sess['admin_verified_at'] = time.time()
             sess['_fresh'] = True
 
     def test_two_different_teachers_can_book_same_slot(self):

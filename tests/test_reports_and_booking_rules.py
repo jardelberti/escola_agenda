@@ -1,3 +1,5 @@
+from tests.auth_helpers import authenticated_id
+import time
 """
 Testes automatizados para exportação de relatórios e regras de agendamento no passado.
 """
@@ -61,7 +63,8 @@ class ReportsAndBookingRulesTestCase(unittest.TestCase):
     def test_retroactive_booking_blocked_for_teacher(self):
         """Valida que professores comuns NÃO conseguem agendar datas passadas."""
         with self.client.session_transaction() as sess:
-            sess['_user_id'] = str(self.teacher.id)
+            sess['_user_id'] = authenticated_id(self.teacher)
+            sess['admin_verified_at'] = time.time()
             sess['_fresh'] = True
 
         res = self.client.post('/agenda/book', data={
@@ -86,7 +89,8 @@ class ReportsAndBookingRulesTestCase(unittest.TestCase):
     def test_retroactive_booking_allowed_for_admin(self):
         """Valida que administradores têm permissão para agendamentos retroativos."""
         with self.client.session_transaction() as sess:
-            sess['_user_id'] = str(self.admin.id)
+            sess['_user_id'] = authenticated_id(self.admin)
+            sess['admin_verified_at'] = time.time()
             sess['_fresh'] = True
 
         res = self.client.post('/agenda/book', data={
@@ -112,7 +116,8 @@ class ReportsAndBookingRulesTestCase(unittest.TestCase):
     def test_export_report_csv(self):
         """Valida a rota /admin/reports/export gerando arquivo CSV para download."""
         with self.client.session_transaction() as sess:
-            sess['_user_id'] = str(self.admin.id)
+            sess['_user_id'] = authenticated_id(self.admin)
+            sess['admin_verified_at'] = time.time()
             sess['_fresh'] = True
 
         # Cria um agendamento para garantir dados no relatório

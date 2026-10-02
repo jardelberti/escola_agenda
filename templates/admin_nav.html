@@ -10,6 +10,10 @@
             </div>
         </div>
         <div class="flex items-center gap-2 w-full md:w-auto">
+            <a href="{{ url_for('auth.security_settings') }}" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold" title="Segurança da conta" {% if request.endpoint == 'auth.security_settings' %}aria-current="page"{% endif %}>
+                <span class="material-symbols-outlined text-base">shield_lock</span>
+                <span class="hidden sm:inline">Segurança</span>
+            </a>
             <button type="button" onclick="toggleNotificationPanel()" class="relative bg-white hover:bg-slate-100 text-slate-700 font-semibold text-xs sm:text-sm px-3.5 py-2 rounded-xl border border-slate-200 transition-colors inline-flex items-center justify-center gap-1.5 shadow-sm" title="Central de Alertas em Tempo Real">
                 <span class="material-symbols-outlined text-base text-amber-500">notifications</span>
                 <span class="hidden sm:inline">Alertas</span>

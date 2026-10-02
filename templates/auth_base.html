@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Acesso — Agenda Escolar{% endblock %}</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='auth.css') }}">
+    <script src="{{ url_for('static', filename='admin-auth.js') }}" defer></script>
+</head>
+<body>
+<main class="auth-shell">
+    <a class="brand" href="{{ url_for('auth.login') }}" aria-label="Agenda Escolar — entrar">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="EMEB Prof. Ricardo Hoffmann">
+    </a>
+    <div class="auth-card">
+        {% block heading %}{% endblock %}
+        {% for category, message in get_flashed_messages(with_categories=true) %}
+            <p class="notice {{ 'success' if category == 'success' else '' }}" role="alert">{{ message }}</p>
+        {% endfor %}
+        {% block form %}{% endblock %}
+    </div>
+    <p class="school">EMEB Prof. Ricardo Hoffmann · Agenda Escolar</p>
+</main>
+</body>
+</html>

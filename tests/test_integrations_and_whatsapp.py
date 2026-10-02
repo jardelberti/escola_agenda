@@ -1,3 +1,5 @@
+from tests.auth_helpers import authenticated_id
+import time
 """
 Testes automatizados para WhatsApp de professores e endpoints de integração (n8n / WhatsApp bot).
 """
@@ -67,7 +69,8 @@ class IntegrationsAndWhatsAppTestCase(unittest.TestCase):
     def test_admin_create_and_edit_teacher_whatsapp(self):
         """Valida que o admin consegue cadastrar e editar o WhatsApp de um professor."""
         with self.client.session_transaction() as sess:
-            sess['_user_id'] = str(self.admin.id)
+            sess['_user_id'] = authenticated_id(self.admin)
+            sess['admin_verified_at'] = time.time()
 
         # Cadastro de novo professor com WhatsApp
         res = self.client.post('/admin/teachers', data={
@@ -100,7 +103,8 @@ class IntegrationsAndWhatsAppTestCase(unittest.TestCase):
     def test_teacher_update_own_whatsapp(self):
         """Valida que o professor pode atualizar seu próprio número em 'Meus Agendamentos'."""
         with self.client.session_transaction() as sess:
-            sess['_user_id'] = str(self.prof.id)
+            sess['_user_id'] = authenticated_id(self.prof)
+            sess['admin_verified_at'] = time.time()
 
         res = self.client.post('/my-profile/whatsapp', data={
             'whatsapp': '(11) 99876-5432'

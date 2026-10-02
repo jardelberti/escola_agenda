@@ -1,3 +1,5 @@
+from tests.auth_helpers import authenticated_id
+import time
 """
 Testes automatizados de integridade e concorrência de agendamentos.
 """
@@ -85,7 +87,8 @@ class BookingIntegrityTestCase(unittest.TestCase):
     def test_book_slot_handles_duplicate_gracefully(self):
         """Valida que a rota /agenda/book trata duplicidade sem erro 500."""
         with self.client.session_transaction() as sess:
-            sess['_user_id'] = str(self.teacher.id)
+            sess['_user_id'] = authenticated_id(self.teacher)
+            sess['admin_verified_at'] = time.time()
             sess['_fresh'] = True
 
         # Primeiro agendamento via rota

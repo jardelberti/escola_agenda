@@ -1,10 +1,13 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
+import time
+import secrets
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # Inicializa o objeto do banco de dados
 db = SQLAlchemy()
 
-# A tabela Teacher foi simplificada, removendo os campos de senha
+# Senha obrigatória apenas para contas administrativas.
 class Teacher(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(150), nullable=False)
@@ -12,6 +15,36 @@ class Teacher(UserMixin, db.Model):
     whatsapp = db.Column(db.String(30), nullable=True)
     is_admin = db.Column(db.Boolean, default=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+
+    password_hash = db.Column(db.String(255), nullable=True)
+    auth_version = db.Column(db.String(64), nullable=True)
+
+    def get_id(self):
+        if self.is_admin:
+            # Server-checked expiry also limits a copied remember cookie.
+            return f'{self.id}:{self.auth_version}:{int(time.time()) + 7 * 86400}'
+        return str(self.id)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password, method='scrypt')
+        self.auth_version = secrets.token_hex(32)
+
+    def check_password(self, password):
+        return bool(self.password_hash and check_password_hash(self.password_hash, password))
+
+
+class AdminAccessToken(db.Model):
+    token_hash = db.Column(db.String(64), primary_key=True)
+    # No FK: an old pg_dump must remain able to recreate teacher. Resolution is
+    # checked at consumption; deletion/role changes explicitly remove the tokens.
+    teacher_id = db.Column(db.Integer, nullable=False, index=True)
+    expires_at = db.Column(db.BigInteger, nullable=False)
+
+
+class AuthAttempt(db.Model):
+    key = db.Column(db.String(64), primary_key=True)
+    window_start = db.Column(db.BigInteger, nullable=False)
+    attempts = db.Column(db.Integer, nullable=False)
 
 
 

@@ -1,0 +1,36 @@
+{% extends "admin_base.html" %}
+{% block title %}Segurança da conta — Agenda Escolar{% endblock %}
+{% block admin_content %}
+<div class="mb-6">
+    <h2>Segurança da conta</h2>
+    <p class="text-sm text-slate-500">Gerencie sua senha e os dispositivos conectados à sua conta.</p>
+</div>
+{% for category, message in get_flashed_messages(with_categories=true) %}
+<p class="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-4 mb-4" role="alert">{{ message }}</p>
+{% endfor %}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <section class="bg-white border border-slate-200 rounded-xl p-6">
+        <h3 class="font-bold mb-2">Alterar senha</h3>
+        <p class="text-sm text-slate-500 mb-5">Ao alterar a senha, todos os dispositivos serão desconectados, incluindo este.</p>
+        <form method="POST" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="change_password">
+            <div><label for="current_password" class="block text-sm font-medium mb-1">Senha atual</label><input class="w-full rounded-lg border-slate-300" type="password" id="current_password" name="admin_password" autocomplete="current-password" maxlength="128" required></div>
+            <div><label for="new_password" class="block text-sm font-medium mb-1">Nova senha</label><input class="w-full rounded-lg border-slate-300" type="password" id="new_password" name="password" autocomplete="new-password" minlength="15" maxlength="128" required><p class="text-xs text-slate-500 mt-1">15 a 128 caracteres. Uma frase longa facilita lembrar.</p></div>
+            <div><label for="new_password_confirm" class="block text-sm font-medium mb-1">Repita a nova senha</label><input class="w-full rounded-lg border-slate-300" type="password" id="new_password_confirm" name="password_confirm" autocomplete="new-password" minlength="15" maxlength="128" required></div>
+            <button class="bg-blue-600 text-white px-4 py-2.5 rounded-lg font-semibold" type="submit">Alterar senha</button>
+        </form>
+    </section>
+    <section class="bg-white border border-slate-200 rounded-xl p-6">
+        <h3 class="font-bold mb-2">Dispositivos conectados</h3>
+        <p class="text-sm text-slate-500 mb-5">A opção “Lembrar neste dispositivo” mantém o acesso por até sete dias. Você pode encerrar todas as sessões e exigir um novo login em cada dispositivo.</p>
+        <form method="POST" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="logout_all">
+            <div><label for="logout_password" class="block text-sm font-medium mb-1">Confirme sua senha</label><input class="w-full rounded-lg border-slate-300" type="password" id="logout_password" name="admin_password" autocomplete="current-password" maxlength="128" required></div>
+            <button class="bg-red-600 text-white px-4 py-2.5 rounded-lg font-semibold" type="submit">Sair de todos os dispositivos</button>
+            <p class="text-xs text-slate-500">Você também será desconectado deste navegador.</p>
+        </form>
+    </section>
+</div>
+{% endblock %}

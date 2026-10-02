@@ -38,7 +38,7 @@ O sistema **Agenda Escolar** é uma plataforma web para gestão e agendamento de
 
 * ✅ **`main` (Ativa / Produção)**:
   * Sistema estável mono-tenant em produção no `agendaricardo.com.br`.
-  * Recursos: autenticação somente por matrícula de professores/administradores (sem senha na implementação atual de `routes/auth.py`), reservas por turnos (matutino e vespertino), limites de cota semanal por professor, bloqueio administrativo de horários, auditoria de cancelamentos, gráficos analíticos com Chart.js, soft-delete (pausa/reativação) de recursos e professores, integração matinal com WhatsApp e rotinas de backup duplo (local + R2).
+  * Recursos: professores entram por matrícula; administradores exigem matrícula e senha, com opção de lembrar o dispositivo por sete dias (implementação de 02/10/2026; consultar publicação e ativação na seção 16). Reservas por turnos (matutino e vespertino), limites de cota semanal por professor, bloqueio administrativo de horários, auditoria de cancelamentos, gráficos analíticos com Chart.js, soft-delete (pausa/reativação) de recursos e professores, integração matinal com WhatsApp e rotinas de backup duplo (local + R2).
 * 🎯 **`v2-comercial` (Standby / Preservada)**:
   * **Decisão**: Branch preservada para futuro SaaS multi-tenant (`Escola`, `Plano`, Stripe, Google OAuth). Não está em produção e não deve receber merges acidentais da `main`.
 
@@ -56,7 +56,7 @@ O sistema **Agenda Escolar** é uma plataforma web para gestão e agendamento de
    * **Motivo**: Excluir fisicamente um professor ou recurso quebraria a integridade referencial de agendamentos passados e distorceria relatórios históricos. Por isso, recursos e professores inativos permanecem no banco mas são ocultados para novos agendamentos.
 5. 🎯 **Modularização por Blueprints Flask**:
    * **Motivo**: Separação clara de responsabilidades:
-     * `auth`: Login por matrícula e logout.
+     * `auth`: Login por matrícula de professores, senha obrigatória para administradores, recuperação por link privado, segurança da conta e logout.
      * `agenda`: Calendário, agendamento de slots, cancelamento pelo professor e atualização de WhatsApp pessoal.
      * `admin`: Gestão de professores, recursos, grades de turno, relatórios, auditoria e backups.
      * `integrations`: Endpoints JSON protegidos por token para automações externas (n8n/Evolution API).
@@ -185,11 +185,13 @@ O sistema **Agenda Escolar** é uma plataforma web para gestão e agendamento de
 * URI SQLAlchemy: `postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}`
 
 ### 7.2. Tabelas Principais
-1. **`teacher`**: Professores e admins (`id`, `name`, `registration`, `whatsapp`, `is_admin`, `is_active`).
+1. **`teacher`**: Professores e admins (`id`, `name`, `registration`, `whatsapp`, `is_admin`, `is_active`, `password_hash`, `auth_version`). Os dois últimos campos são nulos para professores e administradores ainda sem senha; nenhuma senha em texto puro é armazenada.
 2. **`resource`**: Salas e equipamentos (`id`, `name`, `description`, `icon`, `sort_order`, `is_active`, `quantity`, `max_weekly_bookings`).
 3. **`schedule_template`**: Horários dos turnos (`id`, `resource_id`, `shift`, `slots`).
 4. **`booking`**: Reservas e bloqueios (`id`, `resource_id`, `teacher_id`, `teacher_name`, `date`, `shift`, `slot_name`, `status`, `classroom_or_notes`, `created_at`).
 5. **`booking_audit_log`**: Histórico de exclusões (`id`, `booking_id`, `resource_name`, `teacher_name`, `date`, `shift`, `slot_name`, `performed_by_name`, `performed_by_is_admin`, `classroom_or_notes`, `action`, `created_at`).
+6. **`admin_access_token`**: Hash SHA-256 do link de criação/recuperação (`token_hash`, `teacher_id`, `expires_at` em Unix seconds). Não possui FK para permitir que dumps anteriores recriem `teacher`; o vínculo e o perfil ativo são conferidos ao consumir o link, e a aplicação remove tokens ao excluir ou alterar o perfil.
+7. **`auth_attempt`**: Contadores compartilhados entre workers (`key` em SHA-256, `window_start` em Unix seconds, `attempts`). Incremento atômico; janelas antigas são limpas durante novas tentativas.
 
 ### 7.3. Evolução de Schema: `ensure_schema_updates()` vs. Alembic
 * ✅ **O que `ensure_schema_updates()` faz**: Na inicialização do Flask, executa `db.create_all()` e roda comandos idempotentes `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` exclusivamente para:
@@ -197,6 +199,22 @@ O sistema **Agenda Escolar** é uma plataforma web para gestão e agendamento de
   * `booking.created_at` (TIMESTAMP)
   * `resource.max_weekly_bookings` (INTEGER)
 * ⚠️ **[LIMITAÇÃO / ATENÇÃO]**: Essa rotina foi criada para adicionar essas três colunas específicas de forma incremental. Não há garantia de ausência de downtime ou bloqueios no banco. Ela **NÃO substitui o Flask-Migrate (Alembic)** para renomear colunas, criar restrições, índices ou novas tabelas relacionais. Para alterações estruturais profundas, devem ser geradas migrações completas (`flask db migrate` / `flask db upgrade`).
+* ✅ **Proteção administrativa**: revisão Alembic `d4f2a3b5c6d7`, posterior a `c3e1a2b4d5e6`. `auth_schema.py` aplica somente duas colunas e duas tabelas de segurança, de forma aditiva/idempotente. `scripts/migrate_admin_auth.py` não importa a aplicação e pode rodar antes do reinício para evitar consultas a colunas ainda inexistentes. Não executar migrações históricas ou `stamp` sem conferir a revisão real; o bootstrap não altera `alembic_version`.
+
+### 7.4. Acesso Administrativo e Recuperação
+* **Login:** professores seguem por matrícula. Administradores passam pela etapa de senha e só recebem uma sessão após validá-la. Hash scrypt do Werkzeug; senha de 15 a 128 caracteres, com rejeição de padrões muito previsíveis.
+* **Dispositivo pessoal:** checkbox explícito “Lembrar neste dispositivo por 7 dias”. Cookies Secure/HttpOnly/SameSite=Lax; sete dias verificados também no servidor, sem renovar automaticamente a validade a cada visita. Sem o checkbox, o cookie de sessão não é persistente. O navegador pode restaurar sessões ao reabrir, conforme sua configuração; usar Sair em computadores compartilhados.
+* **Revogação:** identificação administrativa contém ID, versão aleatória e vencimento. Sessões antigas por ID numérico são rejeitadas. Alterar/recuperar senha, restaurar banco ou usar “Sair de todos os dispositivos” invalida os acessos anteriores. Contas desativadas são rejeitadas também em sessões existentes.
+* **Confirmação recente:** validade de cinco minutos para restaurar banco, conceder/remover permissões administrativas, alterar matrícula/ativação de administrador, excluir administrador ou emitir link privado. Troca de senha e saída de todos os dispositivos sempre conferem a senha atual. Cadastro e gestão cotidiana de professores/recursos não pedem senha novamente.
+* **Tentativas:** até cinco verificações por conta em uma janela de 15 minutos, compartilhada pelo PostgreSQL entre os workers. Sucesso zera o contador. Links também têm limite por token e um limite de 30 por origem observada em 15 minutos; atrás do proxy, a origem pode ser compartilhada. Limitação protege tentativas, mas não elimina possibilidade de bloqueio temporário provocado por terceiros.
+* **Criação/recuperação:** nunca permitir que apenas a matrícula cadastre a senha. Administrador autenticado pode usar “Preparar acesso” em Professores. Se ninguém conseguir entrar, o responsável autorizado gera o link via SSH:
+  ```bash
+  cd /home/ubuntu/escola_agenda
+  docker compose exec -T app flask auth access-link MATRICULA
+  ```
+  O link vale 30 minutos, é de uso único e contém um segredo no fragmento `#`, removido da barra pelo JavaScript. Não copiar para Git, logs, AGENTS.md ou capturas. Emitir outro link invalida o anterior. O titular deve definir sua senha diretamente no formulário; nunca pedir a senha pelo chat.
+* **Páginas de entrada/definição:** assets locais, CSP sem scripts externos, `Cache-Control: no-store` e `Referrer-Policy: no-referrer`. `/admin/security` oferece mudança de senha e revogação de todos os dispositivos.
+* **Desenvolvimento HTTP local:** `COOKIE_SECURE=false` somente em prévia restrita a loopback com banco fictício. Produção usa HTTPS e cookies Secure. `PUBLIC_BASE_URL` define a origem confiável dos links (padrão `https://agendaricardo.com.br`); não derivar links privados de um Host arbitrário.
 
 ---
 
@@ -225,12 +243,15 @@ O sistema **Agenda Escolar** é uma plataforma web para gestão e agendamento de
   1. Acesse `https://agendaricardo.com.br/admin/backup-restore`.
   2. No formulário de upload, selecione o arquivo binário.
   3. O endpoint `POST /admin/restore` enfileira a tarefa assíncrona no Celery (`restore_task_bg`), que roda o `pg_restore --clean --if-exists`.
+  4. A tarefa prepara os campos de segurança e revoga sessões/links administrativos após a tentativa de restauração, inclusive em falha parcial. Um backup anterior à criação da senha exige novo link privado via SSH. Não testar restauração em produção apenas para validar essa regra.
 * **Método 2 (Script Interativo na VPS)**:
   ```bash
   ssh -i C:\Users\monit\Downloads\ssh-key\ssh-key-agendaricardo.key ubuntu@163.176.251.63
   cd /home/ubuntu/escola_agenda
   ./restore_agenda_db.sh
   # Digite o número do backup desejado e confirme com 'SIM'
+  # Após uma restauração manual, preparar segurança e revogar acessos históricos:
+  docker compose exec -T app python scripts/migrate_admin_auth.py --after-restore
   ```
 
 #### Caso B: Restaurar Backup do Cloudflare R2 (SQL Textual Puro `.sql.gz`)
@@ -244,6 +265,9 @@ O sistema **Agenda Escolar** é uma plataforma web para gestão e agendamento de
 
   # 2. Descompacte e injete via pipeline direto no psql do container
   gunzip -c restore_r2.sql.gz | docker exec -i agenda_db psql -v ON_ERROR_STOP=1 -U agenda_user -d agenda_db
+
+  # Reaplicar campos de segurança e revogar sessões/links históricos
+  docker compose exec -T app python scripts/migrate_admin_auth.py --after-restore
 
   # 3. Após sucesso, valide os dados antes de excluir o dump temporário
   rm ./restore_r2.sql.gz
@@ -299,6 +323,8 @@ O arquivo `/home/ubuntu/escola_agenda/.env` na VPS contém as configurações de
 | `APP_IMAGE` | Tag da imagem local construída pelo Docker | `jardelberti/agenda.escola:v1.1` |
 | `SECRET_KEY` | Chave secreta de sessão Flask e CSRF | *(string aleatória de alta entropia)* |
 | `INTEGRATION_API_KEY` | Token de autenticação dos endpoints de integração | *(chave de autorização do n8n/API)* |
+| `COOKIE_SECURE` | Cookies somente via HTTPS; `false` exclusivamente em prévia HTTP local isolada | `true` por padrão no código |
+| `PUBLIC_BASE_URL` | Origem confiável dos links administrativos | `https://agendaricardo.com.br` por padrão no código |
 
 ---
 
@@ -313,12 +339,14 @@ O arquivo `/home/ubuntu/escola_agenda/.env` na VPS contém as configurações de
   * `test_integrations_and_whatsapp.py`: Integrações e WhatsApp.
   * `test_csrf_protection.py`: Proteção CSRF.
   * `test_n8n_retry_configuration.py`: Migração dos campos de retry, preservação de opções HTTP e idempotência (sem envio de mensagens).
+  * `test_admin_authentication.py`: Senha administrativa, sessão de sete dias, cookies, revogação, links privados, throttling, CSRF, promoção protegida, restauração protegida e schema idempotente. `auth_helpers.py` fornece credenciais apenas para fixtures; produção nunca o importa.
 * ✅ **Como Executar os Testes no Ambiente Local (Windows)**:
   ```powershell
-  # Usando o Python do ambiente virtual local:
+  # Sempre usar banco isolado: a suíte cria e altera dados de teste.
+  $env:DATABASE_URL = 'sqlite:///' + ($env:TEMP -replace '\\','/') + '/agenda_tests_' + [guid]::NewGuid().ToString('N') + '.db'
   .\.venv\Scripts\python.exe -m unittest discover tests
   ```
-  ❓ **Resultado da suíte**: Antigravity informou 28 testes passando; quantidade e sucesso não foram revalidados por GPT/Codex nesta revisão documental de 02/10/2026. Ao executar a suíte, registrar data, commit, comando, quantidade e resultado. Não tratar esse relato como garantia permanente.
+  ✅ **Resultado verificado em 02/10/2026:** 48 testes aprovados em SQLite temporário isolado durante a implementação da proteção administrativa. Essa validação é local; não equivale a um teste destrutivo no PostgreSQL de produção. Ao alterar o código, executar verificações adequadas e registrar o resultado da nova revisão.
 
 ---
 
@@ -336,6 +364,7 @@ O arquivo `/home/ubuntu/escola_agenda/.env` na VPS contém as configurações de
 * Exige checkout limpo na `main`, histórico fast-forward e lock para evitar dois deploys simultâneos.
 * Documentação, scripts operacionais e testes: apenas atualiza o checkout. Mudanças em scripts não aplicam automaticamente configurações externas (n8n, cron ou swap); executar somente os procedimentos específicos autorizados.
 * Código/templates/assets: atualiza e reinicia app/worker, aproveitando os bind mounts `.:/app`, sem reinstalar dependências.
+* Mudanças em `auth_schema.py` ou `scripts/migrate_admin_auth.py`: após o fast-forward, executa o bootstrap aditivo de segurança no container app antes de reiniciar. A primeira instalação desse trecho exige usar a versão nova do script para aplicar a migração antes do restart; não executar a versão antiga e presumir que ela conhece a migração. Conferir backup e estado Alembic; aplicar a revisão específica apenas quando seu predecessor estiver confirmado.
 * Compose: aplica `docker compose up -d --no-build`.
 * Dockerfile, requisitos/dependências ou `.dockerignore`: verifica tarefas ativas/reservadas/agendadas do Celery, pausa o worker somente se a consulta válida indicar ausência de tarefas e faz parada graciosa sem timeout de encerramento. Se o worker não responder, cancela o deploy para revisão manual.
 * Constrói uma única imagem com `docker compose --parallel 1 build app`; o worker reutiliza essa imagem e não possui `build` próprio. Preserva cache; não usar `--no-cache` ou limpar o cache rotineiramente. Após build, aplica os serviços e confirma `/health` e resposta `pong` do Celery.
@@ -438,3 +467,13 @@ O arquivo `/home/ubuntu/escola_agenda/.env` na VPS contém as configurações de
 * **Publicação e produção:** publicação e deploy pelo procedimento da seção 12 fazem parte desta tarefa; o resultado efetivo e a comparação das revisões serão registrados após a verificação dos serviços.
 
 * **Resultado efetivo:** mudança publicada e aplicada na VPS na revisão `d97bf7f` em 02/10/2026. As oito páginas foram abertas em produção com sessão administrativa: largura de 1280 px em tela grande, um menu e uma aba ativa por página, sem transbordamento horizontal. Professores também verificado em 390×844, sem coluna fixa lateral. App e PostgreSQL healthy, `/health` público retornou banco conectado, CSS novo servido pelo domínio. O script confirmou resposta do Celery. Este registro final é exclusivamente documental e deve ser sincronizado sem reinício; comparar a revisão final nas três cópias antes de encerrar.
+
+
+### 2026-10-02 — GPT/Codex — Proteção administrativa com acesso persistente
+
+* **Escopo autorizado:** senha obrigatória para administradores, lembrança do dispositivo por sete dias e confirmação nas operações críticas, preservando a entrada dos professores por matrícula. Mantenedor autorizou publicação e deploy pela seção 15; definição da senha final cabe ao titular no formulário.
+* **Implementação local:** `models.py`, `extensions.py`, `routes/auth.py`, `security.py`, `app.py`, telas/assets locais de autenticação, `/admin/security`, navegação e formulários administrativos. Links de criação/recuperação são privados, de uso único e duração de 30 minutos; não existe ativação pública baseada somente em matrícula. Sessões numéricas antigas, expiradas ou revogadas não dão acesso administrativo. Nenhuma senha real foi definida pelo agente.
+* **Schema/restore:** migração aditiva `d4f2a3b5c6d7`, helper `auth_schema.py`, bootstrap `scripts/migrate_admin_auth.py` e execução pré-restart em `scripts/deploy.sh`. Após restore, reaplica campos de segurança e revoga sessões/links; dumps antigos podem exigir recuperação via SSH. Nada foi restaurado em produção como teste.
+* **Validação já realizada:** 48 testes aprovados em SQLite temporário isolado, incluindo 18 casos novos de segurança/schema; testes anteriores adaptados para fixtures com senha e IDs autenticados. Prévia local com dados fictícios: login em duas etapas, opção de sete dias, segurança da conta e definição de senha conferidos no navegador; tela de 390×844 sem transbordamento. Scripts externos não são carregados nas páginas de entrada/definição. Avisos legados das bibliotecas permanecem.
+* **Pré-verificação de produção (02/10/2026):** somente Jardel é administrador ativo; chave de sessão configurada sem revelar seu conteúdo; Alembic em `c3e1a2b4d5e6`. Contagem naquele momento: 26 professores/usuários, 4 recursos e 1894 reservas. Essas contagens são transitórias e podem mudar com o uso normal.
+* **Estado e próximos passos:** implementação local ainda não publicada neste registro. Concluir revisão e sintaxe, proteger backup pré-migração, publicar no GitHub, migrar antes do restart, confirmar serviços/revisões e gerar link de ativação para o titular. Registrar o resultado efetivo após deploy; nunca incluir o segredo do link neste guia.

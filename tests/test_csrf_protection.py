@@ -1,3 +1,4 @@
+from tests.auth_helpers import authenticated_id, TEST_PASSWORD
 """
 Testes automatizados de segurança e proteção CSRF (Cross-Site Request Forgery).
 """
@@ -21,6 +22,8 @@ class CSRFProtectionTestCase(unittest.TestCase):
             self.teacher = Teacher(name='Jardel Admin', registration='7363', is_admin=True)
             db.session.add(self.teacher)
             db.session.commit()
+
+        authenticated_id(self.teacher)
 
     def tearDown(self):
         self.app.config['WTF_CSRF_ENABLED'] = False
@@ -46,6 +49,8 @@ class CSRFProtectionTestCase(unittest.TestCase):
         # 2. Submete o formulário com o token CSRF válido
         post_res = self.client.post('/login', data={
             'registration': '7363',
+            'admin_step': '1',
+            'password': TEST_PASSWORD,
             'csrf_token': csrf_token
         })
         # Login bem-sucedido redireciona (302) para a home

@@ -1,0 +1,13 @@
+{% extends "admin_base.html" %}
+{% set active_tab = 'teachers' %}
+{% block title %}Link de acesso administrativo{% endblock %}
+{% block admin_content %}
+<div class="bg-white p-6 rounded-xl border border-slate-200">
+    <h2>Preparar acesso de {{ teacher.name }}</h2>
+    <p class="text-slate-600 my-4">Este link permite definir ou recuperar a senha deste administrador. Entregue-o somente à pessoa indicada. Ele expira em 30 minutos e funciona uma única vez.</p>
+    <label for="access_link" class="block text-sm font-medium mb-2">Link privado — selecione para copiar</label>
+    <input id="access_link" type="text" readonly value="{{ access_link }}" class="w-full rounded-lg border-slate-300">
+    <p class="text-sm text-slate-500 mt-3">Emitir um novo link invalida o anterior. As sessões existentes serão encerradas quando a nova senha for salva.</p>
+    <a href="{{ url_for('admin.manage_teachers') }}" class="inline-block mt-6 text-blue-700 font-semibold">Voltar a Professores</a>
+</div>
+{% endblock %}

@@ -36,6 +36,11 @@ if test "$build" = 1; then
   paused=1
 fi
 git merge --ff-only "$target"
+# Additive bootstrap on the existing image/bind mount, before app restart.
+# Never run unrelated historical migrations or stamp an unknown Alembic revision.
+if git diff --name-only "$before" "$target" | grep -qE '^(auth_schema.py|scripts/migrate_admin_auth.py)$'; then
+  docker compose exec -T app python scripts/migrate_admin_auth.py
+fi
 if test "$build" = 1; then
   docker compose --parallel 1 build app
   docker compose up -d --no-build

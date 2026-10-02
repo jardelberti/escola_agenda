@@ -1,52 +1,31 @@
-{% extends "base.html" %}
-
-{% block title %}Login - Agenda Escolar{% endblock %}
-
-{% block content %}
-<body class="bg-slate-50" style='font-family: Inter, "Noto Sans", sans-serif;'>
-<div class="flex flex-col items-center justify-center px-4" style="min-height: 85vh;">
-    <div class="w-full max-w-sm mx-auto">
-
-        <div class="flex justify-center mb-6">
-            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="EMEB Prof. Ricardo Hoffmann" class="h-24 w-auto object-contain drop-shadow-sm">
-        </div>
-
-        <h1 class="text-2xl font-bold text-center text-slate-800 mb-1">Agenda Escolar</h1>
-        <p class="text-xs text-center text-slate-400 font-medium mb-1">EMEB Prof. Ricardo Hoffmann</p>
-        <p class="text-center text-slate-500 mb-6 text-sm">Faça login com sua matrícula.</p>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-4" role="alert">
-                        <span class="block sm:inline">{{ message }}</span>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
-        <form method="POST" action="{{ url_for('login') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="relative">
-                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"> badge </span>
-                <input 
-                    type="text"
-                    id="registration"
-                    name="registration"
-                    class="form-input w-full rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 border border-slate-300 bg-white h-14 pl-12 pr-4 text-base placeholder:text-slate-500" 
-                    placeholder="Matrícula" 
-                    required 
-                    autofocus
-                />
-            </div>
-
-            <div class="mt-8">
-                <button type="submit" class="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-14 px-5 bg-blue-600 text-slate-50 text-base font-bold leading-normal tracking-wide shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 transition-colors duration-300">
-                    <span class="truncate">Entrar</span>
-                </button>
-            </div>
-        </form>
+{% extends "auth_base.html" %}
+{% block title %}Entrar — Agenda Escolar{% endblock %}
+{% block heading %}
+<h1>{{ 'Acesso administrativo' if admin_step else 'Agenda Escolar' }}</h1>
+<p class="intro">{{ 'Confirme sua senha para entrar no painel.' if admin_step else 'Entre com sua matrícula para acessar os agendamentos.' }}</p>
+{% endblock %}
+{% block form %}
+<form method="POST" action="{{ url_for('auth.login') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field">
+        <label for="registration">Matrícula</label>
+        <input type="text" id="registration" name="registration" value="{{ registration or '' }}" autocomplete="username" maxlength="50" required {% if not admin_step %}autofocus{% endif %}>
     </div>
-</div>
-</body>
+    {% if admin_step %}
+    <input type="hidden" name="admin_step" value="1">
+    <div class="field">
+        <label for="password">Senha</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" maxlength="128" required autofocus>
+    </div>
+    <label class="check" for="remember">
+        <input type="checkbox" id="remember" name="remember" value="1" {% if request.form.get('remember') == '1' %}checked{% endif %}>
+        <span>Lembrar neste dispositivo por 7 dias<span class="hint">Use apenas no seu computador ou celular pessoal.</span></span>
+    </label>
+    {% endif %}
+    <button type="submit" class="submit">{{ 'Entrar no painel' if admin_step else 'Continuar' }}</button>
+</form>
+{% if admin_step %}
+<details><summary>Esqueci minha senha ou ainda não tenho uma</summary><p>Solicite um link de ativação ou recuperação ao responsável pelo sistema. A matrícula sozinha não permite criar uma senha.</p></details>
+<a class="back" href="{{ url_for('auth.login') }}">Voltar</a>
+{% endif %}
 {% endblock %}

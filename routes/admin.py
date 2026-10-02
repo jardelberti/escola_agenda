@@ -7,15 +7,18 @@ import csv
 import json
 import shutil
 import subprocess
+import secrets
 from urllib.parse import urlparse
 from datetime import datetime, timedelta, date
 from logging import getLogger
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, Response, current_app
 from flask_login import current_user
-from sqlalchemy import func
+from sqlalchemy import func, create_engine
+from auth_schema import secure_restored_admin_accounts
 from werkzeug.utils import secure_filename
-from models import db, Teacher, Resource, ScheduleTemplate, Booking, BookingAuditLog
+from models import db, Teacher, Resource, ScheduleTemplate, Booking, BookingAuditLog, AdminAccessToken
 from extensions import celery
+from security import confirmation_needed, confirm_admin_password, recent_admin_required, issue_access_token
 from utils import admin_required, clean_old_backups, sanitize_phone, format_phone
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -47,7 +50,17 @@ def restore_task_bg(filepath, db_uri_str):
             '--if-exists',
             filepath
         ]
-        subprocess.run(command, check=True, env=env, stdin=subprocess.DEVNULL)
+        try:
+            subprocess.run(command, check=True, env=env, stdin=subprocess.DEVNULL)
+        finally:
+            # Also protect a partial restore: old sessions and recovery links
+            # must not become valid again when historical tables are imported.
+            engine = create_engine(db_uri_str)
+            try:
+                with engine.begin() as connection:
+                    secure_restored_admin_accounts(connection)
+            finally:
+                engine.dispose()
         log.info(f"Restauração do arquivo {filepath} concluída com sucesso!")
 
     except Exception as e:
@@ -313,6 +326,8 @@ def manage_teachers():
         name, registration = request.form.get('name'), request.form.get('registration')
         whatsapp = sanitize_phone(request.form.get('whatsapp'))
         is_admin = 'is_admin' in request.form
+        if is_admin and confirmation_needed() and not confirm_admin_password():
+            return redirect(url_for('admin.manage_teachers'))
         if not all([name, registration]):
             flash('Nome e matrícula são obrigatórios.', 'danger')
         elif Teacher.query.filter_by(registration=registration).first():
@@ -330,21 +345,56 @@ def manage_teachers():
 def edit_teacher(teacher_id):
     teacher = Teacher.query.get_or_404(teacher_id)
     new_registration = request.form.get('registration')
+    new_is_admin = 'is_admin' in request.form
+    if current_user.id == teacher_id and not new_is_admin:
+        flash('Você não pode remover seu próprio acesso administrativo.', 'danger')
+        return redirect(url_for('admin.manage_teachers'))
+    new_is_active = teacher.is_active if current_user.id == teacher_id else 'is_active' in request.form
+    if (new_is_admin != teacher.is_admin or (teacher.is_admin and (
+            new_registration != teacher.registration or new_is_active != teacher.is_active))):
+        if confirmation_needed() and not confirm_admin_password():
+            return redirect(url_for('admin.manage_teachers'))
     
     existing_teacher = Teacher.query.filter(Teacher.id != teacher_id, Teacher.registration == new_registration).first()
     if existing_teacher:
         flash(f'A matrícula "{new_registration}" já está em uso por outro usuário.', 'danger')
         return redirect(url_for('admin.manage_teachers'))
 
+    if new_is_admin != teacher.is_admin:
+        teacher.password_hash = None
+        teacher.auth_version = None
+        db.session.execute(db.delete(AdminAccessToken).where(AdminAccessToken.teacher_id == teacher_id))
+    elif teacher.is_admin and new_is_active != teacher.is_active:
+        teacher.auth_version = secrets.token_hex(32)
+        db.session.execute(db.delete(AdminAccessToken).where(AdminAccessToken.teacher_id == teacher_id))
+
     teacher.name = request.form.get('name')
     teacher.registration = new_registration
     teacher.whatsapp = sanitize_phone(request.form.get('whatsapp'))
-    teacher.is_admin = 'is_admin' in request.form
+    teacher.is_admin = new_is_admin
     if current_user.id != teacher_id:
-        teacher.is_active = 'is_active' in request.form
+        teacher.is_active = new_is_active
     db.session.commit()
     flash('Usuário atualizado com sucesso!', 'success')
     return redirect(url_for('admin.manage_teachers'))
+
+@admin_bp.route('/teacher/access-link/<int:teacher_id>', methods=['POST'])
+@admin_required
+def teacher_access_link(teacher_id):
+    teacher = db.get_or_404(Teacher, teacher_id)
+    if not teacher.is_admin or not teacher.is_active:
+        flash('O link é exclusivo para administradores ativos.', 'danger')
+        return redirect(url_for('admin.manage_teachers'))
+    if confirmation_needed() and not confirm_admin_password():
+        return redirect(url_for('admin.manage_teachers'))
+    token = issue_access_token(teacher)
+    # A URL fragment never reaches access logs or the referrer.
+    link = current_app.config['PUBLIC_BASE_URL'].rstrip('/') + url_for('auth.setup_password') + '#' + token
+    response = current_app.make_response(render_template('admin_access_link.html', teacher=teacher, access_link=link))
+    response.headers['Cache-Control'] = 'no-store'
+    response.headers['Referrer-Policy'] = 'no-referrer'
+    return response
+
 
 @admin_bp.route('/teacher/toggle/<int:teacher_id>', methods=['GET', 'POST'])
 @admin_required
@@ -355,6 +405,14 @@ def toggle_teacher(teacher_id):
         return redirect(url_for('admin.manage_teachers'))
         
     teacher = Teacher.query.get_or_404(teacher_id)
+    if teacher.is_admin:
+        if request.method != 'POST':
+            flash('Altere o acesso administrativo pelo formulário de edição.', 'warning')
+            return redirect(url_for('admin.manage_teachers'))
+        if confirmation_needed() and not confirm_admin_password():
+            return redirect(url_for('admin.manage_teachers'))
+        teacher.auth_version = secrets.token_hex(32)
+        db.session.execute(db.delete(AdminAccessToken).where(AdminAccessToken.teacher_id == teacher_id))
     teacher.is_active = not teacher.is_active
     db.session.commit()
     status_str = "reativado" if teacher.is_active else "desativado"
@@ -371,6 +429,9 @@ def delete_teacher(teacher_id):
         return redirect(url_for('admin.manage_teachers'))
         
     teacher = Teacher.query.get_or_404(teacher_id)
+    if teacher.is_admin and confirmation_needed() and not confirm_admin_password():
+        return redirect(url_for('admin.manage_teachers'))
+    db.session.execute(db.delete(AdminAccessToken).where(AdminAccessToken.teacher_id == teacher_id))
     Booking.query.filter_by(teacher_id=teacher_id).delete()
     db.session.delete(teacher)
     db.session.commit()
@@ -582,6 +643,7 @@ def backup_database():
 
 @admin_bp.route('/restore', methods=['POST'])
 @admin_required
+@recent_admin_required
 def restore_database():
     """Salva o arquivo e agenda a restauração em segundo plano após validações."""
     if 'backup_file' not in request.files:

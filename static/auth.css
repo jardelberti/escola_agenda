@@ -1,0 +1,27 @@
+* { box-sizing: border-box; }
+body { margin: 0; background: #f8fafc; color: #1e293b; font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.auth-shell { width: min(100%, 480px); margin: 0 auto; padding: 48px 20px 24px; }
+.brand { display: block; width: fit-content; margin: 0 auto 24px; }
+.brand img { display: block; width: 130px; height: auto; }
+.auth-card { padding: 28px; background: white; border: 1px solid #e2e8f0; border-radius: 20px; box-shadow: 0 8px 28px #0f172a08; }
+h1 { margin: 0 0 8px; font-size: 1.5rem; line-height: 1.25; }
+.intro { margin: 0 0 24px; color: #64748b; font-size: .9rem; }
+.field { margin-bottom: 18px; }
+label { display: block; font-size: .875rem; font-weight: 600; margin-bottom: 6px; }
+input:not([type=checkbox]):not([type=hidden]) { display: block; width: 100%; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px; font: inherit; color: #0f172a; background: white; }
+input:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+.check { display: flex; align-items: flex-start; gap: 10px; font-weight: 400; margin: 16px 0; }
+.check input { flex: none; width: 18px; height: 18px; margin: 2px 0 0; accent-color: #2563eb; }
+.hint { display: block; font-size: .8rem; color: #64748b; margin-top: 5px; }
+.submit { display: block; border: 0; border-radius: 10px; width: 100%; background: #2563eb; color: white; padding: 13px 18px; font: inherit; font-weight: 600; cursor: pointer; margin-top: 22px; }
+.submit:hover { background: #1d4ed8; }
+.submit:disabled { opacity: .5; cursor: not-allowed; }
+.notice { color: #991b1b; background: #fef2f2; border: 1px solid #fecaca; padding: 12px; border-radius: 10px; font-size: .875rem; }
+.notice.success { color: #166534; background: #f0fdf4; border-color: #bbf7d0; }
+.school { text-align: center; font-size: .75rem; color: #64748b; margin-top: 24px; }
+a { color: #1d4ed8; }
+.back { display: block; text-align: center; font-size: .875rem; margin-top: 18px; }
+details { margin-top: 22px; font-size: .85rem; color: #64748b; }
+summary { cursor: pointer; color: #334155; }
+[hidden] { display: none !important; }
+@media (max-width: 480px) { .auth-shell { padding-top: 28px; } .auth-card { padding: 24px 20px; } }

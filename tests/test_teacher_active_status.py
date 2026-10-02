@@ -1,3 +1,5 @@
+from tests.auth_helpers import authenticated_id
+import time
 """
 Testes automatizados para ativação e desativação (soft-delete) de professores.
 """
@@ -60,7 +62,8 @@ class TeacherActiveStatusTestCase(unittest.TestCase):
     def test_admin_toggle_teacher_status(self):
         """Valida que o admin pode alternar o status de ativo/inativo do professor."""
         with self.client.session_transaction() as sess:
-            sess['_user_id'] = str(self.admin.id)
+            sess['_user_id'] = authenticated_id(self.admin)
+            sess['admin_verified_at'] = time.time()
 
         # Desativar professor ativo
         res = self.client.get(f'/admin/teacher/toggle/{self.prof_active.id}', follow_redirects=True)
@@ -79,7 +82,8 @@ class TeacherActiveStatusTestCase(unittest.TestCase):
     def test_admin_cannot_deactivate_self(self):
         """Valida que o admin não pode desativar seu próprio usuário."""
         with self.client.session_transaction() as sess:
-            sess['_user_id'] = str(self.admin.id)
+            sess['_user_id'] = authenticated_id(self.admin)
+            sess['admin_verified_at'] = time.time()
 
         res = self.client.get(f'/admin/teacher/toggle/{self.admin.id}', follow_redirects=True)
         self.assertEqual(res.status_code, 200)
@@ -90,7 +94,8 @@ class TeacherActiveStatusTestCase(unittest.TestCase):
     def test_edit_teacher_is_active_checkbox(self):
         """Valida que a edição do professor via modal altera o campo is_active."""
         with self.client.session_transaction() as sess:
-            sess['_user_id'] = str(self.admin.id)
+            sess['_user_id'] = authenticated_id(self.admin)
+            sess['admin_verified_at'] = time.time()
 
         # Edita desmarcando o checkbox is_active
         res = self.client.post(f'/admin/teacher/edit/{self.prof_active.id}', data={

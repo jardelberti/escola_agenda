@@ -3,6 +3,7 @@ Aplicação Principal - Agenda Escolar
 Ponto de entrada do sistema (Fábrica da aplicação, registro de Blueprints e CLI).
 """
 import os
+from datetime import timedelta
 from flask import Flask, jsonify, url_for as flask_url_for
 from models import db, Teacher
 from extensions import init_extensions, celery, migrate, login_manager, csrf
@@ -28,6 +29,19 @@ elif database_uri.startswith("postgresql://"):
 app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024 # 50 MB
+secure_cookies = os.environ.get('COOKIE_SECURE', 'true').lower() not in ('0', 'false')
+app.config.update(
+    PUBLIC_BASE_URL=os.environ.get('PUBLIC_BASE_URL', 'https://agendaricardo.com.br'),
+    REMEMBER_COOKIE_DURATION=timedelta(days=7),
+    REMEMBER_COOKIE_REFRESH_EACH_REQUEST=False,
+    REMEMBER_COOKIE_SECURE=secure_cookies,
+    REMEMBER_COOKIE_HTTPONLY=True,
+    REMEMBER_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=secure_cookies,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    PERMANENT_SESSION_LIFETIME=timedelta(days=7),
+)
 
 # --- INICIALIZAÇÃO DE EXTENSÕES E CELERY ---
 init_extensions(app)
@@ -66,6 +80,12 @@ app.register_blueprint(agenda_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(integrations_bp)
 csrf.exempt(integrations_bp)
+
+from security import confirmation_needed
+
+@app.context_processor
+def admin_security_context():
+    return {'admin_confirmation_needed': confirmation_needed}
 
 
 # --- ALIASES DE URL PARA COMPATIBILIDADE TOTAL ---
