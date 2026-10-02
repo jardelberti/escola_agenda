@@ -270,7 +270,7 @@ O sistema **Agenda Escolar** é uma plataforma web para gestão e agendamento de
 * ✅ **O que o script faz**:
   1. Conecta-se ao SQLite do n8n (lê `N8N_DB_PATH`, `/home/node/.n8n/database.sqlite` ou `/data/database.sqlite`).
   2. Ajusta o nó `scheduleTrigger` do workflow `agendaEscola0001` para a Cron Expression direta `0 7 * * 1-5`.
-  3. Adiciona política de resiliência nos nós `httpRequest` (`retryOnFail: true`, 3 tentativas, espera 2000ms).
+  3. Adiciona política de resiliência nos nós `httpRequest`: `retryOnFail: true`, `maxTries: 3`, `waitBetweenTries: 2000` **na raiz do objeto do nó**, junto de `name` e `type`. Campos gravados em `parameters.options` não habilitam o retry da engine e devem ser removidos preservando as demais opções HTTP.
   4. Sincroniza atômicamente tanto `workflow_entity` quanto `workflow_history`.
   5. Limpa workflows temporários de teste antigos.
   6. Cria workflow de teste com agendamento diário no horário HH MM (não é disparo imediato): `python manage_n8n.py --test HH MM`.
@@ -312,6 +312,7 @@ O arquivo `/home/ubuntu/escola_agenda/.env` na VPS contém as configurações de
   * `test_teacher_active_status.py`: Ativação/desativação de professores.
   * `test_integrations_and_whatsapp.py`: Integrações e WhatsApp.
   * `test_csrf_protection.py`: Proteção CSRF.
+  * `test_n8n_retry_configuration.py`: Migração dos campos de retry, preservação de opções HTTP e idempotência (sem envio de mensagens).
 * ✅ **Como Executar os Testes no Ambiente Local (Windows)**:
   ```powershell
   # Usando o Python do ambiente virtual local:
@@ -417,3 +418,12 @@ O arquivo `/home/ubuntu/escola_agenda/.env` na VPS contém as configurações de
 * **Testes realizados:** bash -n aprovado; cinco cenários com comandos simulados em diretório temporário passaram (documentação sem reinício/build, código com restart, build único, worker ocupado impedindo atualização e falha de build retomando worker). Swap confirmado com 2047 MiB, persistência no fstab e swappiness 10. A suíte funcional da aplicação não foi executada, pois não houve mudança funcional.
 
 * **Aplicação e verificação final em 02/10/2026:** revisão c6833d5 recebida pela VPS, Compose validado e aplicado com --no-build; deploy.sh executado no cenário real sem mudanças pendentes, sem rebuild/restart. Quatro containers em execução, app/db healthy, /health público saudável e Celery respondeu pong. Swap ativo (2 GiB; aproximadamente 193 MiB usados nessa leitura). Registro final publicado e sincronizado pelo fluxo documental; nenhuma restauração ou mensagem WhatsApp executada.
+
+### 2026-10-02 — GPT/Codex — Retry n8n e teste oficial restrito ao administrador
+
+* **Correção:** campos retry estavam em `parameters.options` e eram ignorados pela engine n8n 2.32.6. Corrigidos na raiz dos nós, no utilitário de manutenção e no teste legado; restaurado suporte a `N8N_DB_PATH`/autodetecção. Adicionados dois testes isolados, ambos aprovados.
+* **Autorização e isolamento:** mantenedor autorizou mensagem somente para Jardel. Criado backup privado consistente do SQLite com n8n parado; versão temporária do workflow oficial contém somente trigger, consulta e envio ao número do teste anterior de Jardel. Nós de professores removidos dessa versão e cron temporário agendado às 10h22 (São Paulo). Versão principal e histórico sincronizados, com reinício do n8n para recarregar o agendador.
+* **Teste antigo:** apenas `active=0` não impediu seu carregamento observado. Após limpar também `activeVersionId` e reiniciar, os logs confirmaram ativação apenas do workflow oficial. Não considerar teste desativado sem verificar a versão publicada e o carregamento efetivo.
+* **Backup e reversão:** backup/estado privados armazenados no volume real do n8n; não copiar para o GitHub, pois contêm a configuração completa do workflow. Restaurar conexões dos professores e cron `0 7 * * 1-5` mantendo retries corrigidos após conferir o teste. Não executar o utilitário legado apenas para validar documentação.
+
+* **Resultado real e restauração:** execução 11 do workflow oficial disparou automaticamente em 02/10/2026 às 10h22 (São Paulo), modo trigger, concluída com sucesso em aproximadamente 1,6 segundo. Executados somente agendador, consulta e envio ao administrador; nenhuma execução de nós dos professores. Evolution aceitou uma mensagem, e Jardel confirmou recebimento nesta sessão. Após o teste, restaurados cron 0 7 * * 1-5 e todas as conexões dos professores, com três tentativas/2000 ms nos três nós HTTP. N8n reiniciado para carregar configuração final; teste antigo despublicado. Nenhum disparo manual do workflow completo foi realizado.

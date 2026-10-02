@@ -2,9 +2,20 @@ import sqlite3
 import json
 import uuid
 import sys
+import os
 from datetime import datetime, timezone
 
-DB_PATH = "/data/database.sqlite"
+DB_PATH = os.environ.get("N8N_DB_PATH") or (
+    "/home/node/.n8n/database.sqlite"
+    if os.path.exists("/home/node/.n8n/database.sqlite") else "/data/database.sqlite"
+)
+
+def configure_http_retry(node):
+    """O retry é uma configuração do nó, não uma opção HTTP."""
+    node.update(retryOnFail=True, maxTries=3, waitBetweenTries=2000)
+    options = node.get("parameters", {}).get("options", {})
+    for key in ("retryOnFail", "maxTries", "waitBetweenTries"):
+        options.pop(key, None)
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -39,11 +50,7 @@ def fix_agenda_workflow():
         # 2. HTTP Request retry fix (para evitar falhas por instabilidade momentânea de DNS/rede)
         if node.get("type") == "n8n-nodes-base.httpRequest":
             print(f"Configurando retry automático no nó: {node.get('name')}")
-            opts = node.get("parameters", {}).get("options", {})
-            opts["retryOnFail"] = True
-            opts["maxTries"] = 3
-            opts["waitBetweenTries"] = 2000
-            node["parameters"]["options"] = opts
+            configure_http_retry(node)
 
     new_nodes_json = json.dumps(nodes)
     new_static_data = json.dumps({})
@@ -130,14 +137,13 @@ def create_test_workflow(target_hour, target_minute):
                 "sendBody": True,
                 "specifyBody": "json",
                 "jsonBody": "={\n  \"number\": \"5547999283466\",\n  \"text\": \"🧪 *TESTE N8N AUTOMÁTICO* 🧪\\n\\nDisparo agendado executado com SUCESSO via cron do n8n!\\nHorário previsto: " + f"{target_hour:02d}:{target_minute:02d}" + "\\n\\nSe você recebeu isso, o agendador está 100% curado e operacional!\"\n}",
-                "options": {
-                    "retryOnFail": True,
-                    "maxTries": 3,
-                    "waitBetweenTries": 2000
-                }
+                "options": {}
             },
             "id": "http-send-teste",
             "name": "Enviar WhatsApp Teste",
+            "retryOnFail": True,
+            "maxTries": 3,
+            "waitBetweenTries": 2000,
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
             "position": [440, 300]
@@ -215,9 +221,11 @@ def create_test_workflow(target_hour, target_minute):
     conn.close()
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "--test" and len(sys.argv) != 4:
+        raise SystemExit("Uso: manage_n8n.py --test HH MM")
     fix_agenda_workflow()
     
-    if len(sys.argv) > 2 and sys.argv[1] == "--test":
+    if len(sys.argv) > 1 and sys.argv[1] == "--test":
         # Formato: --test HH MM
         h = int(sys.argv[2])
         m = int(sys.argv[3])
