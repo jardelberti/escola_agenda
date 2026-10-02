@@ -333,6 +333,7 @@ O arquivo `/home/ubuntu/escola_agenda/.env` na VPS contém as configurações de
    git push origin main
    ```
 4. **Deploy na VPS via SSH**:
+   * Para alterações apenas documentais, atualizar o checkout com `git pull --ff-only origin main` e verificar sincronização; não reconstruir nem reiniciar containers sem necessidade. Para mudanças de código, dependências ou Docker, seguir build/subida abaixo, avaliando os recursos disponíveis na VPS.
    ```bash
    ssh -i C:\Users\monit\Downloads\ssh-key\ssh-key-agendaricardo.key ubuntu@163.176.251.63
    cd ~/escola_agenda
@@ -395,3 +396,5 @@ O arquivo `/home/ubuntu/escola_agenda/.env` na VPS contém as configurações de
 * **Alteração:** orientação explícita para manter local, GitHub e VPS na mesma revisão ao concluir tarefas, conforme autorização do mantenedor.
 * **Escopo:** documentação em AGENTS.md e atualização da VPS pelo fluxo oficial; nenhum ajuste funcional solicitado.
 * **Validação planejada:** diff sem erros, revisão publicada, comparação dos commits e estado dos quatro serviços após build/deploy. O resultado efetivo será confirmado ao fim da tarefa; em caso de falha, registrar a pendência aqui.
+
+* **Ocorrência operacional desta tarefa:** o build iniciado após a atualização documental apresentou pressão de memória elevada na VPS (952 MB de RAM, sem swap, verificado em 02/10/2026). A reconstrução foi cancelada; a imagem existente foi preservada. Usar atualização documental sem build nesse caso. Saúde e sincronização finais serão verificadas antes do encerramento.
