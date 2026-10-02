@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block header_container_class %}admin-container{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="admin-container admin-shell">
+    {% include 'admin_nav.html' %}
+    <section class="admin-content" aria-label="Conteúdo administrativo">
+        {% block admin_content %}{% endblock %}
+    </section>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const menu = document.querySelector('.admin-tabs');
+    const active = menu.querySelector('[aria-current="page"]');
+    if (active) {
+        menu.scrollLeft = Math.max(0, active.offsetLeft - menu.offsetLeft - (menu.clientWidth - active.clientWidth) / 2);
+    }
+});
+</script>
+{% endblock %}

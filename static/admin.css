@@ -1,0 +1,26 @@
+/* Shared frame for every administrative page, including resource schedules. */
+.admin-container {
+    width: 100%;
+    max-width: 1280px;
+    margin-inline: auto;
+    padding-inline: 24px;
+}
+.admin-shell { padding-block: 24px; }
+.admin-content { min-width: 0; }
+.admin-content h2 {
+    font-size: 1.5rem;
+    line-height: 2rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+.admin-content h3 { font-size: 1.125rem; line-height: 1.75rem; }
+.admin-content .grid > * { min-width: 0; }
+.admin-tabs { scrollbar-width: thin; }
+.admin-tabs a { flex-shrink: 0; text-decoration: none; }
+.admin-tabs a:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.admin-content table { max-width: 100%; }
+@media (max-width: 639px) {
+    .admin-container { padding-inline: 16px; }
+    .admin-shell { padding-block: 20px; }
+    .admin-content h2 { font-size: 1.25rem; line-height: 1.75rem; }
+}

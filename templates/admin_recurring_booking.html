@@ -1,12 +1,9 @@
-{% extends "base.html" %}
+{% extends "admin_base.html" %}
+{% set active_tab = "recurring" %}
 
 {% block title %}Agendamento em Lote - Agenda Escolar{% endblock %}
 
-{% block content %}
-<div class="container mx-auto px-4 py-6 max-w-4xl">
-    {% with active_tab='recurring' %}
-        {% include 'admin_nav.html' %}
-    {% endwith %}
+{% block admin_content %}
 
     <!-- Cabeçalho -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
@@ -139,8 +136,8 @@
                 <label for="classroom_or_notes" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Turma / Disciplina / Observação <span class="text-slate-400 font-normal normal-case">(Opcional)</span>
                 </label>
-                <input type="text" id="classroom_or_notes" name="classroom_or_notes" 
-                       class="w-full text-sm rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500" 
+                <input type="text" id="classroom_or_notes" name="classroom_or_notes"
+                       class="w-full text-sm rounded-xl border-slate-300 focus:border-indigo-500 focus:ring-indigo-500"
                        placeholder="Ex: 9º Ano A - Robótica Bimestral" maxlength="100">
             </div>
 
@@ -156,5 +153,5 @@
             </div>
         </form>
     </div>
-</div>
+
 {% endblock %}

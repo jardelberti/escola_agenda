@@ -1,14 +1,12 @@
-{% extends "base.html" %}
+{% extends "admin_base.html" %}
+{% set active_tab = "dashboard" %}
 
 {% block title %}Dashboard do Administrador - Agenda Escolar{% endblock %}
 
-{% block content %}
-<div class="container mx-auto px-4 py-6 max-w-6xl">
+{% block admin_content %}
+
 
     <!-- Navegação do Admin -->
-    {% with active_tab='dashboard' %}
-        {% include 'admin_nav.html' %}
-    {% endwith %}
 
     <!-- Mensagens Flash -->
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -24,9 +22,14 @@
         {% endif %}
     {% endwith %}
 
+    <div class="mb-6">
+        <h2 class="text-xl sm:text-2xl font-bold text-slate-800">Visão Geral</h2>
+        <p class="text-xs sm:text-sm text-slate-500">Acompanhe os agendamentos e a utilização dos recursos escolares.</p>
+    </div>
+
     <!-- 1. CARDS DE MÉTRICAS PRINCIPAIS (KPIs) -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-        
+
         <!-- Card 1: Hoje -->
         <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm flex items-center justify-between">
             <div>
@@ -78,7 +81,7 @@
 
     <!-- 2. SEÇÃO DE GRÁFICOS (DASHBOARD ANALÍTICO) -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        
+
         <!-- Gráfico 1: Evolução dos Últimos 14 Dias (Linha do Tempo) -->
         <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-sm">
             <div class="flex items-center justify-between mb-4">
@@ -136,7 +139,7 @@
 
     <!-- 3. ATIVIDADES DE HOJE NA ESCOLA & ATALHOS RÁPIDOS -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         <!-- Tabela do Dia de Hoje -->
         <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
             <div class="p-4 border-b border-slate-100 flex items-center justify-between">
@@ -264,17 +267,17 @@
             </a>
         </div>
     </div>
-</div>
+
 
 <!-- Scripts do Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    
+
     // --- 1. Gráfico de Linha do Tempo (Últimos 14 Dias) ---
     const timelineLabels = {{ chart_timeline_labels|safe }};
     const timelineData = {{ chart_timeline_data|safe }};
-    
+
     const ctxTimeline = document.getElementById('timelineChart').getContext('2d');
     new Chart(ctxTimeline, {
         type: 'line',
@@ -322,7 +325,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- 2. Gráfico de Turnos (Matutino vs Vespertino) ---
     const shiftLabels = {{ chart_shift_labels|safe }};
     const shiftData = {{ chart_shift_data|safe }};
-    
+
     const ctxShift = document.getElementById('shiftChart').getContext('2d');
     new Chart(ctxShift, {
         type: 'doughnut',

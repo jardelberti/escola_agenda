@@ -31,62 +31,62 @@
     </div>
 
     <!-- Menu de Abas com Rolagem Horizontal Suave para Mobile -->
-    <div class="flex overflow-x-auto no-scrollbar gap-1.5 sm:gap-2 pb-1 bg-white p-1.5 rounded-2xl border border-slate-200/90 shadow-sm">
-        
+    <nav aria-label="Navegação administrativa" class="admin-tabs flex overflow-x-auto gap-1.5 sm:gap-2 pb-1 bg-white p-1.5 rounded-2xl border border-slate-200/90 shadow-sm">
+
         <!-- 1. Visão Geral -->
-        <a href="{{ url_for('admin_dashboard') }}" 
-           class="whitespace-nowrap px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all inline-flex items-center gap-1.5 {% if active_tab == 'dashboard' or request.endpoint == 'admin.admin_dashboard' %}bg-blue-600 text-white shadow-sm{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
+        <a href="{{ url_for('admin_dashboard') }}"
+           class="whitespace-nowrap px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all inline-flex items-center gap-1.5 {% if active_tab == 'dashboard' or request.endpoint == 'admin.admin_dashboard' %}bg-blue-600 text-white shadow-sm{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}" {% if active_tab == 'dashboard' or request.endpoint == 'admin.admin_dashboard' %}aria-current="page"{% endif %}>
             <span class="material-symbols-outlined text-base">dashboard</span>
             <span>Visão Geral</span>
         </a>
 
         <!-- 2. Gestão de Recursos -->
-        <a href="{{ url_for('admin.manage_resources') }}" 
-           class="whitespace-nowrap px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all inline-flex items-center gap-1.5 {% if active_tab == 'resources' or request.endpoint == 'admin.manage_resources' %}bg-blue-600 text-white shadow-sm{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
+        <a href="{{ url_for('admin.manage_resources') }}"
+           class="whitespace-nowrap px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all inline-flex items-center gap-1.5 {% if active_tab == 'resources' or request.endpoint == 'admin.manage_resources' %}bg-blue-600 text-white shadow-sm{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}" {% if active_tab == 'resources' or request.endpoint == 'admin.manage_resources' %}aria-current="page"{% endif %}>
             <span class="material-symbols-outlined text-base">inventory_2</span>
             <span>Recursos</span>
         </a>
 
         <!-- 3. Agenda Semanal -->
-        <a href="{{ url_for('weekly_view') }}" 
-           class="whitespace-nowrap px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all inline-flex items-center gap-1.5 {% if active_tab == 'weekly' or request.endpoint == 'admin.weekly_view' %}bg-blue-600 text-white shadow-sm{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
+        <a href="{{ url_for('weekly_view') }}"
+           class="whitespace-nowrap px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all inline-flex items-center gap-1.5 {% if active_tab == 'weekly' or request.endpoint == 'admin.weekly_view' %}bg-blue-600 text-white shadow-sm{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}" {% if active_tab == 'weekly' or request.endpoint == 'admin.weekly_view' %}aria-current="page"{% endif %}>
             <span class="material-symbols-outlined text-base">calendar_view_week</span>
             <span>Agenda Semanal</span>
         </a>
 
         <!-- 4. Agendamento em Lote -->
-        <a href="{{ url_for('admin.recurring_booking') }}" 
-           class="whitespace-nowrap px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all inline-flex items-center gap-1.5 {% if active_tab == 'recurring' or request.endpoint == 'admin.recurring_booking' %}bg-blue-600 text-white shadow-sm{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
+        <a href="{{ url_for('admin.recurring_booking') }}"
+           class="whitespace-nowrap px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all inline-flex items-center gap-1.5 {% if active_tab == 'recurring' or request.endpoint == 'admin.recurring_booking' %}bg-blue-600 text-white shadow-sm{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}" {% if active_tab == 'recurring' or request.endpoint == 'admin.recurring_booking' %}aria-current="page"{% endif %}>
             <span class="material-symbols-outlined text-base">event_repeat</span>
             <span>Em Lote</span>
         </a>
 
         <!-- 5. Professores / Usuários -->
-        <a href="{{ url_for('manage_teachers') }}" 
-           class="whitespace-nowrap px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all inline-flex items-center gap-1.5 {% if active_tab == 'teachers' or request.endpoint == 'admin.manage_teachers' %}bg-blue-600 text-white shadow-sm{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
+        <a href="{{ url_for('manage_teachers') }}"
+           class="whitespace-nowrap px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all inline-flex items-center gap-1.5 {% if active_tab == 'teachers' or request.endpoint == 'admin.manage_teachers' %}bg-blue-600 text-white shadow-sm{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}" {% if active_tab == 'teachers' or request.endpoint == 'admin.manage_teachers' %}aria-current="page"{% endif %}>
             <span class="material-symbols-outlined text-base">group</span>
             <span>Professores</span>
         </a>
 
         <!-- 6. Relatórios -->
-        <a href="{{ url_for('reports') }}" 
-           class="whitespace-nowrap px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all inline-flex items-center gap-1.5 {% if active_tab == 'reports' or request.endpoint == 'admin.reports' %}bg-blue-600 text-white shadow-sm{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
+        <a href="{{ url_for('reports') }}"
+           class="whitespace-nowrap px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all inline-flex items-center gap-1.5 {% if active_tab == 'reports' or request.endpoint == 'admin.reports' %}bg-blue-600 text-white shadow-sm{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}" {% if active_tab == 'reports' or request.endpoint == 'admin.reports' %}aria-current="page"{% endif %}>
             <span class="material-symbols-outlined text-base">bar_chart</span>
             <span>Relatórios</span>
         </a>
 
         <!-- 7. Auditoria de Cancelamentos -->
-        <a href="{{ url_for('admin.manage_audit_logs') }}" 
-           class="whitespace-nowrap px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all inline-flex items-center gap-1.5 {% if active_tab == 'audit' or request.endpoint == 'admin.manage_audit_logs' %}bg-blue-600 text-white shadow-sm{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
+        <a href="{{ url_for('admin.manage_audit_logs') }}"
+           class="whitespace-nowrap px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all inline-flex items-center gap-1.5 {% if active_tab == 'audit' or request.endpoint == 'admin.manage_audit_logs' %}bg-blue-600 text-white shadow-sm{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}" {% if active_tab == 'audit' or request.endpoint == 'admin.manage_audit_logs' %}aria-current="page"{% endif %}>
             <span class="material-symbols-outlined text-base">history</span>
             <span>Auditoria</span>
         </a>
 
         <!-- 8. Backup e Restauração -->
-        <a href="{{ url_for('backup_restore_page') }}" 
-           class="whitespace-nowrap px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all inline-flex items-center gap-1.5 {% if active_tab == 'backup' or request.endpoint == 'admin.backup_restore_page' %}bg-blue-600 text-white shadow-sm{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
+        <a href="{{ url_for('backup_restore_page') }}"
+           class="whitespace-nowrap px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all inline-flex items-center gap-1.5 {% if active_tab == 'backup' or request.endpoint == 'admin.backup_restore_page' %}bg-blue-600 text-white shadow-sm{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}" {% if active_tab == 'backup' or request.endpoint == 'admin.backup_restore_page' %}aria-current="page"{% endif %}>
             <span class="material-symbols-outlined text-base">database</span>
             <span>Backup</span>
         </a>
-    </div>
+    </nav>
 </div>

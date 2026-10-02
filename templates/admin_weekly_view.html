@@ -1,12 +1,9 @@
-{% extends "base.html" %}
+{% extends "admin_base.html" %}
+{% set active_tab = "weekly" %}
 
 {% block title %}Agenda Semanal{% endblock %}
 
-{% block content %}
-<div class="container mx-auto px-4 py-6 max-w-7xl">
-    {% with active_tab='weekly' %}
-        {% include 'admin_nav.html' %}
-    {% endwith %}
+{% block admin_content %}
 
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
         <div>
@@ -31,13 +28,13 @@
 
         <div class="space-y-8">
             {% for summary in weekly_summaries %}
-                {% with 
-                    title=summary.title, 
-                    icon=summary.icon, 
-                    week_headers=summary.week_headers, 
-                    schedule_template=summary.schedule_template, 
-                    weekly_bookings=summary.weekly_bookings, 
-                    color_class=summary.color_class 
+                {% with
+                    title=summary.title,
+                    icon=summary.icon,
+                    week_headers=summary.week_headers,
+                    schedule_template=summary.schedule_template,
+                    weekly_bookings=summary.weekly_bookings,
+                    color_class=summary.color_class
                 %}
                     {% include 'admin_weekly_summary.html' %}
                 {% endwith %}
@@ -47,5 +44,5 @@
                 </div>
             {% endfor %}
         </div>
-    </div>
+
 {% endblock %}

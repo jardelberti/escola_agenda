@@ -1,17 +1,14 @@
-{% extends "base.html" %}
+{% extends "admin_base.html" %}
+{% set active_tab = "teachers" %}
 
 {% block title %}Gerenciar Usuários{% endblock %}
 
-{% block content %}
-<div class="container mx-auto px-4 py-6 max-w-7xl">
-    {% with active_tab='teachers' %}
-        {% include 'admin_nav.html' %}
-    {% endwith %}
+{% block admin_content %}
 
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
         <div>
             <h2 class="text-xl sm:text-2xl font-bold text-slate-800">Gerenciar Professores e Usuários</h2>
-            <p class="text-xs sm:text-sm text-slate-500">Cadastre novos professores, redefina senhas ou pause contas sem apagar o histórico.</p>
+            <p class="text-xs sm:text-sm text-slate-500">Cadastre novos professores, atualize os dados ou pause contas sem apagar o histórico.</p>
         </div>
     </div>
 
@@ -28,12 +25,12 @@
             {% endif %}
         {% endwith %}
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="space-y-6">
 
-            <div class="lg:col-span-1">
-                <div class="bg-white p-6 rounded-xl border border-slate-200 sticky top-8">
+            <div class="min-w-0">
+                <div class="bg-white p-6 rounded-xl border border-slate-200">
                     <h3 class="text-xl font-bold text-slate-800 mb-4">Cadastrar Novo Usuário</h3>
-                    <form method="POST" action="{{ url_for('manage_teachers') }}" class="space-y-4">
+                    <form method="POST" action="{{ url_for('manage_teachers') }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div>
                             <label for="name" class="block text-sm font-medium text-slate-600 mb-1">Nome Completo</label>
@@ -62,13 +59,13 @@
                 </div>
             </div>
 
-            <div class="lg:col-span-2">
+            <div class="min-w-0">
                 <h3 class="text-xl font-bold text-slate-800 mb-4">Usuários Cadastrados</h3>
                 <div class="space-y-3">
                     {% for teacher in teachers %}
-                    <div class="bg-white p-4 rounded-xl border {{ 'border-slate-200' if teacher.is_active else 'border-slate-300 bg-slate-50 opacity-75' }} flex justify-between items-center">
+                    <div class="bg-white p-4 rounded-xl border {{ 'border-slate-200' if teacher.is_active else 'border-slate-300 bg-slate-50 opacity-75' }} flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex flex-wrap items-center gap-2">
                                 <h4 class="font-bold text-slate-800 {{ 'text-slate-500 line-through' if not teacher.is_active }}">{{ teacher.name }}</h4>
                                 {% if teacher.is_active %}
                                     <span class="inline-block bg-emerald-100 text-emerald-800 text-xs font-semibold px-2 py-0.5 rounded-full">Ativo</span>
@@ -109,7 +106,7 @@
                                 Editar
                             </button>
                             {% if teacher.id != current_user.id %}
-                                <button type="button" class="bg-red-100 text-red-800 font-semibold px-3 py-1.5 rounded-md text-sm hover:bg-red-200" 
+                                <button type="button" class="bg-red-100 text-red-800 font-semibold px-3 py-1.5 rounded-md text-sm hover:bg-red-200"
                                         data-bs-toggle="modal" data-bs-target="#confirmDeleteModal"
                                         data-delete-url="{{ url_for('delete_teacher', teacher_id=teacher.id) }}"
                                         data-teacher-name="{{ teacher.name }}">
@@ -126,7 +123,7 @@
                 </div>
             </div>
         </div>
-    </div>
+
 
     <div class="modal fade" id="editTeacherModal" tabindex="-1" aria-labelledby="editTeacherModalLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -212,7 +209,7 @@
 
                 const modalForm = editTeacherModal.querySelector('#editTeacherForm');
                 const modalTitle = editTeacherModal.querySelector('.modal-title');
-                
+
                 modalTitle.textContent = `Editar Usuário: ${teacherName}`;
                 modalForm.action = `/admin/teacher/edit/${teacherId}`;
                 modalForm.querySelector('#edit_name').value = teacherName;
@@ -245,5 +242,4 @@
         }
     });
     </script>
-</div>
 {% endblock %}

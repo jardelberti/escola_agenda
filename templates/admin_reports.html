@@ -1,12 +1,9 @@
-{% extends "base.html" %}
+{% extends "admin_base.html" %}
+{% set active_tab = "reports" %}
 
 {% block title %}Relatórios de Uso{% endblock %}
 
-{% block content %}
-<div class="container mx-auto px-4 py-6 max-w-7xl">
-    {% with active_tab='reports' %}
-        {% include 'admin_nav.html' %}
-    {% endwith %}
+{% block admin_content %}
 
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
         <div>
@@ -107,10 +104,10 @@
             </div>
         </div>
         {% endif %}
-    </div>
+
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+
     <script>
         // Garante que o script só execute após os dados serem passados pelo Flask
         document.addEventListener('DOMContentLoaded', function() {
