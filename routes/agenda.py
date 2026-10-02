@@ -13,7 +13,7 @@ agenda_bp = Blueprint('agenda', __name__)
 @agenda_bp.route('/')
 def root():
     if current_user.is_authenticated:
-        return redirect(url_for('agenda.home'))
+        return redirect(url_for('admin.admin_dashboard' if current_user.is_admin else 'agenda.home'))
     return redirect(url_for('auth.login'))
 
 @agenda_bp.route('/home')
@@ -379,4 +379,3 @@ def update_my_whatsapp():
     else:
         flash('Número de WhatsApp removido com sucesso.', 'info')
     return redirect(url_for('agenda.my_bookings'))
-

@@ -14,7 +14,7 @@ auth_bp = Blueprint('auth', __name__)
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('agenda.home'))
+        return redirect(url_for('admin.admin_dashboard' if current_user.is_admin else 'agenda.home'))
     registration = request.form.get('registration', '').strip()[:50]
     admin_step = request.form.get('admin_step') == '1'
     if request.method == 'POST':

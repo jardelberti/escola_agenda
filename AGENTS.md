@@ -343,6 +343,7 @@ O arquivo `/home/ubuntu/escola_agenda/.env` na VPS contém as configurações de
 
 * `test_operations.py`: snapshots de saúde, atraso de coleta, horários úteis, distinção entre execução manual e automática, sanitização e chave exclusiva do monitoramento.
 * `test_dashboard_periods.py`: 14 datas de segunda a sexta, recorte inclusivo de 30 dias e exclusão de reservas futuras dos indicadores históricos.
+* `test_landing_navigation.py`: página inicial por perfil e seleção única do menu inferior usando endpoints dos Blueprints.
 
 * ✅ **Framework**: `unittest` padrão do Python.
 * ✅ **Localização dos Testes**: Diretório `tests/`:
@@ -512,3 +513,9 @@ O arquivo `/home/ubuntu/escola_agenda/.env` na VPS contém as configurações de
 * **Arquivos:** `routes/admin.py`, `templates/admin_dashboard.html`, `templates/admin_operations.html`, `templates/admin_base.html`, `static/admin.css` e `tests/test_dashboard_periods.py`. CSS versionado na URL para evitar cache da apresentação anterior; atualizar essa versão em mudanças futuras do CSS compartilhado. Nenhuma migração, novo segredo ou alteração dos coletores.
 * **Validação local:** 58 testes aprovados em SQLite temporário isolado (`agenda_dashboard_tests_20261002.db`), incluindo duas regressões novas para períodos/consultas. Prévia com reservas fictícias validada em 1440×1000 e 390×844: faixa de saúde com cerca de 57 px no desktop, ícones e detalhes acionáveis, painel sem transbordamento horizontal, gráfico renderizado sem erro de console e tabela funcional preservada. `git diff --check` aprovado. Publicação/deploy ainda pendentes neste registro; registrar conclusão efetiva.
 * **Publicação/deploy efetivos:** revisão `cb413ee` publicada no GitHub e aplicada na VPS em 02/10/2026, com restart de app/worker e sem rebuild. App/PostgreSQL healthy, Celery respondeu pong, `/health` confirmou banco conectado. CSS servido pelo domínio com SHA-256 idêntico ao arquivo da VPS; template compilado e helper de períodos validado dentro do container. Abertura pública do painel exigiu login; não criada sessão artificial nem solicitada senha ao titular para testar. Verificação visual feita na prévia isolada, não com uma sessão administrativa de produção. Este registro final deve ser sincronizado sem reinício; comparar revisões local/GitHub/VPS antes de encerrar.
+
+### 2026-10-02 — GPT/Codex — Entrada por perfil e menu inferior ativo
+
+* **Alteração/motivo:** acesso à raiz `/`, login com sessão já autenticada e logotipo encaminham administradores ao painel `/admin/`; professores continuam em `/home`. O link explícito “Agendamento” mantém `/home` disponível também ao administrador. Login administrativo com senha já encaminhava ao painel e continua assim.
+* **Menu inferior:** corrigida detecção dos endpoints com prefixos `agenda.*`, anteriormente comparados com nomes legados; selecionado recebe texto azul/fundo azul claro e `aria-current="page"`. Agendamento é ativo na lista de recursos e grade; Meus Agendamentos na página pessoal; Painel Admin em páginas administrativas, incluindo segurança.
+* **Arquivos/validação:** `routes/agenda.py`, `routes/auth.py`, `templates/base.html`, `tests/test_landing_navigation.py`; 60 testes aprovados em SQLite temporário isolado (`agenda_navigation_tests_20261002.db`), incluindo duas regressões novas para ambos os perfis e seleção única do menu. `git diff --check` aprovado. Publicação/deploy pendentes neste registro; registrar resultado real ao concluir.
