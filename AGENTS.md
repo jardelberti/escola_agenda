@@ -312,6 +312,16 @@ O sistema **Agenda Escolar** é uma plataforma web para gestão e agendamento de
 
 ## 🔐 10. Variáveis de Ambiente (`.env`)
 
+* `MONITOR_API_KEY`: chave aleatória exclusiva do `POST /api/integrations/monitor/whatsapp` (header `X-Monitor-Key`), sem permissão para consultar professores ou agendamentos. Sem chave configurada, o endpoint recusa publicações. Nunca registrar seu valor neste guia.
+
+### Monitoramento operacional na Visão Geral
+
+* `operations.py` lê snapshots sanitizados em `/app/data/operations/{whatsapp,vps}.json`, armazenados no volume `app_data`; leitura do painel não consulta rede nem dispara fluxos. Ausência de atualização por 15 minutos é exibida como indisponibilidade/desatualização.
+* `scripts/collect_n8n_health.js`: executar dentro do container n8n com Node 24/`node:sqlite`, banco em modo somente leitura e decoder `flatted` já instalado no n8n. Lê versão publicada, cron/fuso e metadados das últimas execuções. Publica somente horário/status/modo/contagem agregada. Nunca publica nomes, números, textos de mensagens, credenciais ou erros brutos. `--dry-run` imprime apenas esses metadados sem publicar. Chave lida de `/home/node/.n8n/agenda-monitor-key`, arquivo privado fora do Git.
+* A execução das 7h só é confirmada para uma execução `trigger` bem-sucedida na data útil esperada e janela 06h55–07h10 em São Paulo; após 07h10, ausência de execução é alerta. Execuções manuais ou testes fora desse horário não tornam o indicador verde. Sucesso/ID da Evolution confirma aceitação pela API, não entrega ao destinatário; históricos retidos/prunados podem não permitir contagem.
+* `scripts/collect_vps_health.py`: no host VPS, verifica `/health`, `pg_isready`, Redis PONG, Celery pong; lê arquivos `.dump` do diretório `backups/` e lista objetos R2 via `rclone lsjson`, sem gerar/restaurar/remover backups. Arquivos com mais de 36 horas geram atenção. Existência de um arquivo não comprova restauração.
+* Coletas planejadas a cada 5 minutos por crontab dos usuários dos hosts, com `flock` para impedir sobreposição. A instalação efetiva e os caminhos do Homelab são registrados na seção 16. Mudanças nos coletores exigem atualizar também a cópia do Homelab; o deploy da VPS não faz essa cópia automaticamente.
+
 O arquivo `/home/ubuntu/escola_agenda/.env` na VPS contém as configurações de produção:
 
 | Variável | Descrição | Exemplo / Valor |
@@ -329,6 +339,8 @@ O arquivo `/home/ubuntu/escola_agenda/.env` na VPS contém as configurações de
 ---
 
 ## 🧪 11. Testes Automatizados e Garantia de Qualidade
+
+* `test_operations.py`: snapshots de saúde, atraso de coleta, horários úteis, distinção entre execução manual e automática, sanitização e chave exclusiva do monitoramento.
 
 * ✅ **Framework**: `unittest` padrão do Python.
 * ✅ **Localização dos Testes**: Diretório `tests/`:
@@ -480,3 +492,9 @@ O arquivo `/home/ubuntu/escola_agenda/.env` na VPS contém as configurações de
 
 * **Conclusão efetiva em 02/10/2026 — GPT/Codex:** implementação publicada e aplicada na VPS na revisão `13e62c0`. Reexecutados 48 testes, todos aprovados, com `DATABASE_URL` apontando para SQLite temporário `agenda_auth_resume_20261002.db`; `git diff --check`, sintaxe Bash e Compose aprovados. Backup custom prévio validado por `pg_restore -l`, sem restauração, em `/home/ubuntu/agenda-private-backups/before-admin-auth-20261002.dump` (diretório privado). Migração aditiva executada antes dos reinícios; Alembic atualizado de `c3e1a2b4d5e6` para `d4f2a3b5c6d7`. Nenhum build necessário. App/db healthy, Celery respondeu pong e `/health` público confirmou banco conectado; contagens preservadas: 26 usuários, 4 recursos, 1894 reservas. Tela publicada confirmou etapa de senha e opção de sete dias, sem autenticar nem alterar senha real. Nenhuma mensagem WhatsApp enviada.
 * **Continuidade:** criar a senha inicial pelo link privado de uso único entregue ao titular, válido por 30 minutos; senha real permanece sob controle do mantenedor. Até essa definição, o administrador não pode entrar por matrícula apenas. O SQLite local versionado teve a migração aditiva verificada com backup e depois foi preservado em seu conteúdo original, sem publicar dados binários; para executar diretamente sobre esse banco, rodar `python scripts/migrate_admin_auth.py` antes de iniciar a aplicação. Este registro final deve ser sincronizado nas três cópias sem reinício.
+
+### 2026-10-02 — GPT/Codex — Saúde das automações no painel
+
+* **Alteração/motivo:** quatro cartões na Visão Geral para WhatsApp, backup local, R2 e serviços. Distinção entre execução automática matinal, tentativas manuais, testes fora do horário e coleta atrasada; contagem agregada de mensagens aceitas pela API. Consultas não enviam mensagens nem executam backups/restaurações.
+* **Arquivos/serviços:** `operations.py`, rotas admin/integrações, templates do dashboard/cartões, Compose/env de exemplo, dois coletores e `tests/test_operations.py`. Chave dedicada e snapshots privados no volume; nenhuma nova tabela ou dependência de build.
+* **Validação local:** 56 testes aprovados em SQLite temporário isolado (`agenda_operations_tests_20261002.db`), incluindo 8 regressões novas; coletor n8n validado em modo leitura com execução real 11 (teste automático 10h22, uma aceitação, somente administrador). Prévia local com dados fictícios renderizou quatro cartões e alertou corretamente para ausência do disparo matinal. `git diff --check` aprovado. Publicação/deploy/instalação das coletas ainda pendentes neste registro; registrar o resultado efetivo antes de encerrar.

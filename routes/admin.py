@@ -18,6 +18,7 @@ from auth_schema import secure_restored_admin_accounts
 from werkzeug.utils import secure_filename
 from models import db, Teacher, Resource, ScheduleTemplate, Booking, BookingAuditLog, AdminAccessToken
 from extensions import celery
+from operations import dashboard_status
 from security import confirmation_needed, confirm_admin_password, recent_admin_required, issue_access_token
 from utils import admin_required, clean_old_backups, sanitize_phone, format_phone
 
@@ -148,6 +149,7 @@ def admin_dashboard():
         active_resources=active_resources,
         total_teachers=total_teachers,
         total_cancelations=total_cancelations,
+        operations_cards=dashboard_status(DATA_DIR),
         today_bookings=today_bookings,
         chart_resource_labels=chart_resource_labels,
         chart_resource_data=chart_resource_data,

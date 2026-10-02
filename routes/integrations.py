@@ -2,14 +2,38 @@
 Rotas de integração da Agenda Escolar com sistemas externos (n8n, Evolution API, WhatsApp, etc.).
 """
 import os
+import json
+import secrets
 from datetime import datetime, date
 from flask import Blueprint, request, jsonify
 from models import db, Teacher, Resource, Booking
 from utils import format_phone
+from operations import save_snapshot
 
 integrations_bp = Blueprint('integrations', __name__, url_prefix='/api/integrations')
 
 DEFAULT_API_KEY = 'escola-agenda-integracao-2026'
+
+
+@integrations_bp.route('/monitor/whatsapp', methods=['POST'])
+def receive_whatsapp_monitor():
+    # Dedicated key grants only snapshot publication, never booking/contact access.
+    expected = os.environ.get('MONITOR_API_KEY', '')
+    provided = request.headers.get('X-Monitor-Key', '')
+    if not expected or not secrets.compare_digest(expected, provided):
+        return jsonify(status='unauthorized'), 401
+    if request.content_length and request.content_length > 65536:
+        return jsonify(status='too_large'), 413
+    raw = request.stream.read(65537)
+    if len(raw) > 65536:
+        return jsonify(status='too_large'), 413
+    try:
+        payload = json.loads(raw)
+        folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+        save_snapshot(folder, 'whatsapp', payload)
+    except (ValueError, TypeError, KeyError):
+        return jsonify(status='invalid'), 400
+    return jsonify(status='ok')
 
 WEEKDAYS_PT = {
     0: "Segunda-feira",

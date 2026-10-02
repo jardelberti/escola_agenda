@@ -1,0 +1,13 @@
+<section class="mb-6" aria-labelledby="operations-title">
+  <h3 id="operations-title" class="text-lg font-bold text-slate-800 mb-1">Saúde das automações</h3>
+  <p class="text-sm text-slate-500 mb-3">Atualização a cada 5 minutos. Horários de Brasília. Esta consulta não envia mensagens.</p>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+    {% for item in operations_cards %}
+    <article class="bg-white rounded-2xl border border-slate-200 p-4">
+      <h4 class="font-bold text-slate-800">{{ item.title }}</h4>
+      <p class="font-semibold mt-1 {% if item.state == 'ok' %}text-emerald-700{% elif item.state == 'error' %}text-red-700{% else %}text-amber-700{% endif %}">{{ item.text }}</p>
+      <p class="text-sm text-slate-500 mt-2 break-words">{{ item.detail }}</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
