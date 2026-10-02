@@ -369,6 +369,7 @@ O arquivo `/home/ubuntu/escola_agenda/.env` na VPS contém as configurações de
 ## 🤝 15. Protocolo de Contexto Compartilhado entre Agentes
 
 * Ler este guia antes de alterar código ou infraestrutura e respeitar o escopo autorizado pelo mantenedor.
+* **Sincronização autorizada pelo mantenedor:** ao concluir alterações neste projeto, manter o checkout local, a branch `main` no GitHub e o checkout da VPS atualizados na mesma revisão, incluindo esta documentação. O mantenedor autorizou commit, push e deploy como parte desse fluxo; uma instrução posterior para apenas revisar ou não publicar prevalece. Antes de atualizar, conferir alterações locais/remotas e não sobrescrever trabalho de terceiros. Usar atualização fast-forward, executar as verificações adequadas à mudança e validar os serviços após deploy. Registrar e informar qualquer bloqueio ou divergência; nunca declarar sincronização sem comparar os commits. Não há monitoramento contínuo implícito fora das tarefas.
 * Conferir afirmações no código/configuração ou no serviço correspondente. Em divergências, registrar a evidência e corrigir o guia; a documentação não substitui a verificação.
 * **OBRIGATÓRIO PARA QUALQUER AGENTE DE IA:** toda alteração realizada no projeto (código, testes, documentação, configuração, automação ou infraestrutura) deve ser registrada neste `AGENTS.md` antes de encerrar a tarefa. Atualizar também as seções afetadas, para que qualquer outro agente consiga entender o estado do projeto e prosseguir sem depender do histórico do chat.
 * Cada registro deve conter data, agente responsável, o que mudou, motivo, arquivos/serviços afetados, validações efetivamente realizadas e pendências ou próximo passo. Distinguir alteração local, publicação no GitHub e deploy em produção; nunca afirmar que um deploy ocorreu apenas porque houve push.
@@ -387,3 +388,10 @@ O arquivo `/home/ubuntu/escola_agenda/.env` na VPS contém as configurações de
 * **Publicação:** atualização destinada à branch `main` do GitHub, autorizada pelo mantenedor. Confirmar a conclusão do push no resultado da tarefa e no histórico Git.
 * **Produção:** nenhum deploy ou reinício realizado nesta tarefa; publicação da documentação não atualiza automaticamente a cópia da VPS.
 * **Continuidade:** consultar as pendências da seção 14 antes de operações relacionadas; manter este registro e as seções afetadas atualizados em cada tarefa futura.
+
+
+### 2026-10-02 — GPT/Codex — Política de sincronização e deploy
+
+* **Alteração:** orientação explícita para manter local, GitHub e VPS na mesma revisão ao concluir tarefas, conforme autorização do mantenedor.
+* **Escopo:** documentação em AGENTS.md e atualização da VPS pelo fluxo oficial; nenhum ajuste funcional solicitado.
+* **Validação planejada:** diff sem erros, revisão publicada, comparação dos commits e estado dos quatro serviços após build/deploy. O resultado efetivo será confirmado ao fim da tarefa; em caso de falha, registrar a pendência aqui.
