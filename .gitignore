@@ -7,3 +7,6 @@ __pycache__/
 *.pyc
 .vscode/
 data/backups/
+backups/
+*.log
+*.dump
