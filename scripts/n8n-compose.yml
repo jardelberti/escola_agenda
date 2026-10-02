@@ -1,0 +1,46 @@
+---
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:2.32.6@sha256:5ec13739a47b1eb374eb133345a7f234f708e549d28b714f1c9a009d6ddb8239
+    container_name: n8n
+    restart: unless-stopped
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    environment:
+      TZ: "America/Sao_Paulo"
+      GENERIC_TIMEZONE: "America/Sao_Paulo"
+      N8N_LISTEN_ADDRESS: "0.0.0.0"
+      N8N_PORT: "5678"
+      N8N_SECURE_COOKIE: "false"
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+      N8N_PYTHON_ENABLED: "false"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      N8N_VERSION_NOTIFICATIONS_ENABLED: "false"
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "true"
+      DB_TYPE: "sqlite"
+      DB_SQLITE_POOL_SIZE: "2"
+      EXECUTIONS_DATA_PRUNE: "true"
+      EXECUTIONS_DATA_MAX_AGE: "168"
+      EXECUTIONS_DATA_PRUNE_MAX_COUNT: "10000"
+    ports:
+      - "192.168.0.235:5678:5678/tcp"
+      - "100.81.69.55:5678:5678/tcp"
+    volumes:
+      - "/srv/homelab/private/n8n:/home/node/.n8n"
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 768m
+    cpus: "1.00"
+    pids_limit: 256
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:5678/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      start_period: 60s
+      timeout: 5s
+      interval: 20s
+      retries: 10

@@ -1,7 +1,8 @@
 import sqlite3
 import json
 import uuid
-from datetime import datetime
+import sys
+from datetime import datetime, timezone
 
 DB_PATH = "/data/database.sqlite"
 
@@ -16,13 +17,14 @@ def fix_agenda_workflow():
     row = cur.execute("SELECT * FROM workflow_entity WHERE id = ?", ("agendaEscola0001",)).fetchone()
     if not row:
         print("Workflow agendaEscola0001 not found!")
+        conn.close()
         return
 
     nodes = json.loads(row["nodes"])
     for node in nodes:
+        # 1. Schedule Trigger fix
         if node.get("type") == "n8n-nodes-base.scheduleTrigger":
-            print("Encontrado scheduleTrigger no agendaEscola0001. Atualizando para Cron Expression à prova de falhas...")
-            # Usando cronExpression explícito para 07:00 de segunda a sexta
+            print("Atualizando scheduleTrigger para Cron Expression direta: 0 7 * * 1-5")
             node["parameters"] = {
                 "rule": {
                     "interval": [
@@ -33,27 +35,64 @@ def fix_agenda_workflow():
                     ]
                 }
             }
+        
+        # 2. HTTP Request retry fix (para evitar falhas por instabilidade momentânea de DNS/rede)
+        if node.get("type") == "n8n-nodes-base.httpRequest":
+            print(f"Configurando retry automático no nó: {node.get('name')}")
+            opts = node.get("parameters", {}).get("options", {})
+            opts["retryOnFail"] = True
+            opts["maxTries"] = 3
+            opts["waitBetweenTries"] = 2000
+            node["parameters"]["options"] = opts
 
     new_nodes_json = json.dumps(nodes)
     new_static_data = json.dumps({})
-    now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.000")
-    
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.000")
+    active_version_id = row["activeVersionId"] or row["versionId"]
+
+    # Atualiza workflow_entity
     cur.execute("""
         UPDATE workflow_entity 
         SET nodes = ?, staticData = ?, active = 1, updatedAt = ?
         WHERE id = ?
     """, (new_nodes_json, new_static_data, now, "agendaEscola0001"))
+
+    # ATENÇÃO CRÍTICA: No n8n 2.x, a versão ativa executada é lida de workflow_history!
+    # Atualiza workflow_history para refletir a nova versão
+    hist_row = cur.execute("SELECT * FROM workflow_history WHERE workflowId = ? AND versionId = ?", 
+                           ("agendaEscola0001", active_version_id)).fetchone()
+    if hist_row:
+        cur.execute("""
+            UPDATE workflow_history
+            SET nodes = ?, updatedAt = ?
+            WHERE workflowId = ? AND versionId = ?
+        """, (new_nodes_json, now, "agendaEscola0001", active_version_id))
+        print(f"workflow_history atualizado para versão ativa {active_version_id}!")
+    else:
+        # Se não existia o registro histórico exato, cria
+        cur.execute("""
+            INSERT INTO workflow_history (
+                versionId, workflowId, authors, createdAt, updatedAt, nodes, connections, name
+            ) VALUES (?, 'agendaEscola0001', 'Jardel Berti', ?, ?, ?, ?, 'Agenda Escolar - Notificações WhatsApp')
+        """, (active_version_id, now, now, new_nodes_json, row["connections"]))
+        print(f"workflow_history inserido para versão {active_version_id}!")
+
+    # Limpa workflow de teste antigo para não disparar mais
+    cur.execute("DELETE FROM workflow_history WHERE workflowId = 'testeJardel001'")
+    cur.execute("DELETE FROM shared_workflow WHERE workflowId = 'testeJardel001'")
+    cur.execute("DELETE FROM workflow_entity WHERE id = 'testeJardel001'")
+    print("Workflow de teste anterior limpo com sucesso.")
+
     conn.commit()
-    print("Workflow agendaEscola0001 atualizado com sucesso!")
+    print("Workflow agendaEscola0001 100% atualizado e alinhado!")
     conn.close()
 
-def create_test_workflow(target_hour=7, target_minute=50):
+def create_test_workflow(target_hour, target_minute):
     conn = get_db()
     cur = conn.cursor()
     wf_id = "testeJardel001"
     version_id = str(uuid.uuid4())
     
-    # Monta cron para o horário de teste
     cron_expr = f"{target_minute} {target_hour} * * *"
     print(f"Configurando workflow de teste para disparar às {target_hour:02d}:{target_minute:02d} (cron: {cron_expr})")
 
@@ -91,7 +130,11 @@ def create_test_workflow(target_hour=7, target_minute=50):
                 "sendBody": True,
                 "specifyBody": "json",
                 "jsonBody": "={\n  \"number\": \"5547999283466\",\n  \"text\": \"🧪 *TESTE N8N AUTOMÁTICO* 🧪\\n\\nDisparo agendado executado com SUCESSO via cron do n8n!\\nHorário previsto: " + f"{target_hour:02d}:{target_minute:02d}" + "\\n\\nSe você recebeu isso, o agendador está 100% curado e operacional!\"\n}",
-                "options": {}
+                "options": {
+                    "retryOnFail": True,
+                    "maxTries": 3,
+                    "waitBetweenTries": 2000
+                }
             },
             "id": "http-send-teste",
             "name": "Enviar WhatsApp Teste",
@@ -123,12 +166,12 @@ def create_test_workflow(target_hour=7, target_minute=50):
         "saveExecutionProgress": True
     }
 
-    now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.000")
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.000")
 
-    # Verifica se já existe
     cur.execute("DELETE FROM workflow_history WHERE workflowId = ?", (wf_id,))
     cur.execute("DELETE FROM workflow_entity WHERE id = ?", (wf_id,))
-    
+    cur.execute("DELETE FROM shared_workflow WHERE workflowId = ?", (wf_id,))
+
     cur.execute("""
         INSERT INTO workflow_history (
             versionId, workflowId, authors, createdAt, updatedAt, nodes, connections, name
@@ -161,7 +204,6 @@ def create_test_workflow(target_hour=7, target_minute=50):
         now
     ))
 
-    cur.execute("DELETE FROM shared_workflow WHERE workflowId = ?", (wf_id,))
     cur.execute("""
         INSERT INTO shared_workflow (
             workflowId, projectId, role, createdAt, updatedAt
@@ -169,19 +211,14 @@ def create_test_workflow(target_hour=7, target_minute=50):
     """, (wf_id, now, now))
 
     conn.commit()
-    print(f"Workflow de teste {wf_id} inserido com sucesso!")
+    print(f"Workflow de teste {wf_id} inserido com sucesso para às {target_hour:02d}:{target_minute:02d}!")
     conn.close()
 
 if __name__ == "__main__":
-    import sys
     fix_agenda_workflow()
     
-    # Se passado minuto e hora via argumento
-    h = 7
-    m = 50
-    if len(sys.argv) > 2:
-        h = int(sys.argv[1])
-        m = int(sys.argv[2])
-    elif len(sys.argv) > 1:
-        m = int(sys.argv[1])
-    create_test_workflow(h, m)
+    if len(sys.argv) > 2 and sys.argv[1] == "--test":
+        # Formato: --test HH MM
+        h = int(sys.argv[2])
+        m = int(sys.argv[3])
+        create_test_workflow(h, m)
